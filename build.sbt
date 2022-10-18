@@ -59,7 +59,9 @@ lazy val serverDeps = Seq(
   "com.typesafe.akka"             %% "akka-actor-typed"            % AkkaVer,
   "com.typesafe.akka"             %% "akka-cluster-typed"          % AkkaVer,
   "com.typesafe.akka"             %% "akka-serialization-jackson"  % AkkaVer,
-  "com.typesafe.akka"             %% "akka-cluster-sharding-typed" % AkkaVer
+  "com.typesafe.akka"             %% "akka-cluster-sharding-typed" % AkkaVer,
+  "com.typesafe.akka"             %% "akka-actor-testkit-typed"    % AkkaVer      % Test,
+  "org.scalatest"                 %% "scalatest"                   % ScalaTestVer % Test
 )
 
 lazy val kceCommon = (project in file("kce-common"))

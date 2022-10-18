@@ -1,7 +1,7 @@
 package kce.common
 
 import kce.common.FutureExtension.FutureWrapper
-import testkit.STSpec
+import kce.testkit.STSpec
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future

@@ -1,7 +1,7 @@
 package kce.common
 
 import kce.common.CollectionExtension.IterableWrapper
-import testkit.STSpec
+import kce.testkit.STSpec
 
 class CollectionExtensionSpec extends STSpec {
 

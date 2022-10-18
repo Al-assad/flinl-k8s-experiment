@@ -3,7 +3,7 @@ package kce.common
 import akka.actor.typed.receptionist.{Receptionist, ServiceKey}
 import akka.actor.typed.scaladsl.Behaviors
 import akka.actor.typed.{ActorRef, Behavior}
-import testkit.STActorSpec
+import kce.testkit.STActorSpec
 
 class ActorExtensionSpec extends STActorSpec {
 

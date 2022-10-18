@@ -1,4 +1,4 @@
-package testkit
+package kce.testkit
 
 import akka.actor.testkit.typed.scaladsl.ActorTestKit
 import akka.actor.typed.ActorSystem

@@ -1,7 +1,7 @@
 package kce.common
 
 import kce.common.Color.Color
-import testkit.STSpec
+import kce.testkit.STSpec
 import zio.json._
 
 class ComplexEnumSpec extends STSpec {

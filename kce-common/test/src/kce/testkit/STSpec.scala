@@ -1,4 +1,4 @@
-package testkit
+package kce.testkit
 
 import kce.common.ZIOExtension
 import org.scalatest.BeforeAndAfterAll
