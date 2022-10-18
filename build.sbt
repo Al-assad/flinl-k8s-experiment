@@ -12,6 +12,7 @@ lazy val UpickleVer      = "2.0.0"
 lazy val LogbackVer      = "1.4.3"
 lazy val HoconVer        = "1.4.2"
 lazy val ScalaLoggingVer = "3.9.5"
+lazy val ScalaTestVer    = "3.2.14"
 
 lazy val FlinkDefaultVer = Flink15Ver
 lazy val Flink15Ver      = "1.15.2"
@@ -26,24 +27,6 @@ lazy val commonSettings = Seq(
   Test / scalaSource          := baseDirectory.value / "test" / "src",
   Test / javaSource           := baseDirectory.value / "test" / "src",
   Test / resourceDirectory    := baseDirectory.value / "test" / "resources"
-)
-
-lazy val serverDeps = Seq(
-  "ch.qos.logback"                 % "logback-classic"             % LogbackVer,
-  "com.typesafe"                   % "config"                      % HoconVer,
-  "com.typesafe.scala-logging"    %% "scala-logging"               % ScalaLoggingVer,
-  "dev.zio"                       %% "zio"                         % ZIOVer,
-  "dev.zio"                       %% "zio-json"                    % ZIOJsonVer,
-  "com.lihaoyi"                   %% "upickle"                     % UpickleVer,
-  "com.softwaremill.sttp.client3" %% "core"                        % SttpVer,
-  "com.softwaremill.sttp.client3" %% "zio"                         % SttpVer,
-  "com.softwaremill.sttp.client3" %% "zio-json"                    % SttpVer,
-  "com.softwaremill.sttp.client3" %% "slf4j-backend"               % SttpVer,
-  "com.coralogix"                 %% "zio-k8s-client"              % ZIOK8sVer,
-  "com.typesafe.akka"             %% "akka-actor-typed"            % AkkaVer,
-  "com.typesafe.akka"             %% "akka-cluster-typed"          % AkkaVer,
-  "com.typesafe.akka"             %% "akka-serialization-jackson"  % AkkaVer,
-  "com.typesafe.akka"             %% "akka-cluster-sharding-typed" % AkkaVer
 )
 
 lazy val root = (project in file("."))
@@ -61,23 +44,44 @@ lazy val root = (project in file("."))
     flinkOperator13
   )
 
+lazy val serverDeps = Seq(
+  "ch.qos.logback"                 % "logback-classic"             % LogbackVer,
+  "com.typesafe.scala-logging"    %% "scala-logging"               % ScalaLoggingVer,
+  "com.typesafe"                   % "config"                      % HoconVer,
+  "dev.zio"                       %% "zio"                         % ZIOVer,
+  "dev.zio"                       %% "zio-json"                    % ZIOJsonVer,
+  "com.lihaoyi"                   %% "upickle"                     % UpickleVer,
+  "com.softwaremill.sttp.client3" %% "core"                        % SttpVer,
+  "com.softwaremill.sttp.client3" %% "zio"                         % SttpVer,
+  "com.softwaremill.sttp.client3" %% "zio-json"                    % SttpVer,
+  "com.softwaremill.sttp.client3" %% "slf4j-backend"               % SttpVer,
+  "com.coralogix"                 %% "zio-k8s-client"              % ZIOK8sVer,
+  "com.typesafe.akka"             %% "akka-actor-typed"            % AkkaVer,
+  "com.typesafe.akka"             %% "akka-cluster-typed"          % AkkaVer,
+  "com.typesafe.akka"             %% "akka-serialization-jackson"  % AkkaVer,
+  "com.typesafe.akka"             %% "akka-cluster-sharding-typed" % AkkaVer
+)
+
 lazy val kceCommon = (project in file("kce-common"))
   .settings(commonSettings)
   .settings(
     name         := "kce-common",
     scalaVersion := Scala213,
     libraryDependencies ++= Seq(
-      "ch.qos.logback"              % "logback-classic"    % LogbackVer,
-      "com.typesafe.scala-logging" %% "scala-logging"      % ScalaLoggingVer,
-      "dev.zio"                    %% "zio"                % ZIOVer,
-      "com.typesafe.akka"          %% "akka-actor-typed"   % AkkaVer,
-      "com.typesafe.akka"          %% "akka-cluster-typed" % AkkaVer
+      "ch.qos.logback"              % "logback-classic"          % LogbackVer,
+      "com.typesafe.scala-logging" %% "scala-logging"            % ScalaLoggingVer,
+      "dev.zio"                    %% "zio"                      % ZIOVer,
+      "dev.zio"                    %% "zio-json"                 % ZIOJsonVer,
+      "com.typesafe.akka"          %% "akka-actor-typed"         % AkkaVer,
+      "com.typesafe.akka"          %% "akka-cluster-typed"       % AkkaVer,
+      "com.typesafe.akka"          %% "akka-actor-testkit-typed" % AkkaVer      % Test,
+      "org.scalatest"              %% "scalatest"                % ScalaTestVer % Test
     )
   )
   .cross
 
-lazy val kceCommon_212 = kceCommon(Scala212)
 lazy val kceCommon_213 = kceCommon(Scala213)
+lazy val kceCommon_212 = kceCommon(Scala212)
 
 lazy val kceServer = (project in file("kce-server"))
   .settings(commonSettings)
@@ -100,8 +104,8 @@ lazy val flinkOperatorBase = (project in file("flink-operator-base"))
   )
   .cross
 
-lazy val flinkOperatorBase_212 = flinkOperatorBase(Scala212).dependsOn(kceCommon_212)
 lazy val flinkOperatorBase_213 = flinkOperatorBase(Scala213).dependsOn(kceCommon_213)
+lazy val flinkOperatorBase_212 = flinkOperatorBase(Scala212).dependsOn(kceCommon_212)
 
 lazy val flinkSqlInteract = (project in file("flink-sql-interact"))
   .settings(commonSettings)

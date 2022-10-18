@@ -12,7 +12,10 @@ import zio.{Schedule, Task, ZIO}
 import scala.concurrent.Future
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 
-object ActorExtension {
+/**
+ * Akka Extension for interoperability with ZIO and Future.
+ */
+trait ActorExtension {
 
   implicit class FutureWrapper[Value](future: Future[Value]) {
     @inline def pipeTo[T](ctx: ActorContext[T])(mapResult: Either[Throwable, Value] => T): Unit =
@@ -69,6 +72,8 @@ object ActorExtension {
   }
 
 }
+
+object ActorExtension extends ActorExtension
 
 /**
  * The ActorRef with the specified ServiceKey is not found in Akka Receptionist.

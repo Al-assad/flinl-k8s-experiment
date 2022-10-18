@@ -3,7 +3,10 @@ package kce.common
 import akka.actor.typed.scaladsl.ActorContext
 import zio._
 
-object ZIOExtension {
+/**
+ * ZIO extensions for interoperability with Future and Akka.
+ */
+trait ZIOExtension {
 
   @inline def zioRun[E, A](zio: IO[E, A]): Exit[E, A] = {
     Unsafe.unsafe(implicit u => Runtime.default.unsafe.run(zio))
@@ -27,3 +30,5 @@ object ZIOExtension {
   def close(resource: AutoCloseable): UIO[Unit] = ZIO.succeed(resource.close())
 
 }
+
+object ZIOExtension extends ZIOExtension
