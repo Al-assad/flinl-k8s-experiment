@@ -2,6 +2,9 @@ package kce.common
 
 import zio.json._
 
+/**
+ * Enum based on Scala 2.x Enumeration, automatically deriving ZIO json Codec.
+ */
 abstract class ComplexEnum extends Enumeration {
 
   implicit val jsonDecoder: JsonDecoder[Value] = JsonDecoder[String].mapOrFail { name =>
