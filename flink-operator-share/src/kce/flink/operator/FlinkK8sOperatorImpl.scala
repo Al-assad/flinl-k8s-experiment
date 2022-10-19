@@ -16,6 +16,7 @@ object FlinkK8sOperatorImpl extends FlinkK8sOperator {
   override def deploySessionCluster(definition: FlinkSessDef): IO[Throwable, Unit] = {
     // generate pod template
 
+    // judge and inject s3 config
     // convert to flink configuration
     val rawConfig = definition.toFlinkRawConfig
       .append("$internal.deployment.config-dir", KceConf.default.flinkLogConfDir)

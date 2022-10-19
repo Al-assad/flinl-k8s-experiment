@@ -36,9 +36,7 @@ lazy val root = (project in file("."))
     kceCommon_212,
     kceCommon_213,
     kceServer,
-    flinkOperatorBase_213,
-    flinkOperatorBase_212,
-    flinkSqlInteract,
+    flinkOperatorShare,
     flinkOperator15,
     flinkOperator14,
     flinkOperator13
@@ -97,27 +95,14 @@ lazy val kceServer = (project in file("kce-server"))
   )
   .dependsOn(kceCommon_213)
 
-lazy val flinkOperatorBase = (project in file("flink-operator-base"))
+lazy val flinkOperatorShare = (project in file("flink-operator-share"))
   .settings(commonSettings)
   .settings(
     name         := "flink-operator-base",
-    scalaVersion := Scala213,
-    libraryDependencies ++= Seq(
-      "org.apache.flink" % "flink-clients"    % FlinkDefaultVer % Provided,
-      "org.apache.flink" % "flink-kubernetes" % FlinkDefaultVer % Provided
-    ) ++ serverDeps
-  )
-  .cross
-
-lazy val flinkOperatorBase_213 = flinkOperatorBase(Scala213).dependsOn(kceCommon_213)
-lazy val flinkOperatorBase_212 = flinkOperatorBase(Scala212).dependsOn(kceCommon_212)
-
-lazy val flinkSqlInteract = (project in file("flink-sql-interact"))
-  .settings(commonSettings)
-  .settings(
-    name         := "flink-sql-interact",
     scalaVersion := Scala212,
     libraryDependencies ++= Seq(
+      "org.apache.flink"  % "flink-clients"       % FlinkDefaultVer % Provided,
+      "org.apache.flink"  % "flink-kubernetes"    % FlinkDefaultVer % Provided,
       "org.apache.flink" %% "flink-table-planner" % FlinkDefaultVer % Provided
     ) ++ serverDeps
   )
@@ -134,7 +119,7 @@ lazy val flinkOperator15 = (project in file("flink-operator-15"))
       "org.apache.flink" %% "flink-table-planner" % Flink15Ver
     )
   )
-  .dependsOn(flinkOperatorBase_212, flinkSqlInteract)
+  .dependsOn(flinkOperatorShare)
 
 lazy val flinkOperator14 = (project in file("flink-operator-14"))
   .settings(commonSettings)
@@ -146,7 +131,7 @@ lazy val flinkOperator14 = (project in file("flink-operator-14"))
       "org.apache.flink" %% "flink-kubernetes"    % Flink14Ver,
       "org.apache.flink" %% "flink-table-planner" % Flink14Ver
     ))
-  .dependsOn(flinkOperatorBase_212, flinkSqlInteract)
+  .dependsOn(flinkOperatorShare)
 
 lazy val flinkOperator13 = (project in file("flink-operator-13"))
   .settings(commonSettings)
@@ -159,4 +144,4 @@ lazy val flinkOperator13 = (project in file("flink-operator-13"))
       "org.apache.flink" %% "flink-table-planner-blink" % Flink13Ver
     )
   )
-  .dependsOn(flinkOperatorBase_212, flinkSqlInteract)
+  .dependsOn(flinkOperatorShare)
