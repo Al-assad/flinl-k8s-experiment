@@ -51,11 +51,11 @@ lazy val serverDeps = Seq(
   "dev.zio"                       %% "zio"                         % ZIOVer,
   "dev.zio"                       %% "zio-json"                    % ZIOJsonVer,
   "com.lihaoyi"                   %% "upickle"                     % UpickleVer,
+  "com.coralogix"                 %% "zio-k8s-client"              % ZIOK8sVer,
   "com.softwaremill.sttp.client3" %% "core"                        % SttpVer,
   "com.softwaremill.sttp.client3" %% "zio"                         % SttpVer,
   "com.softwaremill.sttp.client3" %% "zio-json"                    % SttpVer,
   "com.softwaremill.sttp.client3" %% "slf4j-backend"               % SttpVer,
-  "com.coralogix"                 %% "zio-k8s-client"              % ZIOK8sVer,
   "com.typesafe.akka"             %% "akka-actor-typed"            % AkkaVer,
   "com.typesafe.akka"             %% "akka-cluster-typed"          % AkkaVer,
   "com.typesafe.akka"             %% "akka-serialization-jackson"  % AkkaVer,
@@ -70,14 +70,17 @@ lazy val kceCommon = (project in file("kce-common"))
     name         := "kce-common",
     scalaVersion := Scala213,
     libraryDependencies ++= Seq(
-      "ch.qos.logback"              % "logback-classic"          % LogbackVer,
-      "com.typesafe.scala-logging" %% "scala-logging"            % ScalaLoggingVer,
-      "dev.zio"                    %% "zio"                      % ZIOVer,
-      "dev.zio"                    %% "zio-json"                 % ZIOJsonVer,
-      "com.typesafe.akka"          %% "akka-actor-typed"         % AkkaVer,
-      "com.typesafe.akka"          %% "akka-cluster-typed"       % AkkaVer,
-      "com.typesafe.akka"          %% "akka-actor-testkit-typed" % AkkaVer      % Test,
-      "org.scalatest"              %% "scalatest"                % ScalaTestVer % Test
+      "ch.qos.logback"                 % "logback-classic"          % LogbackVer,
+      "com.typesafe.scala-logging"    %% "scala-logging"            % ScalaLoggingVer,
+      "dev.zio"                       %% "zio"                      % ZIOVer,
+      "dev.zio"                       %% "zio-json"                 % ZIOJsonVer,
+      "com.softwaremill.sttp.client3" %% "core"                     % SttpVer,
+      "com.softwaremill.sttp.client3" %% "zio"                      % SttpVer,
+      "com.coralogix"                 %% "zio-k8s-client"           % ZIOK8sVer,
+      "com.typesafe.akka"             %% "akka-actor-typed"         % AkkaVer,
+      "com.typesafe.akka"             %% "akka-cluster-typed"       % AkkaVer,
+      "com.typesafe.akka"             %% "akka-actor-testkit-typed" % AkkaVer      % Test,
+      "org.scalatest"                 %% "scalatest"                % ScalaTestVer % Test
     )
   )
   .cross
