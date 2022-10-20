@@ -2,17 +2,18 @@ package kce.flink.operator
 
 import com.coralogix.zio.k8s.client.K8sFailure
 import com.coralogix.zio.k8s.client.v1.services.Services
+import kce.conf.KceConf
 import kce.flink.operator.entity.{FlinkRestSvcEndpoint, FlinkSessDef}
 import zio._
 
 trait FlinkK8sOperator {
 
-  def deployApplication(): IO[Throwable, Unit]
+  def deployApplication(): ZIO[KceConf, Throwable, Unit]
 
   /**
    * Deploy Flink session cluster.
    */
-  def deploySessionCluster(definition: FlinkSessDef): IO[Throwable, Unit]
+  def deploySessionCluster(definition: FlinkSessDef): ZIO[KceConf, Throwable, Unit]
 
   /**
    * Retrieve Flink rest endpoint via kubernetes api.

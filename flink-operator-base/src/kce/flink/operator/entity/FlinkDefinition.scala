@@ -1,5 +1,6 @@
 package kce.flink.operator.entity
 
+import kce.common.S3Tool.isS3Path
 import kce.conf.KceConf
 import kce.flink.operator.FlinkConfigExtension.{configurationToPF, EmptyConfiguration}
 import org.apache.flink.configuration.Configuration
@@ -12,9 +13,10 @@ import scala.language.implicitConversions
  */
 case class FlinkSessDef(
     clusterId: String,
-    namespace: String,
+    namespace: String = "default",
+    flinkVer: FlinkVer,
     image: String,
-    k8sAccount: String = KceConf.default.k8s.flinkAccount,
+    k8sAccount: Option[String] = None,
     cpu: CpuConf = CpuConf(),
     mem: MemConf = MemConf(),
     par: ParConf = ParConf(),
@@ -27,12 +29,15 @@ case class FlinkSessDef(
     overridePodTemplate: Option[String] = None,
     extRawConfigs: Map[String, String] = Map.empty) {
 
-  def toFlinkRawConfig: Configuration = {
+  /**
+   * Convert to Flink raw configuration.
+   */
+  def toFlinkRawConfig(kceConf: KceConf): Configuration = {
     EmptyConfiguration()
       .append("execution.target", "kubernetes-session")
       .append("kubernetes.cluster-id", clusterId)
       .append("kubernetes.namespace", namespace)
-      .append("kubernetes.service-account", k8sAccount)
+      .append("kubernetes.service-account", k8sAccount.getOrElse(kceConf.flink.k8sAccount))
       // inner config settings
       .append(cpu)
       .append(mem)
@@ -49,7 +54,27 @@ case class FlinkSessDef(
       }
       // override extra raw configs
       .merge(extRawConfigs)
+      .append("$internal.deployment.config-dir", kceConf.flink.localLogConfDir)
   }
+
+  /**
+   * Whether built-in s3 storage support is required.
+   */
+  def isS3Required: Boolean = {
+    lazy val checkStateBackend = stateBackend.exists { c =>
+      if (c.checkpointDir.exists(isS3Path)) true
+      else c.savepointDir.exists(isS3Path)
+    }
+    lazy val checkJmHa         = jmHa.exists(c => isS3Path(c.storageDir))
+    lazy val checkInjectDeps   = injectedDeps.exists(isS3Path)
+    lazy val checkExRawConfigs = extRawConfigs.exists { case (_, v) => isS3Path(v) }
+
+    if (checkStateBackend) true
+    else if (checkJmHa) true
+    else if (checkInjectDeps) true
+    else checkExRawConfigs
+  }
+
 }
 
 object FlinkSessDef {

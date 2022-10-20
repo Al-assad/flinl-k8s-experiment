@@ -7,8 +7,9 @@ lazy val ZIOVer          = "2.0.2"
 lazy val ZIOJsonVer      = "0.3.0"
 lazy val ZIOHttpVer      = "2.0.0-RC10"
 lazy val ZIOK8sVer       = "2.0.1"
-lazy val SttpVer         = "3.8.2"
+lazy val SttpVer         = "3.8.3"
 lazy val UpickleVer      = "2.0.0"
+lazy val QuicklensVer    = "1.9.0"
 lazy val LogbackVer      = "1.4.3"
 lazy val HoconVer        = "1.4.2"
 lazy val ScalaLoggingVer = "3.9.5"
@@ -36,30 +37,17 @@ lazy val root = (project in file("."))
     kceCommon_212,
     kceCommon_213,
     kceServer,
-    flinkOperatorShare,
-    flinkOperator15,
-    flinkOperator14,
-    flinkOperator13
+    flinkOperatorBase,
+    flinkOperator115,
+    flinkOperator114,
+    flinkOperator113
   )
 
-lazy val serverDeps = Seq(
-  "ch.qos.logback"                 % "logback-classic"             % LogbackVer,
-  "com.typesafe.scala-logging"    %% "scala-logging"               % ScalaLoggingVer,
-  "com.typesafe"                   % "config"                      % HoconVer,
-  "dev.zio"                       %% "zio"                         % ZIOVer,
-  "dev.zio"                       %% "zio-json"                    % ZIOJsonVer,
-  "com.lihaoyi"                   %% "upickle"                     % UpickleVer,
-  "com.coralogix"                 %% "zio-k8s-client"              % ZIOK8sVer,
-  "com.softwaremill.sttp.client3" %% "core"                        % SttpVer,
-  "com.softwaremill.sttp.client3" %% "zio"                         % SttpVer,
-  "com.softwaremill.sttp.client3" %% "zio-json"                    % SttpVer,
-  "com.softwaremill.sttp.client3" %% "slf4j-backend"               % SttpVer,
-  "com.typesafe.akka"             %% "akka-actor-typed"            % AkkaVer,
-  "com.typesafe.akka"             %% "akka-cluster-typed"          % AkkaVer,
-  "com.typesafe.akka"             %% "akka-serialization-jackson"  % AkkaVer,
-  "com.typesafe.akka"             %% "akka-cluster-sharding-typed" % AkkaVer,
-  "com.typesafe.akka"             %% "akka-actor-testkit-typed"    % AkkaVer      % Test,
-  "org.scalatest"                 %% "scalatest"                   % ScalaTestVer % Test
+lazy val commonDeps = Seq(
+  "ch.qos.logback"              % "logback-classic"          % LogbackVer,
+  "com.typesafe.scala-logging" %% "scala-logging"            % ScalaLoggingVer,
+  "org.scalatest"              %% "scalatest"                % ScalaTestVer % Test,
+  "com.typesafe.akka"          %% "akka-actor-testkit-typed" % AkkaVer      % Test
 )
 
 lazy val kceCommon = (project in file("kce-common"))
@@ -67,18 +55,18 @@ lazy val kceCommon = (project in file("kce-common"))
   .settings(
     name         := "kce-common",
     scalaVersion := Scala213,
-    libraryDependencies ++= Seq(
-      "ch.qos.logback"                 % "logback-classic"          % LogbackVer,
-      "com.typesafe.scala-logging"    %% "scala-logging"            % ScalaLoggingVer,
-      "dev.zio"                       %% "zio"                      % ZIOVer,
-      "dev.zio"                       %% "zio-json"                 % ZIOJsonVer,
-      "com.softwaremill.sttp.client3" %% "core"                     % SttpVer,
-      "com.softwaremill.sttp.client3" %% "zio"                      % SttpVer,
-      "com.coralogix"                 %% "zio-k8s-client"           % ZIOK8sVer,
-      "com.typesafe.akka"             %% "akka-actor-typed"         % AkkaVer,
-      "com.typesafe.akka"             %% "akka-cluster-typed"       % AkkaVer,
-      "com.typesafe.akka"             %% "akka-actor-testkit-typed" % AkkaVer      % Test,
-      "org.scalatest"                 %% "scalatest"                % ScalaTestVer % Test
+    libraryDependencies ++= commonDeps ++ Seq(
+      "com.typesafe"                   % "config"                     % HoconVer,
+      "com.typesafe.akka"             %% "akka-actor-typed"           % AkkaVer,
+      "com.typesafe.akka"             %% "akka-cluster-typed"         % AkkaVer,
+      "com.typesafe.akka"             %% "akka-serialization-jackson" % AkkaVer,
+      "dev.zio"                       %% "zio"                        % ZIOVer,
+      "dev.zio"                       %% "zio-json"                   % ZIOJsonVer,
+      "com.softwaremill.quicklens"    %% "quicklens"                  % QuicklensVer,
+      "com.softwaremill.sttp.client3" %% "core"                       % SttpVer,
+      "com.softwaremill.sttp.client3" %% "zio"                        % SttpVer,
+      "com.softwaremill.sttp.client3" %% "slf4j-backend"              % SttpVer,
+      "com.coralogix"                 %% "zio-k8s-client"             % ZIOK8sVer
     )
   )
   .cross
@@ -91,57 +79,57 @@ lazy val kceServer = (project in file("kce-server"))
   .settings(
     name         := "kce-server",
     scalaVersion := Scala213,
-    libraryDependencies ++= serverDeps
+    libraryDependencies ++= commonDeps
   )
   .dependsOn(kceCommon_213)
 
-lazy val flinkOperatorShare = (project in file("flink-operator-share"))
+lazy val flinkOperatorBase = (project in file("flink-operator-base"))
   .settings(commonSettings)
   .settings(
     name         := "flink-operator-base",
     scalaVersion := Scala212,
-    libraryDependencies ++= Seq(
+    libraryDependencies ++= commonDeps ++ Seq(
       "org.apache.flink"  % "flink-clients"       % FlinkDefaultVer % Provided,
       "org.apache.flink"  % "flink-kubernetes"    % FlinkDefaultVer % Provided,
       "org.apache.flink" %% "flink-table-planner" % FlinkDefaultVer % Provided
-    ) ++ serverDeps
+    )
   )
   .dependsOn(kceCommon_212)
 
-lazy val flinkOperator15 = (project in file("flink-operator-15"))
+lazy val flinkOperator115 = (project in file("flink-operator-115"))
   .settings(commonSettings)
   .settings(
-    name         := "flink-operator-15",
+    name         := "flink-operator-115",
     scalaVersion := Scala212,
-    libraryDependencies ++= Seq(
+    libraryDependencies ++= commonDeps ++ Seq(
       "org.apache.flink"  % "flink-clients"       % Flink15Ver,
       "org.apache.flink"  % "flink-kubernetes"    % Flink15Ver,
       "org.apache.flink" %% "flink-table-planner" % Flink15Ver
     )
   )
-  .dependsOn(flinkOperatorShare)
+  .dependsOn(flinkOperatorBase)
 
-lazy val flinkOperator14 = (project in file("flink-operator-14"))
+lazy val flinkOperator114 = (project in file("flink-operator-114"))
   .settings(commonSettings)
   .settings(
-    name         := "flink-operator-14",
+    name         := "flink-operator-114",
     scalaVersion := Scala212,
-    libraryDependencies ++= Seq(
+    libraryDependencies ++= commonDeps ++ Seq(
       "org.apache.flink" %% "flink-clients"       % Flink14Ver,
       "org.apache.flink" %% "flink-kubernetes"    % Flink14Ver,
       "org.apache.flink" %% "flink-table-planner" % Flink14Ver
     ))
-  .dependsOn(flinkOperatorShare)
+  .dependsOn(flinkOperatorBase)
 
-lazy val flinkOperator13 = (project in file("flink-operator-13"))
+lazy val flinkOperator113 = (project in file("flink-operator-113"))
   .settings(commonSettings)
   .settings(
-    name         := "flink-operator-13",
+    name         := "flink-operator-113",
     scalaVersion := Scala212,
-    libraryDependencies ++= Seq(
+    libraryDependencies ++= commonDeps ++ Seq(
       "org.apache.flink" %% "flink-clients"             % Flink13Ver,
       "org.apache.flink" %% "flink-kubernetes"          % Flink13Ver,
       "org.apache.flink" %% "flink-table-planner-blink" % Flink13Ver
     )
   )
-  .dependsOn(flinkOperatorShare)
+  .dependsOn(flinkOperatorBase)

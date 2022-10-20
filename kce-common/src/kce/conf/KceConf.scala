@@ -1,33 +1,48 @@
 package kce.conf
-
-import com.coralogix.zio.k8s.client.apps.v1.deployments.Deployments
-import com.coralogix.zio.k8s.client.config.httpclient.k8sDefault
-import com.coralogix.zio.k8s.client.v1.pods.Pods
-import com.coralogix.zio.k8s.client.v1.services.Services
+import com.softwaremill.quicklens._
+import kce.common.PathTool.rmSlashPrefix
 
 object KceConf {
-
   val default: KceConf = KceConf(
-    localStoDir = "kce",
-    k8s = K8sConf(
-      flinkAccount = "flink-opr"
-    ),
+    localStorageDir = "kce",
+    k8s = K8sConf(),
     s3 = S3Conf(
       endpoint = "http://192.168.3.17:30255",
       accessKey = "minio",
       secretKey = "minio123"
+    ),
+    flink = FlinkConf(
+      k8sAccount = "flink-opr",
+      minioClientImage = "minio/mc:RELEASE.2022-10-12T18-12-50Z",
+      localLogConfDir = "flink/logconf"
     )
-  )
+  ).resolve
 }
 
-case class KceConf(localStoDir: String, k8s: K8sConf, s3: S3Conf) {
-  lazy val flinkLogConfDir = s"$localStoDir/flink/logconf"
+case class KceConf(localStorageDir: String, k8s: K8sConf, s3: S3Conf, flink: FlinkConf) {
+  def resolve: KceConf = Vector(k8s, s3, flink).foldLeft(this)((a, c) => c.resolve(a))
 }
 
-case class K8sConf(flinkAccount: String)
+sealed trait ResolveConf {
+  def resolve: KceConf => KceConf = identity
+}
 
+/**
+ * Kubernetes config.
+ */
+case class K8sConf() extends ResolveConf
+
+/**
+ * S3 storage config.
+ */
 case class S3Conf(endpoint: String, accessKey: String, secretKey: String, pathStyleAccess: Boolean = true, sslEnabled: Boolean = false)
+    extends ResolveConf
 
-object K8sLayer {
-  val live = k8sDefault >>> (Services.live ++ Pods.live ++ Deployments.live)
+/**
+ * Flink config.
+ */
+case class FlinkConf(k8sAccount: String, minioClientImage: String, localLogConfDir: String) extends ResolveConf {
+  override def resolve = { root =>
+    root.modify(_.flink.localLogConfDir).using(dir => s"${root.localStorageDir}/${rmSlashPrefix(dir)}")
+  }
 }

@@ -2,25 +2,26 @@ package kce.flink.operator
 import com.coralogix.zio.k8s.client.K8sFailure
 import com.coralogix.zio.k8s.client.v1.services.Services
 import kce.conf.KceConf
-import kce.flink.operator.FlinkConfigExtension.configurationToPF
 import kce.flink.operator.entity.{FlinkRestSvcEndpoint, FlinkSessDef}
-import zio.{IO, ZIO}
+import zio.ZIO
 
 object FlinkK8sOperatorImpl extends FlinkK8sOperator {
 
-  override def deployApplication(): IO[Throwable, Unit] = ???
+  override def deployApplication(): ZIO[KceConf, Throwable, Unit] = ???
 
   /**
    * Deploy Flink session cluster.
    */
-  override def deploySessionCluster(definition: FlinkSessDef): IO[Throwable, Unit] = {
-    // generate pod template
-
-    // judge and inject s3 config
-    // convert to flink configuration
-    val rawConfig = definition.toFlinkRawConfig
-      .append("$internal.deployment.config-dir", KceConf.default.flinkLogConfDir)
-    ???
+  override def deploySessionCluster(definition: FlinkSessDef): ZIO[KceConf, Throwable, Unit] = {
+    for {
+      conf <- ZIO.service[KceConf]
+      // generate pod-template and store it in local tmp dir
+      podTemplate <- PodTemplateResolver.resolvePodTemplate(definition)
+//      podTemplateFile <- ???
+      // convert to flink configuration
+      rawConfig = definition.toFlinkRawConfig(conf)
+      // ensure s3 configuration if necessary
+    } yield ()
   }
 
   /**
