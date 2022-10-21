@@ -44,8 +44,8 @@ case class FlinkSessClusterDef(
    */
   def revise(): FlinkSessClusterDef = reviseDefinition(this)
 
-  protected def copyExtRawConfigs(extRawConfigs: Map[String, String]): FlinkAppClusterDef = copy(extRawConfigs = extRawConfigs)
-  protected def copyBuiltInPlugins(builtInPlugins: Set[String]): FlinkAppClusterDef       = copy(builtInPlugins = builtInPlugins)
+  protected def copyExtRawConfigs(extRawConfigs: Map[String, String]): FlinkSessClusterDef = copy(extRawConfigs = extRawConfigs)
+  protected def copyBuiltInPlugins(builtInPlugins: Set[String]): FlinkSessClusterDef       = copy(builtInPlugins = builtInPlugins)
 
 }
 

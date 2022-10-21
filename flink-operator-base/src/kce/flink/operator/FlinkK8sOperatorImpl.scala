@@ -24,8 +24,7 @@ object FlinkK8sOperatorImpl extends FlinkK8sOperator {
   override def deploySessionCluster(definition: FlinkSessClusterDef): ZIO[KceConf, Throwable, Unit] =
     for {
       conf <- ZIO.service[KceConf]
-//      clusterDef = definition.revise()
-      clusterDef = definition
+      clusterDef = definition.revise()
 
       // generate pod-template and store it in local tmp dir
       podTemplate <- PodTemplateResolver.resolvePodTemplate(clusterDef)
