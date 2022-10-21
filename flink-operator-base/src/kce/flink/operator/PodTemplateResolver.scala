@@ -10,9 +10,9 @@ import kce.common.PathTool.purePath
 import kce.common.S3Tool.isS3Path
 import kce.common.os
 import kce.conf.KceConf
-import kce.flink.operator.entity.FlinkSessClusterDef
-import zio.{IO, ZIO}
+import kce.flink.operator.entity.{FlinkAppClusterDef, FlinkClusterDefinition}
 import zio.prelude.data.Optional.{Absent, Present}
+import zio.{IO, ZIO}
 
 /**
  * Flink K8s PodTemplate resolver.
@@ -20,9 +20,21 @@ import zio.prelude.data.Optional.{Absent, Present}
 object PodTemplateResolver {
 
   /**
+   * Generate PodTemplate and dump it to local dir, return the yaml file path on local fs.
+   */
+  def resolvePodTemplateAndDump(definition: FlinkClusterDefinition[_]): ZIO[KceConf, Throwable, String] = {
+    for {
+      ptaConf         <- ZIO.service[KceConf]
+      podTemplate     <- resolvePodTemplate(definition)
+      podTemplatePath <- ZIO.succeed(s"${ptaConf.flink.localTmpDir}/${definition.namespace}@${definition.namespace}/flink-podtemplate.yaml")
+      _               <- writeToLocal(podTemplate, podTemplatePath)
+    } yield podTemplatePath
+  }
+
+  /**
    * Resolve and generate PodTemplate from Flink cluster definition.
    */
-  def resolvePodTemplate(definition: FlinkSessClusterDef): ZIO[KceConf, Error, Pod] = {
+  def resolvePodTemplate(definition: FlinkClusterDefinition[_]): ZIO[KceConf, Error, Pod] = {
     for {
       conf <- ZIO.service[KceConf]
       rs <- definition.overridePodTemplate match {
@@ -35,16 +47,22 @@ object PodTemplateResolver {
   /**
    * Generate PodTemplate from Flink cluster definition.
    */
-  private def genPodTemplate(definition: FlinkSessClusterDef, kceConf: KceConf): Pod = {
-    // user libs
-    val libs = definition.injectedDeps
-      .filter(isS3Path)
-      .map(dep => purePath(dep) -> dep.split('/').last)
-    lazy val cpLibClauses = libs.map { case (path, name) => s"&& mc cp minio/$path /opt/flink/lib/$name " }
+  private def genPodTemplate(definition: FlinkClusterDefinition[_], kceConf: KceConf): Pod = {
+    // user libs on s3: (pure path, jar name)
+    val splitPath: String => (String, String) = path => purePath(path) -> path.split('/').last
+    val libsOnS3 = {
+      val thirdPartyLibs = definition.injectedDeps.filter(isS3Path).map(splitPath)
+      val jobJarLib = definition match {
+        case app: FlinkAppClusterDef => Option(app.jobJar).filter(isS3Path).map(splitPath)
+        case _                       => None
+      }
+      thirdPartyLibs ++ jobJarLib
+    }
 
     // userlib-loader initContainer
+    lazy val cpLibClauses = libsOnS3.map { case (path, name) => s"&& mc cp minio/$path /opt/flink/lib/$name " }
     val libLoaderInitContainer =
-      if (libs.isEmpty) None
+      if (libsOnS3.isEmpty) None
       else
         Some(
           Container(
@@ -79,7 +97,7 @@ object PodTemplateResolver {
               VolumeMount(name = "flink-volume-hostpath", mountPath = "/opt/flink/volume"),
               VolumeMount(name = "flink-logs", mountPath = "/opt/flink/log"),
               VolumeMount(name = "flink-libs", mountPath = "/opt/flink/usrlib")
-            ) ++ libs.map { case (_, name) =>
+            ) ++ libsOnS3.map { case (_, name) =>
               VolumeMount(name = "flink-libs", mountPath = s"/opt/flink/lib/$name", subPath = name)
             })
         ))

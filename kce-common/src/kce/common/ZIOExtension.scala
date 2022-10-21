@@ -47,6 +47,11 @@ trait ZIOExtension {
    */
   def usingAttempt[RS <: AutoCloseable](code: => RS): ZIO[Any with Scope, Throwable, RS] = ZIO.acquireRelease(ZIO.attempt(code))(close)
 
+  /**
+   * Alias for [[ZIO.succeed]]
+   */
+  @inline def pure[A](a: => A)(implicit trace: Trace): UIO[A] = ZIO.succeed(a)
+
 }
 
 object ZIOExtension extends ZIOExtension

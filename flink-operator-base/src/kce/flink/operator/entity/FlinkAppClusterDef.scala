@@ -45,16 +45,19 @@ case class FlinkAppClusterDef(
    */
   def toFlinkRawConfig(kceConf: KceConf): Configuration = convertToFlinkConfig(
     kceConf,
-    conf =>
+    moreInject = { conf =>
+      // when jobJar path is s3 path, replace with pvc local path.
+      val reviseJarPath = if (isS3Path(jobJar)) s"file:///opt/flink/lib/${jobJar.split('/').last}" else jobJar
       conf
-        .append("pipeline.jars", jobJar)
+        .append("pipeline.jars", reviseJarPath)
         .append("pipeline.name", jobName)
+    }
   )
 
   /**
    * Ensure that the necessary configuration has been set whenever possible.
    */
-  def revise(): FlinkAppClusterDef = reviseDefinition(this)
+  def revise(): FlinkAppClusterDef = reviseDefinition()
 
   protected def copyExtRawConfigs(extRawConfigs: Map[String, String]): FlinkAppClusterDef = copy(extRawConfigs = extRawConfigs)
   protected def copyBuiltInPlugins(builtInPlugins: Set[String]): FlinkAppClusterDef       = copy(builtInPlugins = builtInPlugins)

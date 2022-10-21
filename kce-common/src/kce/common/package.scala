@@ -11,7 +11,8 @@ package object common {
     @inline def contra[A](func: T => A): A = func(value)
   }
 
-  val os = OsTool
+  val os   = OsTool
+  val ziox = ZIOExtension
 
   /**
    * Trim String value safely.

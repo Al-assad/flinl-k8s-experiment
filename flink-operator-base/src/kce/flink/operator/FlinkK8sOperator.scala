@@ -3,12 +3,18 @@ package kce.flink.operator
 import com.coralogix.zio.k8s.client.K8sFailure
 import com.coralogix.zio.k8s.client.v1.services.Services
 import kce.conf.KceConf
-import kce.flink.operator.entity.{FlinkRestSvcEndpoint, FlinkSessClusterDef}
+import kce.flink.operator.entity.{FlinkAppClusterDef, FlinkRestSvcEndpoint, FlinkSessClusterDef}
 import zio._
 
+/**
+ * Flink on Kubernetes Operator.
+ */
 trait FlinkK8sOperator {
 
-  def deployApplication(): ZIO[KceConf, Throwable, Unit]
+  /**
+   * Deploy Flink Application cluster.
+   */
+  def deployApplication(definition: FlinkAppClusterDef): ZIO[KceConf, Throwable, Unit]
 
   /**
    * Deploy Flink session cluster.

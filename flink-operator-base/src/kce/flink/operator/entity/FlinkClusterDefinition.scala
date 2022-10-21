@@ -17,7 +17,7 @@ import scala.language.implicitConversions
 /**
  * Flink Kubernetes cluster definition.
  */
-trait FlinkClusterDefinition[SubType <: FlinkClusterDefinition[SubType]] {
+trait FlinkClusterDefinition[SubType <: FlinkClusterDefinition[SubType]] { this: SubType =>
 
   val flinkVer: FlinkVer
   val clusterId: String
@@ -115,7 +115,7 @@ trait FlinkClusterDefinition[SubType <: FlinkClusterDefinition[SubType]] {
   /**
    * Ensure that the necessary configuration has been set whenever possible.
    */
-  protected def reviseDefinition(self: SubType): SubType = {
+  protected def reviseDefinition(): SubType = {
     val removeNotAllowCustomRawConfigs: RevisePipe = _.copyExtRawConfigs(
       extRawConfigs
         .map(kv => safeTrim(kv._1) -> safeTrim(kv._2))
@@ -145,7 +145,7 @@ trait FlinkClusterDefinition[SubType <: FlinkClusterDefinition[SubType]] {
     val ensureHdfsPlugins: RevisePipe = identity
 
     val pipe = removeNotAllowCustomRawConfigs andThen completeBuiltInPlugins andThen ensureS3Plugins andThen ensureHdfsPlugins
-    pipe(self)
+    pipe(this)
   }
 
   protected def copyExtRawConfigs(extRawConfigs: Map[String, String]): SubType

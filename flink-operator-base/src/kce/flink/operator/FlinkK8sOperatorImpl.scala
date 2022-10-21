@@ -1,49 +1,67 @@
 package kce.flink.operator
 import com.coralogix.zio.k8s.client.K8sFailure
 import com.coralogix.zio.k8s.client.v1.services.Services
-import kce.common.ZIOExtension.usingAttempt
+import kce.common.ziox.usingAttempt
 import kce.conf.KceConf
 import kce.flink.operator.FlinkConfigExtension.configurationToPF
-import kce.flink.operator.entity.FlinkExecMode.K8sSession
 import kce.flink.operator.FlinkOprHelper.getClusterClientFactory
-import kce.flink.operator.entity.{FlinkRestSvcEndpoint, FlinkSessClusterDef}
+import kce.flink.operator.PodTemplateResolver.resolvePodTemplateAndDump
+import kce.flink.operator.entity.FlinkExecMode.K8sSession
+import kce.flink.operator.entity.{FlinkAppClusterDef, FlinkRestSvcEndpoint, FlinkSessClusterDef}
+import org.apache.flink.client.deployment.application.ApplicationConfiguration
 import zio.ZIO
-import zio.ZIO.attempt
+import zio.ZIO.{attempt, attemptBlockingInterrupt, scoped}
 
 object FlinkK8sOperatorImpl extends FlinkK8sOperator {
 
-  override def deployApplication(): ZIO[KceConf, Throwable, Unit] = ???
-
-  // todo replace jobJar form s3 to local
-  // file:// => not handle
-  // s3:// => add to lib -> set to file://
+  /**
+   * Deploy Flink Application cluster.
+   */
+  override def deployApplication(definition: FlinkAppClusterDef): ZIO[KceConf, Throwable, Unit] =
+    for {
+      ptaConf         <- ZIO.service[KceConf]
+      clusterDef      <- attempt(definition.revise())
+      podTemplateFile <- resolvePodTemplateAndDump(clusterDef)
+      // convert to effective flink configuration
+      rawConfig <- attempt(
+        clusterDef
+          .toFlinkRawConfig(ptaConf)
+          .append("kubernetes.pod-template-file", podTemplateFile)
+          .append("$internal.deployment.config-dir", ptaConf.flink.logConfDir))
+      // deploy app cluster
+      _ <- ZIO.scoped {
+        for {
+          clusterClientFactory <- getClusterClientFactory(K8sSession)
+          clusterSpecification <- attempt(clusterClientFactory.getClusterSpecification(rawConfig))
+          appConfiguration     <- attempt(new ApplicationConfiguration(clusterDef.appArgs.toArray, clusterDef.appMain.orNull))
+          k8sClusterDescriptor <- usingAttempt(clusterClientFactory.createClusterDescriptor(rawConfig))
+          _                    <- attemptBlockingInterrupt(k8sClusterDescriptor.deployApplicationCluster(clusterSpecification, appConfiguration))
+        } yield ()
+      }
+    } yield ()
 
   /**
    * Deploy Flink session cluster.
    */
   override def deploySessionCluster(definition: FlinkSessClusterDef): ZIO[KceConf, Throwable, Unit] =
     for {
-      conf <- ZIO.service[KceConf]
-      clusterDef = definition.revise()
-
-      // generate pod-template and store it in local tmp dir
-      podTemplate <- PodTemplateResolver.resolvePodTemplate(clusterDef)
-      podTemplatePath = s"${conf.flink.localTmpDir}/${clusterDef.namespace}@${clusterDef.namespace}/flink-podtemplate.yaml"
-      _ <- PodTemplateResolver.writeToLocal(podTemplate, podTemplatePath)
-
-      // convert to flink configuration
-      rawConfig = clusterDef
-        .toFlinkRawConfig(conf)
-        .append("kubernetes.pod-template-file", podTemplatePath)
-        .append("$internal.deployment.config-dir", conf.flink.logConfDir)
-
+      ptaConf         <- ZIO.service[KceConf]
+      clusterDef      <- attempt(definition.revise())
+      podTemplateFile <- resolvePodTemplateAndDump(clusterDef)
+      // convert to effective flink configuration
+      rawConfig <- attempt(
+        clusterDef
+          .toFlinkRawConfig(ptaConf)
+          .append("kubernetes.pod-template-file", podTemplateFile)
+          .append("$internal.deployment.config-dir", ptaConf.flink.logConfDir)
+      )
       // deploy cluster
-      _ <- ZIO.scoped {
+      _ <- scoped {
         for {
           clusterClientFactory <- getClusterClientFactory(K8sSession)
-          clusterSpecification = clusterClientFactory.getClusterSpecification(rawConfig)
+          clusterSpecification <- attempt(clusterClientFactory.getClusterSpecification(rawConfig))
           k8sClusterDescriptor <- usingAttempt(clusterClientFactory.createClusterDescriptor(rawConfig))
-          _                    <- attempt(k8sClusterDescriptor.deploySessionCluster(clusterSpecification))
+          _                    <- attemptBlockingInterrupt(k8sClusterDescriptor.deploySessionCluster(clusterSpecification))
         } yield ()
       }
     } yield ()

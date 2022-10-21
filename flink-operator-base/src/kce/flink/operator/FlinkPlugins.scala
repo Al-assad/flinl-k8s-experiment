@@ -16,11 +16,30 @@ object FlinkPlugins {
   val gelly         = Desc("flink-gelly", scalaBind)
   val pyFlink       = Desc("flink-python", scalaBind)
 
+  /**
+   * All built-in plugins.
+   */
   val plugins = Set(s3Hadoop, s3HadoopGS, s3HadoopOSS, s3HadoopAzure, s3Presto, cep, gelly, pyFlink)
 
-  lazy val s3Plugins     = Set(s3Hadoop, s3HadoopGS, s3HadoopOSS, s3HadoopAzure, s3Presto)
+  /**
+   * All s3 built-in plugins.
+   */
+  lazy val s3Plugins = Set(s3Hadoop, s3HadoopGS, s3HadoopOSS, s3HadoopAzure, s3Presto)
+
+  /**
+   * All HDFS built-in plugins
+   */
   lazy val hadoopPlugins = Set(s3Hadoop, s3HadoopGS, s3HadoopOSS, s3HadoopAzure)
-  val defaultS3Plugin    = s3Hadoop
+
+  /**
+   * Default s3 plugin.
+   */
+  lazy val defaultS3Plugin = s3Hadoop
+
+  /**
+   * Default Hadoop plugin.
+   */
+  lazy val defaultHadoopPlugin = s3Hadoop
 
   /**
    * Flink plugin name descriptor.

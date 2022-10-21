@@ -42,7 +42,7 @@ case class FlinkSessClusterDef(
   /**
    * Ensure that the necessary configuration has been set whenever possible.
    */
-  def revise(): FlinkSessClusterDef = reviseDefinition(this)
+  def revise(): FlinkSessClusterDef = reviseDefinition()
 
   protected def copyExtRawConfigs(extRawConfigs: Map[String, String]): FlinkSessClusterDef = copy(extRawConfigs = extRawConfigs)
   protected def copyBuiltInPlugins(builtInPlugins: Set[String]): FlinkSessClusterDef       = copy(builtInPlugins = builtInPlugins)

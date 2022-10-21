@@ -16,10 +16,14 @@ object FlinkConfigExtension {
    */
   def EmptyConfiguration(): Configuration = new Configuration()
 
+  implicit def configurationToPF(conf: Configuration): ConfigurationPF = new ConfigurationPF(conf)
+  implicit def pfToConfiguration(pf: ConfigurationPF): Configuration   = pf.value
+
   /**
    * Partition function for [[Configuration]].
    */
   class ConfigurationPF(conf: Configuration) {
+
     def append(key: String, value: Any): ConfigurationPF = {
       val rawValue = value match {
         case v: Iterable[_]         => v.map(_.toString).mkString(";")
@@ -30,10 +34,7 @@ object FlinkConfigExtension {
       conf.setString(key, rawValue)
       this
     }
-    def append(kv: (String, Any)): ConfigurationPF = append(kv._1, kv._2)
-
     def appendWhen(cond: => Boolean)(key: String, value: Any): ConfigurationPF = if (cond) append(key, value) else this
-    def appendWhen(cond: => Boolean)(kv: (String, Any)): ConfigurationPF       = if (cond) append(kv._1, kv._2) else this
 
     def append(rawConf: FlinkRawConf): ConfigurationPF         = rawConf.injectRaw(this)
     def append(rawConf: Option[FlinkRawConf]): ConfigurationPF = rawConf.map(_.injectRaw(this)).getOrElse(this)
@@ -50,7 +51,4 @@ object FlinkConfigExtension {
     def value: Configuration = conf
   }
 
-  implicit def configurationToPF(conf: Configuration): ConfigurationPF = new ConfigurationPF(conf)
-
-  implicit def pfToConfiguration(pf: ConfigurationPF): Configuration = pf.value
 }
