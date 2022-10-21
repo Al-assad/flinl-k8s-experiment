@@ -14,7 +14,7 @@ object OsTool {
    * Delete file or directory recursively of given path.
    */
   def rm(path: String): IO[Throwable, Boolean] = ZIO.attemptBlocking {
-    new File(path).contraPF { file =>
+    new File(path).contra { file =>
       if (file.isDirectory) new Directory(file).deleteRecursively()
       else file.delete()
     }

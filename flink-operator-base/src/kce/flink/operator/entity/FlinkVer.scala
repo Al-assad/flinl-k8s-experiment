@@ -16,9 +16,14 @@ object FlinkVer {
   implicit val codec: JsonCodec[FlinkVer] = DeriveJsonCodec.gen[FlinkVer]
 
   def extractMajorVer(flinkVer: String) = {
-    flinkVer.split('.').contraPF { part =>
+    flinkVer.split('.').contra { part =>
       if (part.length < 2) flinkVer
       else part(0) + "." + part(1)
     }
   }
+}
+
+
+object test extends App {
+  println("Hello")
 }

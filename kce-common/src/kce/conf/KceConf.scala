@@ -14,11 +14,15 @@ object KceConf {
     flink = FlinkConf(
       k8sAccount = "flink-opr",
       minioClientImage = "minio/mc:RELEASE.2022-10-12T18-12-50Z",
-      localLogConfDir = "flink/logconf"
+      logConfDir = "flink/logconf",
+      localTmpDir = "flink/tmp",
     )
   ).resolve
 }
 
+/**
+ * Potamoi root configuration.
+ */
 case class KceConf(localStorageDir: String, k8s: K8sConf, s3: S3Conf, flink: FlinkConf) {
   def resolve: KceConf = Vector(k8s, s3, flink).foldLeft(this)((a, c) => c.resolve(a))
 }
@@ -41,8 +45,12 @@ case class S3Conf(endpoint: String, accessKey: String, secretKey: String, pathSt
 /**
  * Flink config.
  */
-case class FlinkConf(k8sAccount: String, minioClientImage: String, localLogConfDir: String) extends ResolveConf {
+case class FlinkConf(k8sAccount: String, minioClientImage: String, logConfDir: String, localTmpDir: String) extends ResolveConf {
   override def resolve = { root =>
-    root.modify(_.flink.localLogConfDir).using(dir => s"${root.localStorageDir}/${rmSlashPrefix(dir)}")
+    root
+      .modify(_.flink.logConfDir)
+      .using(dir => s"${root.localStorageDir}/${rmSlashPrefix(dir)}")
+      .modify(_.flink.localTmpDir)
+      .using(dir => s"${root.localStorageDir}/${rmSlashPrefix(dir)}")
   }
 }

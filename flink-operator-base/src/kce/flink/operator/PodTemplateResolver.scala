@@ -10,7 +10,7 @@ import kce.common.PathTool.purePath
 import kce.common.S3Tool.isS3Path
 import kce.common.os
 import kce.conf.KceConf
-import kce.flink.operator.entity.FlinkSessDef
+import kce.flink.operator.entity.FlinkSessClusterDef
 import zio.{IO, ZIO}
 import zio.prelude.data.Optional.{Absent, Present}
 
@@ -22,7 +22,7 @@ object PodTemplateResolver {
   /**
    * Resolve and generate PodTemplate from Flink cluster definition.
    */
-  def resolvePodTemplate(definition: FlinkSessDef): ZIO[KceConf, Error, Pod] = {
+  def resolvePodTemplate(definition: FlinkSessClusterDef): ZIO[KceConf, Error, Pod] = {
     for {
       conf <- ZIO.service[KceConf]
       rs <- definition.overridePodTemplate match {
@@ -35,7 +35,7 @@ object PodTemplateResolver {
   /**
    * Generate PodTemplate from Flink cluster definition.
    */
-  private def genPodTemplate(definition: FlinkSessDef, kceConf: KceConf): Pod = {
+  private def genPodTemplate(definition: FlinkSessClusterDef, kceConf: KceConf): Pod = {
     // user libs
     val libs = definition.injectedDeps
       .filter(isS3Path)
@@ -91,12 +91,12 @@ object PodTemplateResolver {
    * Write the Pod to a local temporary file in yaml format.
    * @return yaml file path
    */
-  def writeToLocal(podTemplate: Pod, path: String): IO[Throwable, String] = {
+  def writeToLocal(podTemplate: Pod, path: String): IO[Throwable, Unit] = {
     for {
       yaml <- ZIO.succeed(podTemplate.asJson.deepDropNullValues.asYaml.spaces2)
       _    <- os.rm(path)
       _    <- os.write(path, yaml)
-    } yield path
+    } yield ()
   }
 
 }

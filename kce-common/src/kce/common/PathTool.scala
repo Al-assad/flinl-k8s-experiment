@@ -8,7 +8,7 @@ object PathTool {
   /**
    * remove path schema likes from "s3://bucket/xx.jar" to "bucket/xx.jar".
    */
-  def purePath(path: String): String = path.split("://").last.contraPF(p => if (p.startsWith("/")) p.substring(1, p.length) else p)
+  def purePath(path: String): String = path.split("://").last.contra(p => if (p.startsWith("/")) p.substring(1, p.length) else p)
 
   /**
    * Remove the stash at the beginning of the path.

@@ -10,6 +10,6 @@ object S3Tool {
   /**
    * Determine if the file path is s3 schema.
    */
-  def isS3Path(path: String): Boolean = s3SchemaPrefix.contains(path.split("://").head)
+  def isS3Path(path: String): Boolean = s3SchemaPrefix.contains(path.split("://").head.trim)
 
 }

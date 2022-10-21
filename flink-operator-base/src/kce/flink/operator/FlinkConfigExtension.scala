@@ -22,14 +22,18 @@ object FlinkConfigExtension {
   class ConfigurationPF(conf: Configuration) {
     def append(key: String, value: Any): ConfigurationPF = {
       val rawValue = value match {
-        case v: Iterable[_] => v.map(_.toString).mkString(";")
-        case v: Array[_]    => v.map(_.toString).mkString(";")
-        case v              => v.toString
+        case v: Iterable[_]         => v.map(_.toString).mkString(";")
+        case v: Array[_]            => v.map(_.toString).mkString(";")
+        case v: Map[String, String] => v.map(kv => s"${kv._1}=${kv._2}").mkString(";")
+        case v                      => v.toString
       }
       conf.setString(key, rawValue)
       this
     }
+    def append(kv: (String, Any)): ConfigurationPF = append(kv._1, kv._2)
+
     def appendWhen(cond: => Boolean)(key: String, value: Any): ConfigurationPF = if (cond) append(key, value) else this
+    def appendWhen(cond: => Boolean)(kv: (String, Any)): ConfigurationPF       = if (cond) append(kv._1, kv._2) else this
 
     def append(rawConf: FlinkRawConf): ConfigurationPF         = rawConf.injectRaw(this)
     def append(rawConf: Option[FlinkRawConf]): ConfigurationPF = rawConf.map(_.injectRaw(this)).getOrElse(this)
