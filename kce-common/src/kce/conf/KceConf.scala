@@ -37,7 +37,7 @@ sealed trait ResolveConf {
 /**
  * Kubernetes config.
  */
-case class K8sConf() extends ResolveConf
+case class K8sConf(debug: Boolean = false) extends ResolveConf
 
 /**
  * S3 storage config.
