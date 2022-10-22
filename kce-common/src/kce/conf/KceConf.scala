@@ -1,6 +1,14 @@
 package kce.conf
 import com.softwaremill.quicklens._
 import kce.common.PathTool.rmSlashPrefix
+import zio.{ULayer, ZIO, ZLayer}
+
+/**
+ * Potamoi root configuration.
+ */
+case class KceConf(localStorageDir: String, k8s: K8sConf, s3: S3Conf, flink: FlinkConf) {
+  def resolve: KceConf = Vector(k8s, s3, flink).foldLeft(this)((a, c) => c.resolve(a))
+}
 
 object KceConf {
   val default: KceConf = KceConf(
@@ -18,13 +26,8 @@ object KceConf {
       localTmpDir = "flink/tmp",
     )
   ).resolve
-}
 
-/**
- * Potamoi root configuration.
- */
-case class KceConf(localStorageDir: String, k8s: K8sConf, s3: S3Conf, flink: FlinkConf) {
-  def resolve: KceConf = Vector(k8s, s3, flink).foldLeft(this)((a, c) => c.resolve(a))
+  val live: ULayer[KceConf] = ZLayer(ZIO.succeed(KceConf.default))
 }
 
 sealed trait ResolveConf {

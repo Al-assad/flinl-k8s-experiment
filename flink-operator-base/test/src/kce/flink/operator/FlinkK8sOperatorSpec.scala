@@ -1,16 +1,18 @@
 package kce.flink.operator
 
-import kce.conf.ZIOK8sLayer
-import kce.flink.operator.FlinkK8sOperatorImpl._
+import kce.conf.{K8sClient, KceConf}
 import kce.testkit.STSpec
 
 class FlinkK8sOperatorSpec extends STSpec {
 
-  // TODO unsafe
+  val layers = Array(FlinkK8sOperator.live, KceConf.live, K8sClient.live)
+
+  // todo unsafe
   "retrieveRestEndpoint" in {
-    retrieveRestEndpoint("session-01", "fdev")
-      .provide(ZIOK8sLayer.live)
+    FlinkK8sOperator
+      .retrieveRestEndpoint("session-01", "fdev")
       .debug
+      .provide(layers: _*)
       .run
   }
 

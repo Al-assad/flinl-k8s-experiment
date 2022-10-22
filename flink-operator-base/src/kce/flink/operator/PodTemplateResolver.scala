@@ -22,11 +22,10 @@ object PodTemplateResolver {
   /**
    * Generate PodTemplate and dump it to local dir, return the yaml file path on local fs.
    */
-  def resolvePodTemplateAndDump(definition: FlinkClusterDefinition[_]): ZIO[KceConf, Throwable, String] = {
+  def resolvePodTemplateAndDump(definition: FlinkClusterDefinition[_], kceConf: KceConf): IO[Throwable, String] = {
     for {
-      ptaConf         <- ZIO.service[KceConf]
-      podTemplate     <- resolvePodTemplate(definition)
-      podTemplatePath <- ZIO.succeed(s"${ptaConf.flink.localTmpDir}/${definition.namespace}@${definition.namespace}/flink-podtemplate.yaml")
+      podTemplate     <- resolvePodTemplate(definition, kceConf)
+      podTemplatePath <- ZIO.succeed(s"${kceConf.flink.localTmpDir}/${definition.namespace}@${definition.namespace}/flink-podtemplate.yaml")
       _               <- writeToLocal(podTemplate, podTemplatePath)
     } yield podTemplatePath
   }
@@ -34,12 +33,11 @@ object PodTemplateResolver {
   /**
    * Resolve and generate PodTemplate from Flink cluster definition.
    */
-  def resolvePodTemplate(definition: FlinkClusterDefinition[_]): ZIO[KceConf, Error, Pod] = {
+  def resolvePodTemplate(definition: FlinkClusterDefinition[_], kceConf: KceConf): IO[Error, Pod] = {
     for {
-      conf <- ZIO.service[KceConf]
       rs <- definition.overridePodTemplate match {
         case Some(podTemplate) => ZIO.fromEither(parseYaml(podTemplate).map(_.as[Pod]).flatMap(identity))
-        case None              => ZIO.succeed(genPodTemplate(definition, conf))
+        case None              => ZIO.succeed(genPodTemplate(definition, kceConf))
       }
     } yield rs
   }
@@ -116,5 +114,4 @@ object PodTemplateResolver {
       _    <- os.write(path, yaml)
     } yield ()
   }
-
 }

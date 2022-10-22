@@ -1,6 +1,6 @@
 package kce.flink.operator
 
-import kce.flink.operator.FlinkConfigExtension.{configurationToPF, EmptyConfiguration}
+import FlinkConfigExtension.{configurationToPF, EmptyConfiguration}
 import kce.flink.operator.entity.FlinkExecMode.{FlinkExecMode, K8sApp, K8sSession}
 import org.apache.flink.client.deployment.{ClusterClientFactory, DefaultClusterClientServiceLoader}
 import zio.{Task, ZIO}
