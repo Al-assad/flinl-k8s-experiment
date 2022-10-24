@@ -1,7 +1,7 @@
 package kce.flink.operator.entity
 
 import cats.Eval.later
-import kce.common.S3Tool.isS3Path
+import kce.common.PathTool.isS3Path
 import kce.conf.KceConf
 import kce.flink.operator.entity.RestExportType.RestExportType
 import org.apache.flink.configuration.Configuration

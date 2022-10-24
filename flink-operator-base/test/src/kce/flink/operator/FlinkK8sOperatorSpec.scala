@@ -18,7 +18,6 @@ class FlinkK8sOperatorSpec extends STSpec {
   }
 
   // TODO unsafe
-
   "deploy session cluster" should {
     "test-1" in {
       FlinkK8sOperator

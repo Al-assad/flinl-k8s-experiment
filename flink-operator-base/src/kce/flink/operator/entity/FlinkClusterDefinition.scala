@@ -2,7 +2,7 @@ package kce.flink.operator.entity
 
 import cats.Eval
 import kce.common.CollectionExtension.StringIterableWrapper
-import kce.common.S3Tool.isS3Path
+import kce.common.PathTool.isS3Path
 import kce.common.{safeTrim, ComplexEnum, GenericPF}
 import kce.conf.KceConf
 import kce.flink.operator.FlinkConfigExtension.{configurationToPF, ConfigurationPF, EmptyConfiguration}
