@@ -2,7 +2,7 @@ package kce.flink.operator.entity
 
 import cats.Eval
 import cats.Eval.later
-import kce.common.NumExtension.DoubleWrapper
+import kce.common.NumExtension.{DoubleWrapper, IntWrapper}
 import kce.common.{ComplexEnum, GenericPF}
 import kce.conf.S3Conf
 import kce.flink.operator.FlinkConfigExtension.{ConfigurationPF, EmptyConfiguration}
@@ -63,10 +63,10 @@ object FlinkRawConf {
  */
 case class CpuConf(jm: Double = 1.0, tm: Double = -1.0, jmFactor: Double = 1.0, tmFactor: Double = 1.0) extends FlinkRawConf {
   def rawMapping = Vector(
-    "kubernetes.taskmanager.cpu"              -> later(jm.ensureOr(_ > 0, 1.0)),
-    "kubernetes.jobmanager.cpu.limit-factor"  -> later(jmFactor.ensureOr(_ > 0, 1.0)),
+    "kubernetes.taskmanager.cpu"              -> later(jm.ensureDoubleOr(_ > 0, 1.0)),
+    "kubernetes.jobmanager.cpu.limit-factor"  -> later(jmFactor.ensureDoubleOr(_ > 0, 1.0)),
     "kubernetes.taskmanager.cpu"              -> later(tm),
-    "kubernetes.taskmanager.cpu.limit-factor" -> later(tmFactor.ensureOr(_ > 0, 1.0))
+    "kubernetes.taskmanager.cpu.limit-factor" -> later(tmFactor.ensureDoubleOr(_ > 0, 1.0))
   )
 }
 
@@ -75,18 +75,18 @@ case class CpuConf(jm: Double = 1.0, tm: Double = -1.0, jmFactor: Double = 1.0, 
  */
 case class ParConf(numOfSlot: Int = 1, parDefault: Int = 1) extends FlinkRawConf {
   def rawMapping = Vector(
-    "taskmanager.numberOfTaskSlots" -> later(numOfSlot.ensureMin(1)),
-    "parallelism.default"           -> later(parDefault.ensureMin(1))
+    "taskmanager.numberOfTaskSlots" -> later(numOfSlot.ensureIntMin(1)),
+    "parallelism.default"           -> later(parDefault.ensureIntMin(1))
   )
 }
 
 /**
  * Flink memory configuration.
  */
-case class MemConf(jmMB: Int = 1600, tmMB: Int = 1728) extends FlinkRawConf {
+case class MemConf(jmMB: Int = 1920, tmMB: Int = 1920) extends FlinkRawConf {
   def rawMapping = Vector(
-    "jobmanager.memory.process.size"  -> later(jmMB.ensureOr(_ > 0, 1600).contra(e => s"$e m")),
-    "taskmanager.memory.process.size" -> later(tmMB.ensureOr(_ > 0, 1728).contra(e => s"$e m"))
+    "jobmanager.memory.process.size"  -> later(jmMB.ensureIntOr(_ > 0, 1920).contra(_ + "m")),
+    "taskmanager.memory.process.size" -> later(tmMB.ensureIntOr(_ > 0, 1920).contra(_ + "m"))
   )
 }
 
@@ -112,17 +112,17 @@ case object NonRestartStg extends RestartStgConf {
 case class FixedDelayRestartStg(attempts: Int = 1, delaySec: Int = 1) extends RestartStgConf {
   def rawMapping = Vector(
     "restart-strategy"                      -> later("fixed-delay"),
-    "restart-strategy.fixed-delay.attempts" -> later(attempts.ensureMin(1)),
-    "restart-strategy.fixed-delay.delay"    -> later(delaySec.ensureMin(1).contra(e => s"$e s"))
+    "restart-strategy.fixed-delay.attempts" -> later(attempts.ensureIntMin(1)),
+    "restart-strategy.fixed-delay.delay"    -> later(delaySec.ensureIntMin(1).contra(e => s"$e s"))
   )
 }
 
 case class FailureRateRestartStg(delaySec: Int = 1, failureRateIntervalSec: Int = 60, maxFailuresPerInterval: Int = 1) extends RestartStgConf {
   def rawMapping = Vector(
     "restart-strategy"                                        -> later("failure-rate"),
-    "restart-strategy.failure-rate.delay"                     -> later(failureRateIntervalSec.ensureMin(1).contra(e => s"$e s")),
-    "restart-strategy.failure-rate.failure-rate-interval"     -> later(failureRateIntervalSec.ensureMin(1).contra(e => s"$e s")),
-    "restart-strategy.failure-rate.max-failures-per-interval" -> later(maxFailuresPerInterval.ensureMin(1))
+    "restart-strategy.failure-rate.delay"                     -> later(failureRateIntervalSec.ensureIntMin(1).contra(e => s"$e s")),
+    "restart-strategy.failure-rate.failure-rate-interval"     -> later(failureRateIntervalSec.ensureIntMin(1).contra(e => s"$e s")),
+    "restart-strategy.failure-rate.max-failures-per-interval" -> later(maxFailuresPerInterval.ensureIntMin(1))
   )
 }
 
@@ -146,7 +146,7 @@ case class StateBackendConf(
     "state.savepoints.dir"           -> later(savepointDir),
     "state.backend.incremental"      -> later(incremental),
     "state.backend.local-recovery"   -> later(localRecovery),
-    "state.checkpoints.num-retained" -> later(checkpointNumRetained.ensureMin(1)),
+    "state.checkpoints.num-retained" -> later(checkpointNumRetained.ensureIntMin(1)),
   )
 }
 

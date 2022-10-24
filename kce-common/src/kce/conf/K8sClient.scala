@@ -1,6 +1,6 @@
 package kce.conf
 
-import com.coralogix.zio.k8s.client.config.asynchttpclient.k8sSttpClient
+import com.coralogix.zio.k8s.client.config.httpclient.k8sSttpClient
 import com.coralogix.zio.k8s.client.config.{defaultConfigChain, k8sCluster}
 import com.coralogix.zio.k8s.client.kubernetes.Kubernetes
 import com.softwaremill.quicklens.ModifyPimp

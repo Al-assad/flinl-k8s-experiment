@@ -25,7 +25,7 @@ object PodTemplateResolver {
   def resolvePodTemplateAndDump(definition: FlinkClusterDefinition[_], kceConf: KceConf): IO[PodTemplateResolveErr, String] = {
     for {
       podTemplate     <- resolvePodTemplate(definition, kceConf)
-      podTemplatePath <- ZIO.succeed(s"${kceConf.flink.localTmpDir}/${definition.namespace}@${definition.namespace}/flink-podtemplate.yaml")
+      podTemplatePath <- ZIO.succeed(s"${kceConf.flink.localTmpDir}/${definition.namespace}@${definition.clusterId}/flink-podtemplate.yaml")
       _               <- writeToLocal(podTemplate, podTemplatePath)
     } yield podTemplatePath
   }
@@ -75,10 +75,7 @@ object PodTemplateResolver {
               "-c",
               s"""mc alias set minio ${kceConf.s3.endpoint} ${kceConf.s3.accessKey} ${kceConf.s3.secretKey}
                  |$cpLibClauses""".stripMargin),
-            volumeMounts = Vector(
-              VolumeMount(name = "flink-libs", mountPath = "/opt/flink/lib"),
-              VolumeMount(name = "flink-libs", mountPath = "/opt/flink/usrlib")
-            ))
+            volumeMounts = Vector(VolumeMount(name = "flink-libs", mountPath = "/opt/flink/lib")))
         )
     val initContainers = Vector(libLoaderInitContainer).flatten
 
@@ -98,7 +95,6 @@ object PodTemplateResolver {
             volumeMounts = Vector(
               VolumeMount(name = "flink-volume-hostpath", mountPath = "/opt/flink/volume"),
               VolumeMount(name = "flink-logs", mountPath = "/opt/flink/log"),
-              VolumeMount(name = "flink-libs", mountPath = "/opt/flink/usrlib")
             ) ++ libsOnS3.map { case (_, name) =>
               VolumeMount(name = "flink-libs", mountPath = s"/opt/flink/lib/$name", subPath = name)
             })

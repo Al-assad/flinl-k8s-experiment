@@ -3,6 +3,7 @@ package kce.flink.operator.entity
 import cats.Eval.later
 import kce.common.S3Tool.isS3Path
 import kce.conf.KceConf
+import kce.flink.operator.entity.RestExportType.RestExportType
 import org.apache.flink.configuration.Configuration
 import zio.json.{DeriveJsonCodec, JsonCodec}
 
@@ -15,6 +16,7 @@ case class FlinkAppClusterDef(
     namespace: String = "default",
     image: String,
     k8sAccount: Option[String] = None,
+    restExportType: RestExportType = RestExportType.ClusterIP,
     jobJar: String,
     jobName: Option[String] = None,
     appMain: Option[String] = None,

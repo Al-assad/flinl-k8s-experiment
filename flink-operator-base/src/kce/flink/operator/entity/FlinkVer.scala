@@ -9,7 +9,8 @@ import zio.json.{DeriveJsonCodec, JsonCodec}
  * Flink version.
  */
 case class FlinkVer(ver: String, scalaVer: ScalaVer = Scala212) {
-  lazy val majorVer = extractMajorVer(ver)
+  def majorVer: String = extractMajorVer(ver)
+  def fullVer: String  = s"${ver}-scala_${scalaVer}"
 }
 
 object FlinkVer {

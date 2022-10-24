@@ -10,6 +10,8 @@ case class KceConf(localStorageDir: String, k8s: K8sConf, s3: S3Conf, flink: Fli
   def resolve: KceConf = Vector(k8s, s3, flink).foldLeft(this)((a, c) => c.resolve(a))
 }
 
+// TODO initFs
+
 object KceConf {
   val default: KceConf = KceConf(
     localStorageDir = "kce",
@@ -23,7 +25,7 @@ object KceConf {
       k8sAccount = "flink-opr",
       minioClientImage = "minio/mc:RELEASE.2022-10-12T18-12-50Z",
       logConfDir = "flink/logconf",
-      localTmpDir = "flink/tmp",
+      localTmpDir = "flink/tmp"
     )
   ).resolve
 

@@ -5,6 +5,7 @@ import org.apache.flink.configuration.Configuration
 
 import scala.collection.immutable.Iterable
 import scala.language.implicitConversions
+import scala.jdk.CollectionConverters._
 
 /**
  * Extension for Flink [[Configuration]]
@@ -49,6 +50,8 @@ object FlinkConfigExtension {
     }
 
     def value: Configuration = conf
+
+    def toPrettyPrint: String = conf.toMap.asScala.toList.sortBy(_._1).map { case (k, v) => s"$k = $v" }.mkString("\n")
   }
 
 }

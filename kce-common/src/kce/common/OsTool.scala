@@ -2,7 +2,7 @@ package kce.common
 
 import zio._
 
-import java.io.{File, IOException}
+import java.io.File
 import scala.reflect.io.Directory
 
 /**
@@ -23,6 +23,9 @@ object OsTool {
   /**
    * Write content to file.
    */
-  def write(path: String, content: String): IO[IOException, Unit] = ZIO.writeFile(path, content)
+  def write(path: String, content: String): IO[Throwable, Unit] = {
+    ZIO.attempt(new File(path).toPath.getParent.toFile.mkdirs()) *>
+    ZIO.writeFile(path, content)
+  }
 
 }

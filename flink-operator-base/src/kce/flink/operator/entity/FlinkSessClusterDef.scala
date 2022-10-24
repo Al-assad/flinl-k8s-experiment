@@ -1,6 +1,7 @@
 package kce.flink.operator.entity
 
 import kce.conf.KceConf
+import kce.flink.operator.entity.RestExportType.RestExportType
 import org.apache.flink.configuration.Configuration
 import zio.json.{DeriveJsonCodec, JsonCodec}
 
@@ -13,6 +14,7 @@ case class FlinkSessClusterDef(
     namespace: String = "default",
     image: String,
     k8sAccount: Option[String] = None,
+    restExportType: RestExportType = RestExportType.ClusterIP,
     cpu: CpuConf = CpuConf(),
     mem: MemConf = MemConf(),
     par: ParConf = ParConf(),

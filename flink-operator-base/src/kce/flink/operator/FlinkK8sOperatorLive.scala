@@ -10,7 +10,7 @@ import kce.flink.operator.PodTemplateResolver.resolvePodTemplateAndDump
 import kce.flink.operator.entity.FlinkExecMode.K8sSession
 import kce.flink.operator.entity.{FlinkAppClusterDef, FlinkRestSvcEndpoint, FlinkSessClusterDef}
 import org.apache.flink.client.deployment.application.ApplicationConfiguration
-import zio.ZIO.{attempt, attemptBlockingInterrupt, scoped, succeed}
+import zio.ZIO.{attempt, attemptBlocking, attemptBlockingInterrupt, logInfo, scoped, succeed}
 import zio.{IO, ZIO}
 
 /**
@@ -29,9 +29,11 @@ class FlinkK8sOperatorLive(kceConf: KceConf, k8sClient: Kubernetes) extends Flin
       rawConfig <- succeed(
         clusterDef
           .toFlinkRawConfig(kceConf)
-          .append("kubernetes.pod-template-file", podTemplateFile)
+          .append("kubernetes.pod-template-file.jobmanager", podTemplateFile)
+          .append("kubernetes.pod-template-file.taskmanager", podTemplateFile)
           .append("$internal.deployment.config-dir", kceConf.flink.logConfDir)
       )
+      _ <- logInfo(s"Deploy Flink Session Cluster:\n${rawConfig.toPrettyPrint}".stripMargin)
       // deploy app cluster
       _ <- ZIO
         .scoped {
@@ -44,6 +46,7 @@ class FlinkK8sOperatorLive(kceConf: KceConf, k8sClient: Kubernetes) extends Flin
           } yield ()
         }
         .mapError(SubmitFlinkClusterErr("Fail to submit flink application cluster to kubernetes." <> definition.logTags, _))
+      _ <- logInfo(s"Deploy Flink session cluster successfully." <> definition.logTags)
     } yield ()
   }
 
@@ -58,15 +61,18 @@ class FlinkK8sOperatorLive(kceConf: KceConf, k8sClient: Kubernetes) extends Flin
       rawConfig <- succeed(
         clusterDef
           .toFlinkRawConfig(kceConf)
-          .append("kubernetes.pod-template-file", podTemplateFile)
-          .append("$internal.deployment.config-dir", kceConf.flink.logConfDir))
+          .append("kubernetes.pod-template-file.jobmanager", podTemplateFile)
+          .append("kubernetes.pod-template-file.taskmanager", podTemplateFile)
+          .append("$internal.deployment.config-dir", kceConf.flink.logConfDir)
+      )
+      _ <- logInfo(s"Deploy Flink Application Cluster:\n${rawConfig.toPrettyPrint}\n".stripMargin)
       // deploy cluster
       _ <- scoped {
         for {
           clusterClientFactory <- getClusterClientFactory(K8sSession)
           clusterSpecification <- attempt(clusterClientFactory.getClusterSpecification(rawConfig))
           k8sClusterDescriptor <- usingAttempt(clusterClientFactory.createClusterDescriptor(rawConfig))
-          _                    <- attemptBlockingInterrupt(k8sClusterDescriptor.deploySessionCluster(clusterSpecification))
+          _                    <- attemptBlocking(k8sClusterDescriptor.deploySessionCluster(clusterSpecification))
         } yield ()
       }.mapError(SubmitFlinkClusterErr("Fail to submit flink session cluster to kubernetes." <> definition.logTags, _))
     } yield ()

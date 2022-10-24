@@ -3,13 +3,14 @@ package kce.flink.operator.entity
 import cats.Eval
 import kce.common.CollectionExtension.StringIterableWrapper
 import kce.common.S3Tool.isS3Path
-import kce.common.{GenericPF, safeTrim}
+import kce.common.{safeTrim, ComplexEnum, GenericPF}
 import kce.conf.KceConf
-import kce.flink.operator.FlinkConfigExtension.{ConfigurationPF, EmptyConfiguration, configurationToPF}
+import kce.flink.operator.FlinkConfigExtension.{configurationToPF, ConfigurationPF, EmptyConfiguration}
 import kce.flink.operator.FlinkPlugins
 import kce.flink.operator.FlinkPlugins.defaultS3Plugin
 import kce.flink.operator.entity.FlinkClusterDefinition.notAllowCustomRawConfKeys
 import kce.flink.operator.entity.FlinkExecMode.FlinkExecMode
+import kce.flink.operator.entity.RestExportType.RestExportType
 import org.apache.flink.configuration.Configuration
 
 import scala.language.implicitConversions
@@ -24,6 +25,7 @@ trait FlinkClusterDefinition[SubType <: FlinkClusterDefinition[SubType]] { this:
   val namespace: String
   val image: String
   val k8sAccount: Option[String]
+  val restExportType: RestExportType
 
   val cpu: CpuConf
   val mem: MemConf
@@ -52,7 +54,7 @@ trait FlinkClusterDefinition[SubType <: FlinkClusterDefinition[SubType]] { this:
   /**
    * Check whether S3 support is required.
    */
-  protected def checkS3Required(moreChecks: Eval[Boolean] = Eval.now(true)): Boolean = {
+  protected def checkS3Required(moreChecks: Eval[Boolean] = Eval.now(false)): Boolean = {
     lazy val checkStateBackend = stateBackend.exists { c =>
       if (c.checkpointDir.exists(isS3Path)) true
       else c.savepointDir.exists(isS3Path)
@@ -78,7 +80,10 @@ trait FlinkClusterDefinition[SubType <: FlinkClusterDefinition[SubType]] { this:
       .append("kubernetes.cluster-id", clusterId)
       .append("kubernetes.namespace", namespace)
       .append("kubernetes.container.image", image)
-      .append("kubernetes.service-account", k8sAccount.getOrElse(kceConf.flink.k8sAccount))
+      .append("kubernetes.jobmanager.service-account", k8sAccount.getOrElse(kceConf.flink.k8sAccount))
+      .append("kubernetes.rest-service.exposed.type", restExportType.toString)
+      .append("blob.server.port", 6124)
+      .append("taskmanager.rpc.port", 6122)
       .append(cpu)
       .append(mem)
       .append(par)
@@ -151,7 +156,7 @@ trait FlinkClusterDefinition[SubType <: FlinkClusterDefinition[SubType]] { this:
   protected def copyExtRawConfigs(extRawConfigs: Map[String, String]): SubType
   protected def copyBuiltInPlugins(builtInPlugins: Set[String]): SubType
 
-  def logTags: Map[String, String] = Map("clusterId" -> clusterId, "namespace" -> namespace)
+  def logTags: Map[String, String] = Map("clusterId" -> clusterId, "namespace" -> namespace, "flinkVer" -> flinkVer.fullVer)
 }
 
 object FlinkClusterDefinition {
@@ -165,10 +170,21 @@ object FlinkClusterDefinition {
     "kubernetes.namespace",
     "kubernetes.container.image",
     "kubernetes.service-account",
+    "kubernetes.jobmanager.service-account",
     "kubernetes.pod-template-file",
+    "kubernetes.pod-template-file.taskmanager",
+    "kubernetes.pod-template-file.jobmanager",
     "$internal.deployment.config-dir",
     "pipeline.jars",
     "$internal.application.main",
     "$internal.application.program-args",
   )
+}
+
+object RestExportType extends ComplexEnum {
+  type RestExportType = Value
+  val ClusterIP         = Value("ClusterIP")
+  val NodePort          = Value("NodePort")
+  val LoadBalancer      = Value("LoadBalancer")
+  val HeadlessClusterIP = Value("Headless_ClusterIP")
 }
