@@ -33,8 +33,9 @@ trait ZIOExtension {
     /**
      * Run ZIO to future and pipe to Akka Actor mailbox.
      */
-    @inline def runToPipe[T](ctx: ActorContext[T])(mapResult: Either[Throwable, A] => T): Unit =
+    @inline def runToPipe[T](ctx: ActorContext[T])(mapResult: Either[Throwable, A] => T): Unit = {
       ctx.pipeToSelf(zioRunToFuture(zio))(rs => mapResult(rs.toEither))
+    }
   }
 
   /**

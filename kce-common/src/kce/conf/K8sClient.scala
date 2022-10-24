@@ -14,13 +14,11 @@ object K8sClient {
   val live: ZLayer[KceConf, Throwable, Kubernetes] = {
     val configChain = for {
       kceConf <- ZLayer.service[KceConf]
-      config <- defaultConfigChain.map { chain =>
-        chain.update(c => c.modify(_.client.debug).setTo(kceConf.get.k8s.debug))
+      config <- defaultConfigChain.update { chain =>
+        chain.modify(_.client.debug).setTo(kceConf.get.k8s.debug)
       }
     } yield config
-
-    val k8sConfigs = configChain >>> (k8sCluster ++ k8sSttpClient)
-    k8sConfigs >>> Kubernetes.live
+    (configChain >>> (k8sCluster ++ k8sSttpClient)) >>> Kubernetes.live
   }
 
 }

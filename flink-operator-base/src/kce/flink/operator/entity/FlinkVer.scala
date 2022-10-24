@@ -15,14 +15,13 @@ case class FlinkVer(ver: String, scalaVer: ScalaVer = Scala212) {
 object FlinkVer {
   implicit val codec: JsonCodec[FlinkVer] = DeriveJsonCodec.gen[FlinkVer]
 
-  def extractMajorVer(flinkVer: String) = {
+  def extractMajorVer(flinkVer: String): String = {
     flinkVer.split('.').contra { part =>
       if (part.length < 2) flinkVer
       else part(0) + "." + part(1)
     }
   }
 }
-
 
 object test extends App {
   println("Hello")

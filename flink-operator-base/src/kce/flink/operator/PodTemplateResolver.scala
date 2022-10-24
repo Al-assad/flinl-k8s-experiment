@@ -2,10 +2,10 @@ package kce.flink.operator
 
 import com.coralogix.zio.k8s.model.core.v1._
 import com.coralogix.zio.k8s.model.pkg.apis.meta.v1.ObjectMeta
-import io.circe.Error
 import io.circe.syntax._
 import io.circe.yaml.parser.{parse => parseYaml}
 import io.circe.yaml.syntax._
+import kce.common.LogMessageTool.LogMessageStringWrapper
 import kce.common.PathTool.purePath
 import kce.common.S3Tool.isS3Path
 import kce.common.os
@@ -22,7 +22,7 @@ object PodTemplateResolver {
   /**
    * Generate PodTemplate and dump it to local dir, return the yaml file path on local fs.
    */
-  def resolvePodTemplateAndDump(definition: FlinkClusterDefinition[_], kceConf: KceConf): IO[Throwable, String] = {
+  def resolvePodTemplateAndDump(definition: FlinkClusterDefinition[_], kceConf: KceConf): IO[PodTemplateResolveErr, String] = {
     for {
       podTemplate     <- resolvePodTemplate(definition, kceConf)
       podTemplatePath <- ZIO.succeed(s"${kceConf.flink.localTmpDir}/${definition.namespace}@${definition.namespace}/flink-podtemplate.yaml")
@@ -33,13 +33,17 @@ object PodTemplateResolver {
   /**
    * Resolve and generate PodTemplate from Flink cluster definition.
    */
-  def resolvePodTemplate(definition: FlinkClusterDefinition[_], kceConf: KceConf): IO[Error, Pod] = {
-    for {
-      rs <- definition.overridePodTemplate match {
-        case Some(podTemplate) => ZIO.fromEither(parseYaml(podTemplate).map(_.as[Pod]).flatMap(identity))
-        case None              => ZIO.succeed(genPodTemplate(definition, kceConf))
-      }
-    } yield rs
+  def resolvePodTemplate(definition: FlinkClusterDefinition[_], kceConf: KceConf): IO[PodTemplateResolveErr, Pod] = {
+    definition.overridePodTemplate match {
+      case Some(podTemplate) =>
+        ZIO
+          .fromEither(parseYaml(podTemplate).map(_.as[Pod]).flatMap(identity))
+          .mapError(PodTemplateResolveErr("Unable to parse the override podtemplate yaml content.", _))
+      case None =>
+        ZIO
+          .attempt(genPodTemplate(definition, kceConf))
+          .mapError(PodTemplateResolveErr("Fail to generate podtemplate.", _))
+    }
   }
 
   /**
@@ -105,13 +109,13 @@ object PodTemplateResolver {
 
   /**
    * Write the Pod to a local temporary file in yaml format.
-   * @return yaml file path
+   * Return generated yaml file path.
    */
-  def writeToLocal(podTemplate: Pod, path: String): IO[Throwable, Unit] = {
+  def writeToLocal(podTemplate: Pod, path: String): IO[PodTemplateResolveErr, Unit] = {
     for {
       yaml <- ZIO.succeed(podTemplate.asJson.deepDropNullValues.asYaml.spaces2)
       _    <- os.rm(path)
       _    <- os.write(path, yaml)
     } yield ()
-  }
+  }.mapError(PodTemplateResolveErr(s"Fail to write podtemplate to local file." <> "path" -> path, _))
 }

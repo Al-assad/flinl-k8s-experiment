@@ -15,17 +15,17 @@ trait FlinkK8sOperator {
   /**
    * Deploy Flink Application cluster.
    */
-  def deployApplication(definition: FlinkAppClusterDef): IO[Throwable, Unit]
+  def deployApplication(definition: FlinkAppClusterDef): IO[FlinkOprErr, Unit]
 
   /**
    * Deploy Flink session cluster.
    */
-  def deploySessionCluster(definition: FlinkSessClusterDef): IO[Throwable, Unit]
+  def deploySessionCluster(definition: FlinkSessClusterDef): IO[FlinkOprErr, Unit]
 
   /**
    * Retrieve Flink rest endpoint via kubernetes api.
    */
-  def retrieveRestEndpoint(clusterId: String, namespace: String): ZIO[Any, Throwable, FlinkRestSvcEndpoint]
+  def retrieveRestEndpoint(clusterId: String, namespace: String): IO[FlinkOprErr, Option[FlinkRestSvcEndpoint]]
 }
 
 object FlinkK8sOperator {

@@ -3,9 +3,9 @@ package kce.flink.operator.entity
 import cats.Eval
 import kce.common.CollectionExtension.StringIterableWrapper
 import kce.common.S3Tool.isS3Path
-import kce.common.{safeTrim, GenericPF}
+import kce.common.{GenericPF, safeTrim}
 import kce.conf.KceConf
-import kce.flink.operator.FlinkConfigExtension.{configurationToPF, ConfigurationPF, EmptyConfiguration}
+import kce.flink.operator.FlinkConfigExtension.{ConfigurationPF, EmptyConfiguration, configurationToPF}
 import kce.flink.operator.FlinkPlugins
 import kce.flink.operator.FlinkPlugins.defaultS3Plugin
 import kce.flink.operator.entity.FlinkClusterDefinition.notAllowCustomRawConfKeys
@@ -151,6 +151,7 @@ trait FlinkClusterDefinition[SubType <: FlinkClusterDefinition[SubType]] { this:
   protected def copyExtRawConfigs(extRawConfigs: Map[String, String]): SubType
   protected def copyBuiltInPlugins(builtInPlugins: Set[String]): SubType
 
+  def logTags: Map[String, String] = Map("clusterId" -> clusterId, "namespace" -> namespace)
 }
 
 object FlinkClusterDefinition {
