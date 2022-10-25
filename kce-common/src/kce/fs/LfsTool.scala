@@ -1,14 +1,15 @@
-package kce.common
+package kce.fs
 
+import kce.common.GenericPF
 import zio._
 
 import java.io.File
 import scala.reflect.io.Directory
 
 /**
- * Tool for handling OS operation.
+ * Local file system operator.
  */
-object OsTool {
+object LfsTool {
 
   /**
    * Delete file or directory recursively of given path.

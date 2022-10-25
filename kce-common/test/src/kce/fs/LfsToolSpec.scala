@@ -1,6 +1,6 @@
-package kce.common
+package kce.fs
 
-import kce.common.OsToolSpec.{randomDir, randomFile, rmFile}
+import kce.fs.OsToolSpec.{randomDir, randomFile, rmFile}
 import kce.testkit.STSpec
 import zio.Exit.Success
 
@@ -15,30 +15,30 @@ class OsToolSpec extends STSpec {
 
     "rm file" in {
       randomFile { file =>
-        os.rm(file.getPath).run shouldBe Success(true)
+        lfs.rm(file.getPath).run shouldBe Success(true)
         file.exists() shouldBe false
       }
     }
 
     "rm directory" in {
       randomDir(0) { dir =>
-        os.rm(dir.getPath).run shouldBe Success(true)
+        lfs.rm(dir.getPath).run shouldBe Success(true)
         dir.exists() shouldBe false
       }
       randomDir(5) { dir =>
-        os.rm(dir.getPath).run shouldBe Success(true)
+        lfs.rm(dir.getPath).run shouldBe Success(true)
         dir.exists() shouldBe false
       }
     }
 
     "rm not exist file/directory" in {
-      os.rm("test-233.txt").run shouldBe Success(false)
-      os.rm("test-23/233").run shouldBe Success(false)
+      lfs.rm("test-233.txt").run shouldBe Success(false)
+      lfs.rm("test-23/233").run shouldBe Success(false)
     }
 
     "write content to file" in {
       val file = new File(s"${System.currentTimeMillis}.txt")
-      os.write(file.getPath, "hello world 你好").run
+      lfs.write(file.getPath, "hello world 你好").run
       Using(Source.fromFile(file))(_.mkString).get shouldBe "hello world 你好"
       rmFile(file)
     }

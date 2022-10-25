@@ -7,11 +7,11 @@ import kce.flink.operator.entity.StateBackendType.Rocksdb
 import kce.flink.operator.entity.{FlinkAppClusterDef, FlinkSessClusterDef, FlinkVer, StateBackendConf}
 import kce.testkit.STSpec
 
+// TODO unsafe submit
 class FlinkK8sOperatorSpec extends STSpec {
 
   val layers = (KceConf.live >+> K8sClient.live) >+> FlinkK8sOperator.live
 
-  // TODO unsafe
   "retrieveRestEndpoint" in {
     FlinkK8sOperator
       .retrieveRestEndpoint("session-01", "fdev")
@@ -20,7 +20,6 @@ class FlinkK8sOperatorSpec extends STSpec {
       .run
   }
 
-  // TODO unsafe
   "deploy session cluster" should {
     "normal" in {
       FlinkK8sOperator

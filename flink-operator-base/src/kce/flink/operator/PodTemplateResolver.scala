@@ -7,9 +7,9 @@ import io.circe.yaml.parser.{parse => parseYaml}
 import io.circe.yaml.syntax._
 import kce.common.LogMessageTool.LogMessageStringWrapper
 import kce.common.PathTool.{isS3Path, purePath}
-import kce.common.os
 import kce.conf.KceConf
 import kce.flink.operator.entity.{FlinkAppClusterDef, FlinkClusterDefinition}
+import kce.fs.lfs
 import zio.prelude.data.Optional.{Absent, Present}
 import zio.{IO, ZIO}
 
@@ -105,8 +105,8 @@ object PodTemplateResolver {
   def writeToLocal(podTemplate: Pod, path: String): IO[PodTemplateResolveErr, Unit] = {
     for {
       yaml <- ZIO.succeed(podTemplate.asJson.deepDropNullValues.asYaml.spaces2)
-      _    <- os.rm(path)
-      _    <- os.write(path, yaml)
+      _    <- lfs.rm(path)
+      _    <- lfs.write(path, yaml)
     } yield ()
   }.mapError(PodTemplateResolveErr(s"Fail to write podtemplate to local file." <> "path" -> path, _))
 }

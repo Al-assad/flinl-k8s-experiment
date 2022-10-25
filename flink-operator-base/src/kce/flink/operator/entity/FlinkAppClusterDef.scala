@@ -9,6 +9,7 @@ import zio.json.{DeriveJsonCodec, JsonCodec}
 
 /**
  * Flink K8s application cluster definition.
+ * @param jobJar Flink job jar path, supports local file or s3 path.
  */
 case class FlinkAppClusterDef(
     flinkVer: FlinkVer,
@@ -68,3 +69,5 @@ case class FlinkAppClusterDef(
 object FlinkAppClusterDef {
   implicit val jsonCodec: JsonCodec[FlinkAppClusterDef] = DeriveJsonCodec.gen[FlinkAppClusterDef]
 }
+
+
