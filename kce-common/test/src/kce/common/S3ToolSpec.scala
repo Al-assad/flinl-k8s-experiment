@@ -1,7 +1,7 @@
 package kce.common
 
+import kce.common.PathTool.isS3Path
 import kce.testkit.STSpec
-import S3Tool._
 
 class S3ToolSpec extends STSpec {
 

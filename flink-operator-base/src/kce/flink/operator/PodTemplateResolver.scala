@@ -6,8 +6,7 @@ import io.circe.syntax._
 import io.circe.yaml.parser.{parse => parseYaml}
 import io.circe.yaml.syntax._
 import kce.common.LogMessageTool.LogMessageStringWrapper
-import kce.common.PathTool.purePath
-import kce.common.S3Tool.isS3Path
+import kce.common.PathTool.{isS3Path, purePath}
 import kce.common.os
 import kce.conf.KceConf
 import kce.flink.operator.entity.{FlinkAppClusterDef, FlinkClusterDefinition}
@@ -62,7 +61,7 @@ object PodTemplateResolver {
     }
 
     // userlib-loader initContainer
-    lazy val cpLibClauses = libsOnS3.map { case (path, name) => s"&& mc cp minio/$path /opt/flink/lib/$name " }
+    lazy val cpLibClauses = libsOnS3.map { case (path, name) => s"&& mc cp minio/$path /opt/flink/lib/$name" }.mkString(" ")
     val libLoaderInitContainer =
       if (libsOnS3.isEmpty) None
       else
@@ -70,11 +69,7 @@ object PodTemplateResolver {
           Container(
             name = "userlib-loader",
             image = kceConf.flink.minioClientImage,
-            command = Vector(
-              "sh",
-              "-c",
-              s"""mc alias set minio ${kceConf.s3.endpoint} ${kceConf.s3.accessKey} ${kceConf.s3.secretKey}
-                 |$cpLibClauses""".stripMargin),
+            command = Vector("sh", "-c", s"mc alias set minio ${kceConf.s3.endpoint} ${kceConf.s3.accessKey} ${kceConf.s3.secretKey} $cpLibClauses"),
             volumeMounts = Vector(VolumeMount(name = "flink-libs", mountPath = "/opt/flink/lib")))
         )
     val initContainers = Vector(libLoaderInitContainer).flatten

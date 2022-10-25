@@ -144,7 +144,7 @@ trait FlinkClusterDefinition[SubType <: FlinkClusterDefinition[SubType]] { this:
         .contra { optJarNames =>
           (definition.builtInPlugins & optJarNames).nonEmpty
         }
-      if (isS3Required && !s3PluginReady) definition.copyBuiltInPlugins(builtInPlugins + defaultS3Plugin.name)
+      if (isS3Required && !s3PluginReady) definition.copyBuiltInPlugins(builtInPlugins + defaultS3Plugin.jarName(flinkVer))
       else definition
     }
     val ensureHdfsPlugins: RevisePipe = identity

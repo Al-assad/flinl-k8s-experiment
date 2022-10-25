@@ -19,4 +19,9 @@ package object common {
    */
   def safeTrim(value: String): String = Option(value).map(_.trim).getOrElse("")
 
+  /**
+   * Auto convert value to Some
+   */
+  implicit def valueToSome[T](value: T): Option[T] = Some(value)
+
 }

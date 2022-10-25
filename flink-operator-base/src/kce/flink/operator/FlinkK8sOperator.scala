@@ -21,7 +21,6 @@ trait FlinkK8sOperator {
   /**
    * Deploy Flink session cluster.
    */
-  // TODO testing
   def deploySessionCluster(definition: FlinkSessClusterDef): IO[FlinkOprErr, Unit]
 
   // TODO
