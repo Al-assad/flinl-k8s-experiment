@@ -21,7 +21,7 @@ class FlinkK8sOperatorLive(kceConf: KceConf, k8sClient: Kubernetes) extends Flin
   /**
    * Deploy Flink Application cluster.
    */
-  override def deployApplication(definition: FlinkAppClusterDef): IO[FlinkOprErr, Unit] = {
+  override def deployApplicationCluster(definition: FlinkAppClusterDef): IO[FlinkOprErr, Unit] = {
     for {
       clusterDef      <- succeed(definition.revise())
       podTemplateFile <- resolvePodTemplateAndDump(clusterDef, kceConf)

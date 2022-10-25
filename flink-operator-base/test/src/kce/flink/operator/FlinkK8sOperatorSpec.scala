@@ -4,7 +4,7 @@ import kce.common.valueToSome
 import kce.conf.{K8sClient, KceConf}
 import kce.flink.operator.entity.CheckpointStorageType.Filesystem
 import kce.flink.operator.entity.StateBackendType.Rocksdb
-import kce.flink.operator.entity.{FlinkSessClusterDef, FlinkVer, StateBackendConf}
+import kce.flink.operator.entity.{FlinkAppClusterDef, FlinkSessClusterDef, FlinkVer, StateBackendConf}
 import kce.testkit.STSpec
 
 class FlinkK8sOperatorSpec extends STSpec {
@@ -81,8 +81,56 @@ class FlinkK8sOperatorSpec extends STSpec {
     }
   }
 
-  "deploy application cluster" in {
-
+  "deploy application cluster" should {
+    "normal" in {
+      FlinkK8sOperator
+        .deployApplicationCluster(
+          FlinkAppClusterDef(
+            flinkVer = FlinkVer("1.15.2"),
+            clusterId = "app-t1",
+            namespace = "fdev",
+            image = "flink:1.15.2",
+            jobJar = "local:///opt/flink/examples/streaming/StateMachineExample.jar"
+          ))
+        .provide(layers)
+        .debug
+        .run
+    }
+    "with user jar on s3" in {
+      FlinkK8sOperator
+        .deployApplicationCluster(
+          FlinkAppClusterDef(
+            flinkVer = FlinkVer("1.15.2"),
+            clusterId = "app-t2",
+            namespace = "fdev",
+            image = "flink:1.15.2",
+            jobJar = "s3://flink-dev/flink-1.15.2/example/streaming/StateMachineExample.jar"
+          ))
+        .provide(layers)
+        .debug
+        .run
+    }
+    "with state backend" in {
+      FlinkK8sOperator
+        .deployApplicationCluster(
+          FlinkAppClusterDef(
+            flinkVer = FlinkVer("1.15.2"),
+            clusterId = "app-t3",
+            namespace = "fdev",
+            image = "flink:1.15.2",
+            jobJar = "s3://flink-dev/flink-1.15.2/example/streaming/StateMachineExample.jar",
+            stateBackend = StateBackendConf(
+              backendType = Rocksdb,
+              checkpointStorage = Filesystem,
+              checkpointDir = "s3://flink-dev/checkpoints",
+              savepointDir = "s3://flink-dev/savepoints",
+              incremental = true
+            )
+          ))
+        .provide(layers)
+        .debug
+        .run
+    }
   }
 
 }

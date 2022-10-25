@@ -49,7 +49,7 @@ case class FlinkAppClusterDef(
     kceConf,
     moreInject = { conf =>
       // when jobJar path is s3 path, replace with pvc local path.
-      val reviseJarPath = if (isS3Path(jobJar)) s"file:///opt/flink/lib/${jobJar.split('/').last}" else jobJar
+      val reviseJarPath = if (isS3Path(jobJar)) s"local:///opt/flink/lib/${jobJar.split('/').last}" else jobJar
       conf
         .append("pipeline.jars", reviseJarPath)
         .append("pipeline.name", jobName)

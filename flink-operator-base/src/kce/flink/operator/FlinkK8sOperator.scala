@@ -15,8 +15,7 @@ trait FlinkK8sOperator {
   /**
    * Deploy Flink Application cluster.
    */
-  // TODO testing
-  def deployApplication(definition: FlinkAppClusterDef): IO[FlinkOprErr, Unit]
+  def deployApplicationCluster(definition: FlinkAppClusterDef): IO[FlinkOprErr, Unit]
 
   /**
    * Deploy Flink session cluster.
@@ -25,6 +24,14 @@ trait FlinkK8sOperator {
 
   // TODO
   // def submitJobToSession()
+
+  // def killCluster
+
+  // def cancelJob
+
+  // def getJobStatus
+
+  // def listJobs
 
   /**
    * Retrieve Flink rest endpoint via kubernetes api.

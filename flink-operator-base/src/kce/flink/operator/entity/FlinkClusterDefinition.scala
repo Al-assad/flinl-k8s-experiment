@@ -120,7 +120,7 @@ trait FlinkClusterDefinition[SubType <: FlinkClusterDefinition[SubType]] { this:
   /**
    * Ensure that the necessary configuration has been set whenever possible.
    */
-  protected def reviseDefinition(): SubType = {
+  protected def reviseDefinition(moreRevisePipe: RevisePipe = identity): SubType = {
     val removeNotAllowCustomRawConfigs: RevisePipe = _.copyExtRawConfigs(
       extRawConfigs
         .map(kv => safeTrim(kv._1) -> safeTrim(kv._2))
@@ -149,7 +149,11 @@ trait FlinkClusterDefinition[SubType <: FlinkClusterDefinition[SubType]] { this:
     }
     val ensureHdfsPlugins: RevisePipe = identity
 
-    val pipe = removeNotAllowCustomRawConfigs andThen completeBuiltInPlugins andThen ensureS3Plugins andThen ensureHdfsPlugins
+    val pipe = removeNotAllowCustomRawConfigs andThen
+      completeBuiltInPlugins andThen
+      ensureS3Plugins andThen
+      ensureHdfsPlugins andThen
+      moreRevisePipe
     pipe(this)
   }
 
