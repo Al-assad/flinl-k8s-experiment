@@ -63,7 +63,7 @@ object PodTemplateResolver {
     // userlib-loader initContainer
     lazy val cpS3LibClauses = libsOnS3
       .map { case (path, name) => kceConf.s3.revisePath(path) -> name }
-      .map { case (path, name) => s"&& mc cp minio/${path} /opt/flink/lib/$name" }
+      .map { case (path, name) => s"&& mc cp minio/$path /opt/flink/lib/$name" }
       .mkString(" ")
 
     val libLoaderInitContainer =
