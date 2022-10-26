@@ -82,7 +82,7 @@ class FlinkK8sOperatorLive(kceConf: KceConf, k8sClient: Kubernetes) extends Flin
   /**
    * Submit job to Flink session cluster.
    */
-  override def submitJobToSession(jobDef: FlinkSessJobDef): IO[FlinkOprErr, JobId] = {
+  override def submitJobToSession(jobDef: FlinkSessJobDef): IO[FlinkOprErr, String] = {
     ZIO.scoped {
       for {
         clusterClient <- getFlinkRestClient(K8sSession, jobDef.clusterId, jobDef.namespace)

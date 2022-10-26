@@ -2,12 +2,12 @@ package kce.flink.operator.entity
 
 import cats.Eval
 import kce.common.CollectionExtension.StringIterableWrapper
-import kce.common.PathTool.isS3Path
-import kce.common.{safeTrim, ComplexEnum, GenericPF}
+import kce.common.PathTool.{isS3Path, reviseToS3pSchema}
+import kce.common.{safeTrim, ComplexEnum}
 import kce.conf.KceConf
 import kce.flink.operator.FlinkConfigExtension.{configurationToPF, ConfigurationPF, EmptyConfiguration}
 import kce.flink.operator.FlinkPlugins
-import kce.flink.operator.FlinkPlugins.defaultS3Plugin
+import kce.flink.operator.FlinkPlugins.{s3Hadoop, s3Presto, s3aPlugins}
 import kce.flink.operator.entity.FlinkClusterDefinition.notAllowCustomRawConfKeys
 import kce.flink.operator.entity.FlinkExecMode.FlinkExecMode
 import kce.flink.operator.entity.RestExportType.RestExportType
@@ -59,15 +59,91 @@ trait FlinkClusterDefinition[SubType <: FlinkClusterDefinition[SubType]] { this:
       if (c.checkpointDir.exists(isS3Path)) true
       else c.savepointDir.exists(isS3Path)
     }
-    lazy val checkJmHa         = jmHa.exists(c => isS3Path(c.storageDir))
-    lazy val checkInjectDeps   = injectedDeps.exists(isS3Path)
-    lazy val checkExRawConfigs = extRawConfigs.exists { case (_, v) => isS3Path(v) }
+    lazy val checkJmHa       = jmHa.exists(c => isS3Path(c.storageDir))
+    lazy val checkInjectDeps = injectedDeps.exists(isS3Path)
 
     if (checkStateBackend) true
     else if (checkJmHa) true
     else if (checkInjectDeps) true
-    else if (checkExRawConfigs) true
     else moreChecks.value
+  }
+
+  protected type RevisePipe = SubType => SubType
+
+  /**
+   * Ensure that the necessary configuration has been set whenever possible.
+   */
+  def revise(): SubType
+
+  /**
+   * Ensure that the necessary configuration has been set whenever possible.
+   */
+  protected def reviseDefinition(moreRevisePipe: RevisePipe = identity): SubType = {
+    // filter not allow customized extRawConfigs.
+    val removeNotAllowCustomRawConfigs: RevisePipe = _.copyExtRawConfigs(
+      extRawConfigs
+        .map(kv => safeTrim(kv._1) -> safeTrim(kv._2))
+        .filter(kv => kv._1.nonEmpty && kv._2.nonEmpty)
+        .filter(kv => !notAllowCustomRawConfKeys.contains(kv._1))
+    )
+    // format BuiltInPlugins fields.
+    val completeBuiltInPlugins: RevisePipe = _.copyBuiltInPlugins(
+      builtInPlugins
+        .filterNotBlank()
+        .map { name =>
+          FlinkPlugins.plugins.find(_.name == name) match {
+            case None         => name
+            case Some(plugin) => plugin.jarName(flinkVer)
+          }
+        }
+        .toSet
+    )
+    // modify s3 path to s3p schema
+    val reviseS3Path: RevisePipe = { definition =>
+      definition
+        .copyStateBackend(
+          stateBackend.map(conf =>
+            conf.copy(
+              checkpointDir = conf.checkpointDir.map(reviseToS3pSchema),
+              savepointDir = conf.savepointDir.map(reviseToS3pSchema)
+            ))
+        )
+        .copyJmHa(
+          jmHa.map(conf =>
+            conf.copy(
+              storageDir = reviseToS3pSchema(conf.storageDir)
+            ))
+        )
+        .copyInjectDeps(
+          injectedDeps.map(reviseToS3pSchema)
+        )
+    }
+    // ensure s3 plugins is enabled if necessary.
+    val ensureS3Plugins: RevisePipe = { definition =>
+      val extBuildInS3PluginJar = {
+        val s3pJar = s3Presto.jarName(flinkVer)
+        if (isS3Required && !builtInPlugins.contains(s3pJar)) s3pJar else ""
+      }
+      val extJobS3PluginJar = {
+        if (s3.isEmpty) ""
+        else {
+          val s3aJars = s3aPlugins.map(_.jarName(flinkVer))
+          if ((builtInPlugins & s3aJars).isEmpty) s3Hadoop.jarName(flinkVer) else ""
+        }
+      }
+      val extraPluginJars = Vector(extBuildInS3PluginJar, extJobS3PluginJar).filter(_.nonEmpty)
+      if (extraPluginJars.nonEmpty) definition.copyBuiltInPlugins(builtInPlugins ++ extraPluginJars) else definition
+    }
+    // ensure hadoop plugins is enabled if necessary.
+    val ensureHdfsPlugins: RevisePipe = identity
+
+    val pipe = removeNotAllowCustomRawConfigs andThen
+      completeBuiltInPlugins andThen
+      reviseS3Path andThen
+      ensureS3Plugins andThen
+      ensureHdfsPlugins andThen
+      moreRevisePipe
+    pipe(this)
   }
 
   /**
@@ -93,11 +169,10 @@ trait FlinkClusterDefinition[SubType <: FlinkClusterDefinition[SubType]] { this:
       .append(jmHa)
       // s3 raw configs if necessary
       .pipe { conf =>
-        s3 match {
-          case Some(c)              => c.injectRaw(conf)
-          case None if isS3Required => S3AccessConf(kceConf.s3).injectRaw(conf)
-          case _                    => conf
-        }
+        val buildInS3Conf = if (isS3Required) S3AccessConf(kceConf.s3).rawMappingS3p else Vector.empty
+        val jobS3Conf     = s3.map(_.rawMappingS3a).getOrElse(Vector.empty)
+        (buildInS3Conf ++ jobS3Conf)
+          .foldLeft(conf)((ac, c) => ac.append(c._1, c._2))
       }
       // built-in plugins raw configs
       .pipeWhen(builtInPlugins.nonEmpty) { conf =>
@@ -110,55 +185,11 @@ trait FlinkClusterDefinition[SubType <: FlinkClusterDefinition[SubType]] { this:
       .merge(extRawConfigs)
   }
 
-  protected type RevisePipe = SubType => SubType
-
-  /**
-   * Ensure that the necessary configuration has been set whenever possible.
-   */
-  def revise(): SubType
-
-  /**
-   * Ensure that the necessary configuration has been set whenever possible.
-   */
-  protected def reviseDefinition(moreRevisePipe: RevisePipe = identity): SubType = {
-    val removeNotAllowCustomRawConfigs: RevisePipe = _.copyExtRawConfigs(
-      extRawConfigs
-        .map(kv => safeTrim(kv._1) -> safeTrim(kv._2))
-        .filter(kv => kv._1.nonEmpty && kv._2.nonEmpty)
-        .filter(kv => !notAllowCustomRawConfKeys.contains(kv._1))
-    )
-    val completeBuiltInPlugins: RevisePipe = _.copyBuiltInPlugins(
-      builtInPlugins
-        .filterNotBlank()
-        .map { name =>
-          FlinkPlugins.plugins.find(_.name == name) match {
-            case None         => name
-            case Some(plugin) => plugin.jarName(flinkVer)
-          }
-        }
-        .toSet
-    )
-    val ensureS3Plugins: RevisePipe = { definition =>
-      lazy val s3PluginReady = FlinkPlugins.s3Plugins
-        .map(_.jarName(flinkVer))
-        .contra { optJarNames =>
-          (definition.builtInPlugins & optJarNames).nonEmpty
-        }
-      if (isS3Required && !s3PluginReady) definition.copyBuiltInPlugins(builtInPlugins + defaultS3Plugin.jarName(flinkVer))
-      else definition
-    }
-    val ensureHdfsPlugins: RevisePipe = identity
-
-    val pipe = removeNotAllowCustomRawConfigs andThen
-      completeBuiltInPlugins andThen
-      ensureS3Plugins andThen
-      ensureHdfsPlugins andThen
-      moreRevisePipe
-    pipe(this)
-  }
-
   protected def copyExtRawConfigs(extRawConfigs: Map[String, String]): SubType
   protected def copyBuiltInPlugins(builtInPlugins: Set[String]): SubType
+  protected def copyStateBackend(stateBackend: Option[StateBackendConf]): SubType
+  protected def copyJmHa(jmHa: Option[JmHaConf]): SubType
+  protected def copyInjectDeps(injectedDeps: Set[String]): SubType
 
   def logTags: Map[String, String] = Map("clusterId" -> clusterId, "namespace" -> namespace, "flinkVer" -> flinkVer.fullVer)
 }

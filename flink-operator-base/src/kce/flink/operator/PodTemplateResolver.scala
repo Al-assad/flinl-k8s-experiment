@@ -61,7 +61,11 @@ object PodTemplateResolver {
     }
 
     // userlib-loader initContainer
-    lazy val cpLibClauses = libsOnS3.map { case (path, name) => s"&& mc cp minio/$path /opt/flink/lib/$name" }.mkString(" ")
+    lazy val cpS3LibClauses = libsOnS3
+      .map { case (path, name) => kceConf.s3.revisePath(path) -> name }
+      .map { case (path, name) => s"&& mc cp minio/${path} /opt/flink/lib/$name" }
+      .mkString(" ")
+
     val libLoaderInitContainer =
       if (libsOnS3.isEmpty) None
       else
@@ -69,7 +73,7 @@ object PodTemplateResolver {
           Container(
             name = "userlib-loader",
             image = kceConf.flink.minioClientImage,
-            command = Vector("sh", "-c", s"mc alias set minio ${kceConf.s3.endpoint} ${kceConf.s3.accessKey} ${kceConf.s3.secretKey} $cpLibClauses"),
+            command = Vector("sh", "-c", s"mc alias set minio ${kceConf.s3.endpoint} ${kceConf.s3.accessKey} ${kceConf.s3.secretKey} $cpS3LibClauses"),
             volumeMounts = Vector(VolumeMount(name = "flink-libs", mountPath = "/opt/flink/lib")))
         )
     val initContainers = Vector(libLoaderInitContainer).flatten

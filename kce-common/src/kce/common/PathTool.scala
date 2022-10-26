@@ -25,5 +25,15 @@ object PathTool {
    */
   def isS3Path(path: String): Boolean = s3SchemaPrefix.contains(path.split("://").head.trim)
 
-}
+  /**
+   * Modify s3 path to s3p schema.
+   */
+  def reviseToS3pSchema(path: String): String = {
+    path.split("://").contra { segs =>
+      if (segs.length < 2) path
+      else if (!s3SchemaPrefix.contains(segs(0))) path
+      else s"s3p://${segs(1)}"
+    }
+  }
 
+}

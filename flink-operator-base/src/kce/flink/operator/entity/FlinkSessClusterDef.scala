@@ -46,11 +46,14 @@ case class FlinkSessClusterDef(
    */
   def revise(): FlinkSessClusterDef = reviseDefinition()
 
-  protected def copyExtRawConfigs(extRawConfigs: Map[String, String]): FlinkSessClusterDef = copy(extRawConfigs = extRawConfigs)
-  protected def copyBuiltInPlugins(builtInPlugins: Set[String]): FlinkSessClusterDef       = copy(builtInPlugins = builtInPlugins)
-
+  protected def copyExtRawConfigs(extRawConfigs: Map[String, String]): FlinkSessClusterDef    = copy(extRawConfigs = extRawConfigs)
+  protected def copyBuiltInPlugins(builtInPlugins: Set[String]): FlinkSessClusterDef          = copy(builtInPlugins = builtInPlugins)
+  protected def copyStateBackend(stateBackend: Option[StateBackendConf]): FlinkSessClusterDef = copy(stateBackend = stateBackend)
+  protected def copyJmHa(jmHa: Option[JmHaConf]): FlinkSessClusterDef                         = copy(jmHa = jmHa)
+  protected def copyInjectDeps(injectedDeps: Set[String]): FlinkSessClusterDef                = copy(injectedDeps = injectedDeps)
 }
 
 object FlinkSessClusterDef {
+  import FlinkRawConf._
   implicit val jsonCodec: JsonCodec[FlinkSessClusterDef] = DeriveJsonCodec.gen[FlinkSessClusterDef]
 }

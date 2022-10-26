@@ -4,6 +4,7 @@ import cats.Eval
 import cats.Eval.later
 import kce.common.NumExtension.{DoubleWrapper, IntWrapper}
 import kce.common.{ComplexEnum, GenericPF}
+import kce.conf.S3AccessStyle.PathStyle
 import kce.conf.S3Conf
 import kce.flink.operator.FlinkConfigExtension.{ConfigurationPF, EmptyConfiguration}
 import kce.flink.operator.entity.CheckpointStorageType.CheckpointStorageType
@@ -186,19 +187,47 @@ case class S3AccessConf(
     accessKey: String,
     secretKey: String,
     pathStyleAccess: Option[Boolean] = None,
-    sslEnabled: Option[Boolean] = None)
-    extends FlinkRawConf {
+    sslEnabled: Option[Boolean] = None) {
 
-  def rawMapping = Vector(
-    "s3.endpoint"          -> later(endpoint),
-    "s3.access-key"        -> later(accessKey),
-    "s3.secret-key"        -> later(secretKey),
-    "s3.path.style.access" -> later(pathStyleAccess),
-    "s3.ssl.enabled"       -> later(sslEnabled)
+  /**
+   * Mapping to flink-s3-presto configuration.
+   */
+  def rawMappingS3p = S3AccessConf.format(
+    Vector(
+      "hive.s3.endpoint"          -> endpoint,
+      "hive.s3.aws-access-key"    -> accessKey,
+      "hive.s3.aws-secret-key"    -> secretKey,
+      "hive.s3.path-style-access" -> pathStyleAccess,
+      "hive.s3.ssl.enabled"       -> sslEnabled
+    )
   )
+
+  /**
+   * Mapping to flink-s3-hadoop configuration.
+   */
+  def rawMappingS3a = S3AccessConf.format(
+    Vector(
+      "fs.s3a.endpoint"               -> endpoint,
+      "fs.s3a.access.key"             -> accessKey,
+      "fs.s3a.secret.key"             -> secretKey,
+      "fs.s3a.path.style.access"      -> pathStyleAccess,
+      "fs.s3a.connection.ssl.enabled" -> sslEnabled
+    ))
+
 }
 
 object S3AccessConf {
   def apply(conf: S3Conf): S3AccessConf =
-    S3AccessConf(conf.endpoint, conf.accessKey, conf.secretKey, Some(conf.pathStyleAccess), Some(conf.sslEnabled))
+    S3AccessConf(conf.endpoint, conf.accessKey, conf.secretKey, Some(conf.accessStyle == PathStyle), Some(conf.sslEnabled))
+
+  private def format(vec: Vector[(String, Any)]): Vector[(String, Any)] =
+    vec
+      .filter {
+        case (_, None) => false
+        case _         => true
+      }
+      .map {
+        case (k, Some(v)) => k -> v
+        case (k, v)       => k -> v
+      }
 }

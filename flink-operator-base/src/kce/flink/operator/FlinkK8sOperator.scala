@@ -12,8 +12,6 @@ import zio.macros.accessible
 @accessible
 trait FlinkK8sOperator {
 
-  type JobId = String
-
   /**
    * Deploy Flink Application cluster.
    * TODO support restore config.
@@ -27,8 +25,9 @@ trait FlinkK8sOperator {
 
   /**
    * Submit job to Flink session cluster.
+   * @return flink job-id
    */
-  def submitJobToSession(definition: FlinkSessJobDef): IO[FlinkOprErr, JobId]
+  def submitJobToSession(definition: FlinkSessJobDef): IO[FlinkOprErr, String]
 
   // def killCluster
 

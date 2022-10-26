@@ -24,17 +24,13 @@ object FlinkPlugins {
   /**
    * All s3 built-in plugins.
    */
-  lazy val s3Plugins = Set(s3Hadoop, s3HadoopGS, s3HadoopOSS, s3HadoopAzure, s3Presto)
+  lazy val s3Plugins  = s3aPlugins ++ Set(s3Presto)
+  lazy val s3aPlugins = Set(s3Hadoop, s3HadoopGS, s3HadoopOSS, s3HadoopAzure)
 
   /**
    * All HDFS built-in plugins
    */
   lazy val hadoopPlugins = Set(s3Hadoop, s3HadoopGS, s3HadoopOSS, s3HadoopAzure)
-
-  /**
-   * Default s3 plugin.
-   */
-  lazy val defaultS3Plugin = s3Hadoop
 
   /**
    * Default Hadoop plugin.

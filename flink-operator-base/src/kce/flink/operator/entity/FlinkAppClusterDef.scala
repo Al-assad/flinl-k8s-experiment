@@ -1,7 +1,7 @@
 package kce.flink.operator.entity
 
 import cats.Eval.later
-import kce.common.PathTool.isS3Path
+import kce.common.PathTool.{isS3Path, reviseToS3pSchema}
 import kce.conf.KceConf
 import kce.flink.operator.entity.RestExportType.RestExportType
 import org.apache.flink.configuration.Configuration
@@ -60,14 +60,18 @@ case class FlinkAppClusterDef(
   /**
    * Ensure that the necessary configuration has been set whenever possible.
    */
-  def revise(): FlinkAppClusterDef = reviseDefinition()
+  def revise(): FlinkAppClusterDef = reviseDefinition { definition =>
+    definition.copy(jobJar = reviseToS3pSchema(jobJar))
+  }
 
-  protected def copyExtRawConfigs(extRawConfigs: Map[String, String]): FlinkAppClusterDef = copy(extRawConfigs = extRawConfigs)
-  protected def copyBuiltInPlugins(builtInPlugins: Set[String]): FlinkAppClusterDef       = copy(builtInPlugins = builtInPlugins)
+  protected def copyExtRawConfigs(extRawConfigs: Map[String, String]): FlinkAppClusterDef    = copy(extRawConfigs = extRawConfigs)
+  protected def copyBuiltInPlugins(builtInPlugins: Set[String]): FlinkAppClusterDef          = copy(builtInPlugins = builtInPlugins)
+  protected def copyStateBackend(stateBackend: Option[StateBackendConf]): FlinkAppClusterDef = copy(stateBackend = stateBackend)
+  protected def copyJmHa(jmHa: Option[JmHaConf]): FlinkAppClusterDef                         = copy(jmHa = jmHa)
+  protected def copyInjectDeps(injectedDeps: Set[String]): FlinkAppClusterDef                = copy(injectedDeps = injectedDeps)
 }
 
 object FlinkAppClusterDef {
+  import FlinkRawConf._
   implicit val jsonCodec: JsonCodec[FlinkAppClusterDef] = DeriveJsonCodec.gen[FlinkAppClusterDef]
 }
-
-
