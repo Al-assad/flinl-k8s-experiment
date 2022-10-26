@@ -2,13 +2,14 @@ package kce.flink.operator
 import com.coralogix.zio.k8s.client.K8sFailure.syntax.K8sZIOSyntax
 import com.coralogix.zio.k8s.client.kubernetes.Kubernetes
 import kce.common.LogMessageTool.LogMessageStringWrapper
+import kce.common.PathTool.isS3Path
 import kce.common.ziox.usingAttempt
 import kce.conf.KceConf
 import kce.flink.operator.FlinkConfigExtension.configurationToPF
-import kce.flink.operator.FlinkOprHelper.getClusterClientFactory
+import kce.flink.operator.FlinkOprHelper.{getClusterClientFactory, getFlinkRestClient}
 import kce.flink.operator.PodTemplateResolver.resolvePodTemplateAndDump
 import kce.flink.operator.entity.FlinkExecMode.K8sSession
-import kce.flink.operator.entity.{FlinkAppClusterDef, FlinkRestSvcEndpoint, FlinkSessClusterDef}
+import kce.flink.operator.entity.{FlinkAppClusterDef, FlinkRestSvcEndpoint, FlinkSessClusterDef, FlinkSessJobDef}
 import org.apache.flink.client.deployment.application.ApplicationConfiguration
 import zio.ZIO.{attempt, attemptBlocking, attemptBlockingInterrupt, logInfo, scoped, succeed}
 import zio.{IO, ZIO}
@@ -76,6 +77,23 @@ class FlinkK8sOperatorLive(kceConf: KceConf, k8sClient: Kubernetes) extends Flin
         } yield ()
       }.mapError(SubmitFlinkClusterErr("Fail to submit flink session cluster to kubernetes." <> definition.logTags, _))
     } yield ()
+  }
+
+  /**
+   * Submit job to Flink session cluster.
+   */
+  override def submitJobToSession(jobDef: FlinkSessJobDef): IO[FlinkOprErr, JobId] = {
+    ZIO.scoped {
+      for {
+        clusterClient <- getFlinkRestClient(K8sSession, jobDef.clusterId, jobDef.namespace)
+        // download job jar
+        _ <- ZIO.fail(NotSupportJobPath(jobDef.jobJar)).unless(isS3Path(jobDef.jobJar))
+
+        // resolve JobGraph
+        // submit job
+      } yield ()
+    }
+    ???
   }
 
   /**

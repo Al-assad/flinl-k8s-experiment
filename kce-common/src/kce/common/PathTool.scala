@@ -15,7 +15,6 @@ object PathTool {
    */
   def rmSlashPrefix(path: String): String = if (path.startsWith("/")) path.substring(1, path.length) else path
 
-
   /**
    * S3 storage prefix
    */
@@ -27,3 +26,4 @@ object PathTool {
   def isS3Path(path: String): Boolean = s3SchemaPrefix.contains(path.split("://").head.trim)
 
 }
+

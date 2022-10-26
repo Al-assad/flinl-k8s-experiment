@@ -46,7 +46,13 @@ trait ZIOExtension {
   /**
    * [[scala.util.Using]] style syntax for ZIO.
    */
-  def usingAttempt[RS <: AutoCloseable](code: => RS): ZIO[Any with Scope, Throwable, RS] = ZIO.acquireRelease(ZIO.attempt(code))(close)
+  def usingAttempt[RS <: AutoCloseable](code: => RS): ZIO[Scope, Throwable, RS] = ZIO.acquireRelease(ZIO.attempt(code))(close)
+
+  /**
+   * [[scala.util.Using]] style syntax for ZIO.
+   */
+  def usingAttemptBlocking[RS <: AutoCloseable](code: => RS): ZIO[Scope, Throwable, RS] =
+    ZIO.acquireRelease(ZIO.attemptBlockingInterrupt(code))(close)
 
   /**
    * Alias for [[ZIO.succeed]]

@@ -2,7 +2,7 @@ package kce.flink.operator
 
 import com.coralogix.zio.k8s.client.kubernetes.Kubernetes
 import kce.conf.KceConf
-import kce.flink.operator.entity.{FlinkAppClusterDef, FlinkRestSvcEndpoint, FlinkSessClusterDef}
+import kce.flink.operator.entity.{FlinkAppClusterDef, FlinkRestSvcEndpoint, FlinkSessClusterDef, FlinkSessJobDef}
 import zio._
 import zio.macros.accessible
 
@@ -12,8 +12,11 @@ import zio.macros.accessible
 @accessible
 trait FlinkK8sOperator {
 
+  type JobId = String
+
   /**
    * Deploy Flink Application cluster.
+   * TODO support restore config.
    */
   def deployApplicationCluster(definition: FlinkAppClusterDef): IO[FlinkOprErr, Unit]
 
@@ -22,8 +25,10 @@ trait FlinkK8sOperator {
    */
   def deploySessionCluster(definition: FlinkSessClusterDef): IO[FlinkOprErr, Unit]
 
-  // TODO
-  // def submitJobToSession()
+  /**
+   * Submit job to Flink session cluster.
+   */
+  def submitJobToSession(definition: FlinkSessJobDef): IO[FlinkOprErr, JobId]
 
   // def killCluster
 
