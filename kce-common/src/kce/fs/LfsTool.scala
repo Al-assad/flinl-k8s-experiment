@@ -25,8 +25,14 @@ object LfsTool {
    * Write content to file.
    */
   def write(path: String, content: String): IO[Throwable, Unit] = {
-    ZIO.attempt(new File(path).toPath.getParent.toFile.mkdirs()) *>
-    ZIO.writeFile(path, content)
+    ensureParentDir(path) *> ZIO.writeFile(path, content)
   }
+
+  /**
+   * Ensure the parent directory of given path would be created.
+   */
+  def ensureParentDir(path: String): IO[Throwable, Unit] = ZIO.attempt(new File(path).toPath.getParent.toFile.mkdirs())
+
+  def ensureParentDir(file: File): IO[Throwable, Unit] = ZIO.attempt(file.toPath.getParent.toFile.mkdirs())
 
 }

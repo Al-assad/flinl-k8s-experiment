@@ -38,6 +38,10 @@ trait ZIOExtension {
     }
   }
 
+  implicit class ThrowableEZIOWrapper[R, E <: Throwable, A](zio: ZIO[R, E, A]) {
+    @inline def debugErr(implicit trace: Trace): ZIO[R, E, A] = zio.debug.tapError(e => ZIO.succeed(e.printStackTrace()))
+  }
+
   /**
    * Close resource zio.
    */

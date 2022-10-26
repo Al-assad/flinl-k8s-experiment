@@ -18,7 +18,7 @@ object LogMessageTool {
   @inline def prettyLogTags(tags: Map[String, String]): String = tags.map { case (k, v) => s"[$k=$v]" }.mkString(" ")
 
   implicit class LogMessageStringWrapper(msg: String) {
-    @inline def <>(tags: Map[String, String]): String = s"$msg ${prettyLogTags(tags)}"
-    @inline def <>(tags: (String, String)*): String   = <>(tags.toMap)
+    @inline def tag(tags: Map[String, String]): String = s"$msg ${prettyLogTags(tags)}"
+    @inline def tag(tags: (String, String)*): String   = tag(tags.toMap)
   }
 }
