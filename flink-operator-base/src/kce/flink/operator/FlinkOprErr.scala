@@ -10,6 +10,7 @@ import kce.k8s
 sealed trait FlinkOprErr extends PotaFail
 
 object FlinkOprErr {
+
   case class IOErr(message: String, cause: Throwable)  extends FlinkOprErr with FailStackFill
   case class ParsePodTemplateYamlErr(cause: Throwable) extends FlinkOprErr with FailStackFill
   case class GenPodTemplateErr(cause: Throwable)       extends FlinkOprErr with FailStackFill
@@ -21,5 +22,4 @@ object FlinkOprErr {
   object RequestK8sApiErr {
     def apply(k8sFailure: K8sFailure): RequestK8sApiErr = RequestK8sApiErr(k8sFailure, k8s.liftException(k8sFailure).orNull)
   }
-
 }
