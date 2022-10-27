@@ -2,22 +2,30 @@ package kce.flink.operator
 import com.coralogix.zio.k8s.client.K8sFailure.syntax.K8sZIOSyntax
 import com.coralogix.zio.k8s.client.kubernetes.Kubernetes
 import kce.common.LogMessageTool.LogMessageStringWrapper
-import kce.common.PathTool.isS3Path
+import kce.common.PathTool.{fileName, isS3Path}
+import kce.common.ZIOExtension.ScopeZIOWrapper
 import kce.common.ziox.usingAttempt
 import kce.conf.KceConf
 import kce.flink.operator.FlinkConfigExtension.configurationToPF
-import kce.flink.operator.FlinkOprHelper.{getClusterClientFactory, getFlinkRestClient}
+import kce.flink.operator.FlinkOprHelper.getClusterClientFactory
 import kce.flink.operator.PodTemplateResolver.resolvePodTemplateAndDump
 import kce.flink.operator.entity.FlinkExecMode.K8sSession
 import kce.flink.operator.entity.{FlinkAppClusterDef, FlinkRestSvcEndpoint, FlinkSessClusterDef, FlinkSessJobDef}
+import kce.fs.S3Operator
 import org.apache.flink.client.deployment.application.ApplicationConfiguration
+import sttp.client3._
+import sttp.client3.httpclient.zio.HttpClientZioBackend
+import sttp.client3.ziojson._
 import zio.ZIO.{attempt, attemptBlocking, attemptBlockingInterrupt, logInfo, scoped, succeed}
-import zio.{IO, ZIO}
+import zio.json._
+import zio.{IO, Task, ZIO}
+
+import java.io.File
 
 /**
  * Default FlinkK8sOperator implementation.
  */
-class FlinkK8sOperatorLive(kceConf: KceConf, k8sClient: Kubernetes) extends FlinkK8sOperator {
+class FlinkK8sOperatorLive(kceConf: KceConf, k8sClient: Kubernetes, s3Operator: S3Operator) extends FlinkK8sOperator {
 
   /**
    * Deploy Flink Application cluster.
@@ -46,8 +54,8 @@ class FlinkK8sOperatorLive(kceConf: KceConf, k8sClient: Kubernetes) extends Flin
             _                    <- attemptBlockingInterrupt(k8sClusterDescriptor.deployApplicationCluster(clusterSpecification, appConfiguration))
           } yield ()
         }
-        .mapError(SubmitFlinkClusterErr("Fail to submit flink application cluster to kubernetes." <> definition.logTags, _))
-      _ <- logInfo(s"Deploy Flink session cluster successfully." <> definition.logTags)
+        .mapError(SubmitFlinkClusterErr("Fail to submit flink application cluster to kubernetes." tag definition.logTags, _))
+      _ <- logInfo(s"Deploy Flink session cluster successfully." tag definition.logTags)
     } yield ()
   }
 
@@ -75,7 +83,7 @@ class FlinkK8sOperatorLive(kceConf: KceConf, k8sClient: Kubernetes) extends Flin
           k8sClusterDescriptor <- usingAttempt(clusterClientFactory.createClusterDescriptor(rawConfig))
           _                    <- attemptBlocking(k8sClusterDescriptor.deploySessionCluster(clusterSpecification))
         } yield ()
-      }.mapError(SubmitFlinkClusterErr("Fail to submit flink session cluster to kubernetes." <> definition.logTags, _))
+      }.mapError(SubmitFlinkClusterErr("Fail to submit flink session cluster to kubernetes." tag definition.logTags, _))
     } yield ()
   }
 
@@ -83,17 +91,81 @@ class FlinkK8sOperatorLive(kceConf: KceConf, k8sClient: Kubernetes) extends Flin
    * Submit job to Flink session cluster.
    */
   override def submitJobToSession(jobDef: FlinkSessJobDef): IO[FlinkOprErr, String] = {
-    ZIO.scoped {
-      for {
-        clusterClient <- getFlinkRestClient(K8sSession, jobDef.clusterId, jobDef.namespace)
-        // download job jar
-        _ <- ZIO.fail(NotSupportJobPath(jobDef.jobJar)).unless(isS3Path(jobDef.jobJar))
 
-        // resolve JobGraph
-        // submit job
-      } yield ()
-    }
-    ???
+    def uploadJar(filePath: String, restUrl: String)(implicit backend: SttpBackend[Task, Any]) =
+      basicRequest
+        .post(uri"$restUrl/jars/upload")
+        .multipartBody(
+          multipartFile("jarfile", new File(filePath))
+            .fileName(fileName(filePath))
+            .contentType("application/java-archive")
+        )
+        .send(backend)
+        .map(_.body)
+        .flatMap(ZIO.fromEither)
+        .flatMap(rsp => attempt(ujson.read(rsp)("filename").str.split("/").last))
+
+    def runJar(jarId: String, restUrl: String)(implicit backend: SttpBackend[Task, Any]) =
+      basicRequest
+        .post(uri"$restUrl/jars/$jarId/run")
+        .body(FlinkJobRunReq(jobDef))
+        .send(backend)
+        .map(_.body)
+        .flatMap(ZIO.fromEither)
+        .flatMap(rsp => attempt(ujson.read(rsp)("jobid").str))
+
+    def deleteJar(jarId: String, restUrl: String)(implicit backend: SttpBackend[Task, Any]) =
+      basicRequest
+        .delete(uri"$restUrl/jars/$jarId")
+        .send(backend)
+        .ignore
+
+    for {
+      // get rest api url of session cluster
+      restUrl <- retrieveRestEndpoint(jobDef.clusterId, jobDef.namespace).flatMap {
+        case Some(restUrl) => succeed(restUrl.clusterIpRest)
+        case None          => ZIO.fail(ClusterNotFound(jobDef.clusterId, jobDef.namespace))
+      }
+      // download job jar
+      _ <- ZIO.fail(NotSupportJobPath(jobDef.jobJar)).unless(isS3Path(jobDef.jobJar))
+      expectFilePath = s"${kceConf.flink.localTmpDir}/${jobDef.namespace}@${jobDef.clusterId}/${fileName(jobDef.jobJar)}"
+      actJarFilePath <- s3Operator
+        .download(jobDef.jobJar, expectFilePath)
+        .mapBoth(SubmitFlinkSessJobErr("Fail to download job jar from s3." tag jobDef.logTags, _), _.getPath)
+
+      // submit job
+      jobId <- HttpClientZioBackend
+        .scoped()
+        .flatMap { implicit backend =>
+          for {
+            jarId <- uploadJar(actJarFilePath, restUrl)
+            jobId <- runJar(jarId, restUrl)
+            _     <- deleteJar(jarId, restUrl)
+          } yield jobId
+        }
+        .mapError(err => RequestFlinkRestApiErr(err.toString))
+        .endScoped()
+    } yield jobId
+  }
+
+  case class FlinkJobRunReq(
+      @jsonField("entry-class") entryClass: Option[String],
+      programArgs: Array[String],
+      parallelism: Option[Int],
+      savepointPath: Option[String],
+      restoreMode: Option[String],
+      allowNonRestoredState: Option[Boolean])
+
+  object FlinkJobRunReq {
+    implicit def codec: JsonCodec[FlinkJobRunReq] = DeriveJsonCodec.gen[FlinkJobRunReq]
+    def apply(jobDef: FlinkSessJobDef): FlinkJobRunReq = FlinkJobRunReq(
+      entryClass = jobDef.appMain,
+      programArgs = jobDef.appArgs.toArray,
+      parallelism = jobDef.parallelism,
+      savepointPath = jobDef.savepointRestore.map(_.savepointPath),
+      restoreMode = jobDef.savepointRestore.map(_.restoreMode.toString),
+      allowNonRestoredState = jobDef.savepointRestore.map(_.allowNonRestoredState)
+    )
   }
 
   /**
@@ -119,7 +191,7 @@ class FlinkK8sOperatorLive(kceConf: KceConf, k8sClient: Kubernetes) extends Flin
               .getOrElse(8081)
           } yield Some(FlinkRestSvcEndpoint(name, ns, restPort, clusterIp))
       }
-      .mapError(RequestK8sApiErr("Retrieve flink rest svc failed." <> ("clusterId" -> clusterId, "namespace" -> namespace), _))
+      .mapError(RequestK8sApiErr("Retrieve flink rest svc failed." tag ("clusterId" -> clusterId, "namespace" -> namespace), _))
   }
 
 }

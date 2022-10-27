@@ -4,13 +4,14 @@ import kce.common.valueToSome
 import kce.conf.{K8sClient, KceConf}
 import kce.flink.operator.entity.CheckpointStorageType.Filesystem
 import kce.flink.operator.entity.StateBackendType.Rocksdb
-import kce.flink.operator.entity.{FlinkAppClusterDef, FlinkSessClusterDef, FlinkVer, StateBackendConf}
+import kce.flink.operator.entity.{FlinkAppClusterDef, FlinkSessClusterDef, FlinkSessJobDef, FlinkVer, StateBackendConf}
+import kce.fs.S3Operator
 import kce.testkit.STSpec
 
 // TODO unsafe submit
 class FlinkK8sOperatorSpec extends STSpec {
 
-  val layers = (KceConf.live >+> K8sClient.live) >+> FlinkK8sOperator.live
+  val layers = (KceConf.live >+> K8sClient.live) >+> S3Operator.live >>> FlinkK8sOperator.live
 
   "retrieveRestEndpoint" in {
     FlinkK8sOperator
@@ -128,6 +129,20 @@ class FlinkK8sOperatorSpec extends STSpec {
           ))
         .provide(layers)
         .debug
+        .run
+    }
+
+    "submit job to session cluster" in {
+      FlinkK8sOperator
+        .submitJobToSession(
+          FlinkSessJobDef(
+            clusterId = "session-01",
+            namespace = "fdev",
+            jobJar = "s3://flink-dev/flink-1.15.2/example/streaming/StateMachineExample.jar"
+          )
+        )
+        .provide(layers)
+        .debugErr
         .run
     }
   }

@@ -3,6 +3,7 @@ package kce.flink.operator
 import com.coralogix.zio.k8s.client.kubernetes.Kubernetes
 import kce.conf.KceConf
 import kce.flink.operator.entity.{FlinkAppClusterDef, FlinkRestSvcEndpoint, FlinkSessClusterDef, FlinkSessJobDef}
+import kce.fs.S3Operator
 import zio._
 import zio.macros.accessible
 
@@ -46,8 +47,9 @@ trait FlinkK8sOperator {
 object FlinkK8sOperator {
   val live = ZLayer {
     for {
-      kceConf   <- ZIO.service[KceConf]
-      k8sClient <- ZIO.service[Kubernetes]
-    } yield new FlinkK8sOperatorLive(kceConf, k8sClient)
+      kceConf    <- ZIO.service[KceConf]
+      k8sClient  <- ZIO.service[Kubernetes]
+      s3Operator <- ZIO.service[S3Operator]
+    } yield new FlinkK8sOperatorLive(kceConf, k8sClient, s3Operator)
   }
 }

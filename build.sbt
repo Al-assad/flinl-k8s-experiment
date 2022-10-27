@@ -84,6 +84,7 @@ lazy val kceCommon = (project in file("kce-common"))
       "com.lihaoyi"                   %% "upickle"                    % UpickleVer,
       "com.softwaremill.sttp.client3" %% "core"                       % SttpVer,
       "com.softwaremill.sttp.client3" %% "zio"                        % SttpVer,
+      "com.softwaremill.sttp.client3" %% "zio-json"                   % SttpVer,
       "com.softwaremill.sttp.client3" %% "slf4j-backend"              % SttpVer,
       "com.coralogix"                 %% "zio-k8s-client"             % ZIOK8sVer,
       "io.minio"                       % "minio"                      % MinioVer

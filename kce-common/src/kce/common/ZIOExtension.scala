@@ -42,6 +42,10 @@ trait ZIOExtension {
     @inline def debugErr(implicit trace: Trace): ZIO[R, E, A] = zio.debug.tapError(e => ZIO.succeed(e.printStackTrace()))
   }
 
+  implicit class ScopeZIOWrapper[E, A](zio: ZIO[Scope, E, A]) {
+    def endScoped(): IO[E, A] = ZIO.scoped(zio)
+  }
+
   /**
    * Close resource zio.
    */

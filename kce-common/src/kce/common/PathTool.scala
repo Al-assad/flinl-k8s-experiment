@@ -16,6 +16,11 @@ object PathTool {
   def rmSlashPrefix(path: String): String = if (path.startsWith("/")) path.substring(1, path.length) else path
 
   /**
+   * Get file name from path.
+   */
+  def fileName(path: String): String = path.split('/').last
+
+  /**
    * S3 storage prefix
    */
   val s3SchemaPrefix = Vector("s3", "s3a", "s3n", "s3p")

@@ -29,7 +29,7 @@ class S3OperatorLive(kceConf: KceConf) extends S3Operator {
     for {
       objectName <- extractObjectName(s3Path)
       _ <- lfs
-        .ensureParentDir(s3Path)
+        .ensureParentDir(targetPath)
         .mapError(DownloadS3ObjErr("Fail to create parent directory of target file." tag "path" -> targetPath, _))
       _ <- ZIO
         .attemptBlockingInterrupt {

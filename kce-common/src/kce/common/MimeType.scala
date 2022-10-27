@@ -2,6 +2,6 @@ package kce.common
 
 object MimeType {
 
-  val jar = "application/jar"
+  val jar = "application/java-archive"
 
 }

@@ -112,5 +112,5 @@ object PodTemplateResolver {
       _    <- lfs.rm(path)
       _    <- lfs.write(path, yaml)
     } yield ()
-  }.mapError(PodTemplateResolveErr(s"Fail to write podtemplate to local file." <> "path" -> path, _))
+  }.mapError(PodTemplateResolveErr(s"Fail to write podtemplate to local file." tag "path" -> path, _))
 }
