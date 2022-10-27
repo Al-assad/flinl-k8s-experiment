@@ -1,6 +1,6 @@
 package kce.flink.operator
 
-import kce.flink.operator.entity.FlinkRawConf
+import kce.flink.operator.share.FlinkRawConf
 import org.apache.flink.configuration.Configuration
 
 import scala.collection.immutable.Iterable

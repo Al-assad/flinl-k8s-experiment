@@ -1,7 +1,7 @@
-package kce.flink.operator.entity
+package kce.flink.operator.share
 
 import kce.conf.PotaConf
-import kce.flink.operator.entity.RestExportType.RestExportType
+import kce.flink.operator.share.RestExportType.RestExportType
 import org.apache.flink.configuration.Configuration
 import zio.json.{DeriveJsonCodec, JsonCodec}
 

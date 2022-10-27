@@ -1,9 +1,9 @@
-package kce.flink.operator.entity
+package kce.flink.operator.share
 
 import cats.Eval.later
 import kce.common.PathTool.{isS3Path, reviseToS3pSchema}
 import kce.conf.PotaConf
-import kce.flink.operator.entity.RestExportType.RestExportType
+import kce.flink.operator.share.RestExportType.RestExportType
 import org.apache.flink.configuration.Configuration
 import zio.json.{DeriveJsonCodec, JsonCodec}
 

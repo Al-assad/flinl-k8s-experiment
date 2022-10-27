@@ -1,7 +1,7 @@
 package kce.flink.operator
 
 import kce.common.ScalaVer.Scala212
-import kce.flink.operator.entity.FlinkVer
+import kce.flink.operator.share.FlinkVer
 import kce.testkit.STSpec
 
 class FlinkPluginsSpec extends STSpec {

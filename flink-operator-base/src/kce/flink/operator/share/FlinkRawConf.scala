@@ -1,4 +1,4 @@
-package kce.flink.operator.entity
+package kce.flink.operator.share
 
 import cats.Eval
 import cats.Eval.later
@@ -7,8 +7,8 @@ import kce.common.{ComplexEnum, GenericPF}
 import kce.conf.S3AccessStyle.PathStyle
 import kce.conf.S3Conf
 import kce.flink.operator.FlinkConfigExtension.{ConfigurationPF, EmptyConfiguration}
-import kce.flink.operator.entity.CheckpointStorageType.CheckpointStorageType
-import kce.flink.operator.entity.StateBackendType.StateBackendType
+import kce.flink.operator.share.CheckpointStorageType.CheckpointStorageType
+import kce.flink.operator.share.StateBackendType.StateBackendType
 import org.apache.flink.configuration.Configuration
 import zio.json.{DeriveJsonCodec, JsonCodec}
 

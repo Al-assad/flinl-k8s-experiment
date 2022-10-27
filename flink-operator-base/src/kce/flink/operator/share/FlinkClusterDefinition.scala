@@ -1,4 +1,4 @@
-package kce.flink.operator.entity
+package kce.flink.operator.share
 
 import cats.Eval
 import kce.common.CollectionExtension.StringIterableWrapper
@@ -8,9 +8,9 @@ import kce.conf.PotaConf
 import kce.flink.operator.FlinkConfigExtension.{configurationToPF, ConfigurationPF, EmptyConfiguration}
 import kce.flink.operator.FlinkPlugins
 import kce.flink.operator.FlinkPlugins.{s3Hadoop, s3Presto, s3aPlugins}
-import kce.flink.operator.entity.FlinkClusterDefinition.notAllowCustomRawConfKeys
-import kce.flink.operator.entity.FlinkExecMode.FlinkExecMode
-import kce.flink.operator.entity.RestExportType.RestExportType
+import kce.flink.operator.share.FlinkClusterDefinition.notAllowCustomRawConfKeys
+import kce.flink.operator.share.FlinkExecMode.FlinkExecMode
+import kce.flink.operator.share.RestExportType.RestExportType
 import org.apache.flink.configuration.Configuration
 
 import scala.language.implicitConversions

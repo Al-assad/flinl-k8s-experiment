@@ -1,7 +1,7 @@
-package kce.flink.operator.entity
+package kce.flink.operator.share
 
 import kce.common.ComplexEnum
-import kce.flink.operator.entity.SavepointRestoreMode.{Claim, SavepointRestoreMode}
+import kce.flink.operator.share.SavepointRestoreMode.{Claim, SavepointRestoreMode}
 
 /**
  * Definition of the job submitted to Flink session cluster.
@@ -13,11 +13,11 @@ case class FlinkSessJobDef(
     appMain: Option[String] = None,
     appArgs: List[String] = List.empty,
     parallelism: Option[Int] = None,
-    savepointRestore: Option[SavepointRestoreConf] = None) {
+    savepointRestore: Option[SavepointRestoreConf] = None)
 
-  def logTags = Map("clusterId" -> clusterId, "namespace" -> namespace, "jobJar" -> jobJar)
-}
-
+/**
+ * @see [[org.apache.flink.runtime.jobgraph.SavepointRestoreSettings]]
+ */
 case class SavepointRestoreConf(
     savepointPath: String,
     allowNonRestoredState: Boolean = false,
@@ -25,7 +25,7 @@ case class SavepointRestoreConf(
 )
 
 /**
- * See [[org.apache.flink.runtime.jobgraph.RestoreMode]]
+ * @see [[org.apache.flink.runtime.jobgraph.RestoreMode]]
  */
 object SavepointRestoreMode extends ComplexEnum {
   type SavepointRestoreMode = Value

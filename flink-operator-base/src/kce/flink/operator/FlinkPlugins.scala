@@ -1,6 +1,6 @@
 package kce.flink.operator
 
-import kce.flink.operator.entity.FlinkVer
+import kce.flink.operator.share.FlinkVer
 
 /**
  * Flink build in plugins resolver.

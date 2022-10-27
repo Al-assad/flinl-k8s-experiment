@@ -1,4 +1,4 @@
-package kce.flink.operator.entity
+package kce.flink.operator.share
 
 import kce.common.ComplexEnum
 

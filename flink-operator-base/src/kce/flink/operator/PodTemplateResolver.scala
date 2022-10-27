@@ -8,7 +8,7 @@ import io.circe.yaml.syntax._
 import kce.common.PathTool.{isS3Path, purePath}
 import kce.conf.PotaConf
 import kce.flink.operator.FlinkOprErr.{GenPodTemplateErr, IOErr, ParsePodTemplateYamlErr}
-import kce.flink.operator.entity.{FlinkAppClusterDef, FlinkClusterDefinition}
+import kce.flink.operator.share.{FlinkAppClusterDef, FlinkClusterDefinition}
 import kce.fs.lfs
 import zio.ZIO.succeed
 import zio.prelude.data.Optional.{Absent, Present}

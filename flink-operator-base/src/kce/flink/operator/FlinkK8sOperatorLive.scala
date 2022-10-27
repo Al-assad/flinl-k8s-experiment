@@ -8,8 +8,8 @@ import kce.conf.PotaConf
 import kce.flink.operator.FlinkConfigExtension.configurationToPF
 import kce.flink.operator.FlinkOprErr.{RequestK8sApiErr, SubmitFlinkApplicationClusterErr, SubmitFlinkSessionClusterErr}
 import kce.flink.operator.FlinkOprHelper.getClusterClientFactory
-import kce.flink.operator.entity.FlinkExecMode.K8sSession
-import kce.flink.operator.entity.{FlinkAppClusterDef, FlinkRestSvcEndpoint, FlinkSessClusterDef, FlinkSessJobDef}
+import kce.flink.operator.share.FlinkExecMode.K8sSession
+import kce.flink.operator.share.{FlinkAppClusterDef, FlinkRestSvcEndpoint, FlinkSessClusterDef, FlinkSessJobDef}
 import kce.fs.S3Operator
 import org.apache.flink.client.deployment.application.ApplicationConfiguration
 import zio.ZIO.{attempt, attemptBlockingInterrupt, logInfo, scoped, succeed}

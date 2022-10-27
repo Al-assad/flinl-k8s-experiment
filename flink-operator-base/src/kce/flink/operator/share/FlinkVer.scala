@@ -1,8 +1,8 @@
-package kce.flink.operator.entity
+package kce.flink.operator.share
 
 import kce.common.GenericPF
 import kce.common.ScalaVer.{Scala212, ScalaVer}
-import kce.flink.operator.entity.FlinkVer.extractMajorVer
+import kce.flink.operator.share.FlinkVer.extractMajorVer
 import zio.json.{DeriveJsonCodec, JsonCodec}
 
 /**

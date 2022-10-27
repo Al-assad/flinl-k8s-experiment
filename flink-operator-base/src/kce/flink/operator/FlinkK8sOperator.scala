@@ -2,7 +2,7 @@ package kce.flink.operator
 
 import com.coralogix.zio.k8s.client.kubernetes.Kubernetes
 import kce.conf.PotaConf
-import kce.flink.operator.entity.{FlinkAppClusterDef, FlinkRestSvcEndpoint, FlinkSessClusterDef, FlinkSessJobDef}
+import kce.flink.operator.share.{FlinkAppClusterDef, FlinkRestSvcEndpoint, FlinkSessClusterDef, FlinkSessJobDef}
 import kce.fs.S3Operator
 import zio._
 import zio.macros.accessible
