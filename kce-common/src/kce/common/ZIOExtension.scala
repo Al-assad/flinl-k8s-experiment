@@ -18,16 +18,26 @@ trait ZIOExtension {
   /**
    * Unsafe running ZIO to Future.
    */
-  @inline def zioRunToFuture[E <: Throwable, A](zio: IO[E, A]): CancelableFuture[A] = {
-    Unsafe.unsafe(implicit u => Runtime.default.unsafe.runToFuture(zio))
+  @inline def zioRunToFuture[E, A](zio: IO[E, A]): CancelableFuture[A] = {
+    Unsafe.unsafe { implicit u =>
+      Runtime.default.unsafe.runToFuture(zio.mapError {
+        case e: Throwable => e
+        case e: PotaFail  => PotaFailException(e)
+        case e            => FutureException[E](e)
+      })
+    }
   }
 
   implicit class IOWrapper[E, A](zio: IO[E, A]) {
+
+    /**
+     * Sync run zio effect.
+     */
     @inline def run: Exit[E, A] = zioRun(zio)
-  }
 
-  implicit class TaskWrapper[E <: Throwable, A](zio: IO[E, A]) {
-
+    /**
+     * Async run zio effect to scala Future.
+     */
     @inline def runToFuture: CancelableFuture[A] = zioRunToFuture(zio)
 
     /**
@@ -36,10 +46,6 @@ trait ZIOExtension {
     @inline def runToPipe[T](ctx: ActorContext[T])(mapResult: Either[Throwable, A] => T): Unit = {
       ctx.pipeToSelf(zioRunToFuture(zio))(rs => mapResult(rs.toEither))
     }
-  }
-
-  implicit class ThrowableEZIOWrapper[R, E <: Throwable, A](zio: ZIO[R, E, A]) {
-    @inline def debugErr(implicit trace: Trace): ZIO[R, E, A] = zio.debug.tapError(e => ZIO.succeed(e.printStackTrace()))
   }
 
   implicit class ScopeZIOWrapper[E, A](zio: ZIO[Scope, E, A]) {
@@ -61,11 +67,6 @@ trait ZIOExtension {
    */
   def usingAttemptBlocking[RS <: AutoCloseable](code: => RS): ZIO[Scope, Throwable, RS] =
     ZIO.acquireRelease(ZIO.attemptBlockingInterrupt(code))(close)
-
-  /**
-   * Alias for [[ZIO.succeed]]
-   */
-  @inline def pure[A](a: => A)(implicit trace: Trace): UIO[A] = ZIO.succeed(a)
 
 }
 

@@ -1,7 +1,7 @@
 package kce.flink.operator
 
 import kce.common.valueToSome
-import kce.conf.{K8sClient, KceConf}
+import kce.conf.{K8sClient, PotaConf}
 import kce.flink.operator.entity.CheckpointStorageType.Filesystem
 import kce.flink.operator.entity.StateBackendType.Rocksdb
 import kce.flink.operator.entity.{FlinkAppClusterDef, FlinkSessClusterDef, FlinkSessJobDef, FlinkVer, StateBackendConf}
@@ -11,7 +11,7 @@ import kce.testkit.STSpec
 // TODO unsafe submit
 class FlinkK8sOperatorSpec extends STSpec {
 
-  val layers = (KceConf.live >+> K8sClient.live) >+> S3Operator.live >>> FlinkK8sOperator.live
+  val layers = (PotaConf.live >+> K8sClient.live) >+> S3Operator.live >>> FlinkK8sOperator.live
 
   "retrieveRestEndpoint" in {
     FlinkK8sOperator

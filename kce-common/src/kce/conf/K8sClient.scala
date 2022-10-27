@@ -11,11 +11,11 @@ import zio.ZLayer
  */
 object K8sClient {
 
-  val live: ZLayer[KceConf, Throwable, Kubernetes] = {
+  val live: ZLayer[PotaConf, Throwable, Kubernetes] = {
     val configChain = for {
-      kceConf <- ZLayer.service[KceConf]
+      potaConf <- ZLayer.service[PotaConf]
       config <- defaultConfigChain.update { chain =>
-        chain.modify(_.client.debug).setTo(kceConf.get.k8s.debug)
+        chain.modify(_.client.debug).setTo(potaConf.get.k8s.debug)
       }
     } yield config
     (configChain >>> (k8sCluster ++ k8sSttpClient)) >>> Kubernetes.live

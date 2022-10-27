@@ -9,7 +9,7 @@ import scala.reflect.io.Directory
 /**
  * Local file system operator.
  */
-object LfsTool {
+object LfsOperator {
 
   /**
    * Delete file or directory recursively of given path.

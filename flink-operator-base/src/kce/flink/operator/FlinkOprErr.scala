@@ -1,27 +1,25 @@
 package kce.flink.operator
 
 import com.coralogix.zio.k8s.client.K8sFailure
-import kce.common.LogMessageTool.LogMessageStringWrapper
-import kce.common.{Err, SilentErr}
+import kce.common.{FailStackFill, PotaFail}
+import kce.k8s
 
 /**
  * Flink operation error.
  */
-sealed abstract class FlinkOprErr(msg: String, cause: Throwable) extends Exception(msg, cause)
+sealed trait FlinkOprErr extends PotaFail
 
-case class PodTemplateResolveErr(msg: String, cause: Throwable) extends FlinkOprErr(msg, cause)
+object FlinkOprErr {
+  case class IOErr(message: String, cause: Throwable)  extends FlinkOprErr with FailStackFill
+  case class ParsePodTemplateYamlErr(cause: Throwable) extends FlinkOprErr with FailStackFill
+  case class GenPodTemplateErr(cause: Throwable)       extends FlinkOprErr with FailStackFill
 
-case class SubmitFlinkClusterErr(msg: String, cause: Throwable) extends FlinkOprErr(msg, cause)
+  case class SubmitFlinkSessionClusterErr(clusterId: String, namespace: String, cause: Throwable)     extends FlinkOprErr with FailStackFill
+  case class SubmitFlinkApplicationClusterErr(clusterId: String, namespace: String, cause: Throwable) extends FlinkOprErr with FailStackFill
 
-case class RequestK8sApiErr(msg: String, k8sFailure: K8sFailure) extends FlinkOprErr(msg, Err(k8sFailure.toString))
+  case class RequestK8sApiErr(k8sFailure: K8sFailure, cause: Throwable) extends FlinkOprErr with FailStackFill
+  object RequestK8sApiErr {
+    def apply(k8sFailure: K8sFailure): RequestK8sApiErr = RequestK8sApiErr(k8sFailure, k8s.liftException(k8sFailure).orNull)
+  }
 
-case class RequestFlinkRestApiErr(msg: String) extends FlinkOprErr(msg, SilentErr)
-
-case class ClusterNotFound(clusterId: String, namespace: String, cause: Throwable = SilentErr)
-    extends FlinkOprErr("Flink Cluster not found." tag ("clusterId" -> clusterId, "namespace" -> namespace), cause)
-
-case class SubmitFlinkSessJobErr(msg: String, cause: Throwable) extends FlinkOprErr(msg, cause)
-
-case class NotSupportJobPath(path: String) extends FlinkOprErr(s"Not supported flink job path: $path", SilentErr)
-
-case class ResolveJobGraphErr(msg: String, cause: Throwable) extends FlinkOprErr(msg, cause)
+}

@@ -8,12 +8,12 @@ import zio.{ULayer, ZIO, ZLayer}
 /**
  * Potamoi root configuration.
  */
-case class KceConf(localStorageDir: String, k8s: K8sConf, s3: S3Conf, flink: FlinkConf) {
-  def resolve: KceConf = Vector(k8s, s3, flink).foldLeft(this)((a, c) => c.resolve(a))
+case class PotaConf(localStorageDir: String, k8s: K8sConf, s3: S3Conf, flink: FlinkConf) {
+  def resolve: PotaConf = Vector(k8s, s3, flink).foldLeft(this)((a, c) => c.resolve(a))
 }
 
-object KceConf {
-  val default: KceConf = KceConf(
+object PotaConf {
+  val default: PotaConf = PotaConf(
     localStorageDir = "kce",
     k8s = K8sConf(),
     s3 = S3Conf(
@@ -31,11 +31,11 @@ object KceConf {
     )
   ).resolve
 
-  val live: ULayer[KceConf] = ZLayer(ZIO.succeed(KceConf.default))
+  val live: ULayer[PotaConf] = ZLayer(ZIO.succeed(PotaConf.default))
 }
 
 sealed trait ResolveConf {
-  def resolve: KceConf => KceConf = identity
+  def resolve: PotaConf => PotaConf = identity
 }
 
 /**

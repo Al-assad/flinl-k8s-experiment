@@ -15,6 +15,7 @@ lazy val ZIOHttpVer   = "2.0.0-RC10"
 lazy val ZIOK8sVer    = "2.0.1"
 lazy val SttpVer      = "3.8.3"
 lazy val UpickleVer   = "2.0.0"
+lazy val PPrintVer    = "0.8.0"
 lazy val QuicklensVer = "1.9.0"
 lazy val HoconVer     = "1.4.2"
 lazy val MinioVer     = "8.4.5"
@@ -82,6 +83,7 @@ lazy val kceCommon = (project in file("kce-common"))
       "org.typelevel"                 %% "cats-core"                  % CatsVer,
       "com.softwaremill.quicklens"    %% "quicklens"                  % QuicklensVer,
       "com.lihaoyi"                   %% "upickle"                    % UpickleVer,
+      "com.lihaoyi"                   %% "pprint"                     % PPrintVer,
       "com.softwaremill.sttp.client3" %% "core"                       % SttpVer,
       "com.softwaremill.sttp.client3" %% "zio"                        % SttpVer,
       "com.softwaremill.sttp.client3" %% "zio-json"                   % SttpVer,

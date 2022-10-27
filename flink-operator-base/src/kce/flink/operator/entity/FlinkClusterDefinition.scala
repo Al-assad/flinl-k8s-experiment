@@ -4,7 +4,7 @@ import cats.Eval
 import kce.common.CollectionExtension.StringIterableWrapper
 import kce.common.PathTool.{isS3Path, reviseToS3pSchema}
 import kce.common.{safeTrim, ComplexEnum}
-import kce.conf.KceConf
+import kce.conf.PotaConf
 import kce.flink.operator.FlinkConfigExtension.{configurationToPF, ConfigurationPF, EmptyConfiguration}
 import kce.flink.operator.FlinkPlugins
 import kce.flink.operator.FlinkPlugins.{s3Hadoop, s3Presto, s3aPlugins}
@@ -149,7 +149,7 @@ trait FlinkClusterDefinition[SubType <: FlinkClusterDefinition[SubType]] { this:
   /**
    * Convert to Flink raw configuration.
    */
-  protected def convertToFlinkConfig(kceConf: KceConf, moreInject: ConfigurationPF => ConfigurationPF): Configuration = {
+  protected def convertToFlinkConfig(kceConf: PotaConf, moreInject: ConfigurationPF => ConfigurationPF): Configuration = {
     EmptyConfiguration()
       // inject inner raw configs
       .append("execution.target", mode.toString)

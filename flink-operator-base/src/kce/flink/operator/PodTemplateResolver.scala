@@ -5,26 +5,27 @@ import com.coralogix.zio.k8s.model.pkg.apis.meta.v1.ObjectMeta
 import io.circe.syntax._
 import io.circe.yaml.parser.{parse => parseYaml}
 import io.circe.yaml.syntax._
-import kce.common.LogMessageTool.LogMessageStringWrapper
 import kce.common.PathTool.{isS3Path, purePath}
-import kce.conf.KceConf
+import kce.conf.PotaConf
+import kce.flink.operator.FlinkOprErr.{GenPodTemplateErr, IOErr, ParsePodTemplateYamlErr}
 import kce.flink.operator.entity.{FlinkAppClusterDef, FlinkClusterDefinition}
 import kce.fs.lfs
+import zio.ZIO.succeed
 import zio.prelude.data.Optional.{Absent, Present}
 import zio.{IO, ZIO}
 
 /**
  * Flink K8s PodTemplate resolver.
  */
-object PodTemplateResolver {
+class PodTemplateResolver(potaConf: PotaConf) {
 
   /**
    * Generate PodTemplate and dump it to local dir, return the yaml file path on local fs.
    */
-  def resolvePodTemplateAndDump(definition: FlinkClusterDefinition[_], kceConf: KceConf): IO[PodTemplateResolveErr, String] = {
+  def resolvePodTemplateAndDump(definition: FlinkClusterDefinition[_]): IO[FlinkOprErr, String] = {
     for {
-      podTemplate     <- resolvePodTemplate(definition, kceConf)
-      podTemplatePath <- ZIO.succeed(s"${kceConf.flink.localTmpDir}/${definition.namespace}@${definition.clusterId}/flink-podtemplate.yaml")
+      podTemplate     <- resolvePodTemplate(definition)
+      podTemplatePath <- succeed(s"${potaConf.flink.localTmpDir}/${definition.namespace}@${definition.clusterId}/flink-podtemplate.yaml")
       _               <- writeToLocal(podTemplate, podTemplatePath)
     } yield podTemplatePath
   }
@@ -32,23 +33,17 @@ object PodTemplateResolver {
   /**
    * Resolve and generate PodTemplate from Flink cluster definition.
    */
-  def resolvePodTemplate(definition: FlinkClusterDefinition[_], kceConf: KceConf): IO[PodTemplateResolveErr, Pod] = {
+  def resolvePodTemplate(definition: FlinkClusterDefinition[_]): IO[FlinkOprErr, Pod] = {
     definition.overridePodTemplate match {
-      case Some(podTemplate) =>
-        ZIO
-          .fromEither(parseYaml(podTemplate).map(_.as[Pod]).flatMap(identity))
-          .mapError(PodTemplateResolveErr("Unable to parse the override podtemplate yaml content.", _))
-      case None =>
-        ZIO
-          .attempt(genPodTemplate(definition, kceConf))
-          .mapError(PodTemplateResolveErr("Fail to generate podtemplate.", _))
+      case Some(podTemplate) => ZIO.fromEither(parseYaml(podTemplate).map(_.as[Pod]).flatMap(identity)).mapError(ParsePodTemplateYamlErr(_))
+      case None              => ZIO.attempt(genPodTemplate(definition)).mapError(GenPodTemplateErr(_))
     }
   }
 
   /**
    * Generate PodTemplate from Flink cluster definition.
    */
-  private def genPodTemplate(definition: FlinkClusterDefinition[_], kceConf: KceConf): Pod = {
+  private def genPodTemplate(definition: FlinkClusterDefinition[_]): Pod = {
     // user libs on s3: (pure path, jar name)
     val splitPath: String => (String, String) = path => purePath(path) -> path.split('/').last
     val libsOnS3 = {
@@ -62,7 +57,7 @@ object PodTemplateResolver {
 
     // userlib-loader initContainer
     lazy val cpS3LibClauses = libsOnS3
-      .map { case (path, name) => kceConf.s3.revisePath(path) -> name }
+      .map { case (path, name) => potaConf.s3.revisePath(path) -> name }
       .map { case (path, name) => s"&& mc cp minio/$path /opt/flink/lib/$name" }
       .mkString(" ")
 
@@ -72,8 +67,9 @@ object PodTemplateResolver {
         Some(
           Container(
             name = "userlib-loader",
-            image = kceConf.flink.minioClientImage,
-            command = Vector("sh", "-c", s"mc alias set minio ${kceConf.s3.endpoint} ${kceConf.s3.accessKey} ${kceConf.s3.secretKey} $cpS3LibClauses"),
+            image = potaConf.flink.minioClientImage,
+            command =
+              Vector("sh", "-c", s"mc alias set minio ${potaConf.s3.endpoint} ${potaConf.s3.accessKey} ${potaConf.s3.secretKey} $cpS3LibClauses"),
             volumeMounts = Vector(VolumeMount(name = "flink-libs", mountPath = "/opt/flink/lib")))
         )
     val initContainers = Vector(libLoaderInitContainer).flatten
@@ -106,11 +102,12 @@ object PodTemplateResolver {
    * Write the Pod to a local temporary file in yaml format.
    * Return generated yaml file path.
    */
-  def writeToLocal(podTemplate: Pod, path: String): IO[PodTemplateResolveErr, Unit] = {
+  def writeToLocal(podTemplate: Pod, path: String): IO[FlinkOprErr.IOErr, Unit] = {
     for {
       yaml <- ZIO.succeed(podTemplate.asJson.deepDropNullValues.asYaml.spaces2)
       _    <- lfs.rm(path)
       _    <- lfs.write(path, yaml)
     } yield ()
-  }.mapError(PodTemplateResolveErr(s"Fail to write podtemplate to local file." tag "path" -> path, _))
+  }.mapError(IOErr(s"Fail to write podtemplate to local file: $path", _))
+
 }

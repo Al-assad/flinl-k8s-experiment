@@ -3,7 +3,7 @@ package kce.conf
 import kce.conf.S3AccessStyle.{PathStyle, VirtualHostedStyle}
 import kce.testkit.STSpec
 
-class KceConfSpec extends STSpec {
+class PotaConfSpec extends STSpec {
 
   "S3Conf" should {
 

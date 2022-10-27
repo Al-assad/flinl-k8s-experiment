@@ -2,7 +2,7 @@ package kce.flink.operator.entity
 
 import cats.Eval.later
 import kce.common.PathTool.{isS3Path, reviseToS3pSchema}
-import kce.conf.KceConf
+import kce.conf.PotaConf
 import kce.flink.operator.entity.RestExportType.RestExportType
 import org.apache.flink.configuration.Configuration
 import zio.json.{DeriveJsonCodec, JsonCodec}
@@ -46,7 +46,7 @@ case class FlinkAppClusterDef(
   /**
    * Convert to Flink raw configuration.
    */
-  def toFlinkRawConfig(kceConf: KceConf): Configuration = convertToFlinkConfig(
+  def toFlinkRawConfig(kceConf: PotaConf): Configuration = convertToFlinkConfig(
     kceConf,
     moreInject = { conf =>
       // when jobJar path is s3 path, replace with pvc local path.

@@ -1,6 +1,6 @@
 package kce.flink.operator.entity
 
-import kce.conf.KceConf
+import kce.conf.PotaConf
 import kce.flink.operator.entity.RestExportType.RestExportType
 import org.apache.flink.configuration.Configuration
 import zio.json.{DeriveJsonCodec, JsonCodec}
@@ -39,7 +39,7 @@ case class FlinkSessClusterDef(
   /**
    * Convert to Flink raw configuration.
    */
-  def toFlinkRawConfig(kceConf: KceConf): Configuration = convertToFlinkConfig(kceConf, identity)
+  def toFlinkRawConfig(kceConf: PotaConf): Configuration = convertToFlinkConfig(kceConf, identity)
 
   /**
    * Ensure that the necessary configuration has been set whenever possible.

@@ -4,14 +4,14 @@ import scala.language.implicitConversions
 
 package object common {
 
+  val ziox = ZIOExtension
+
   /**
    * Contra control value to the function.
    */
   implicit class GenericPF[T](value: T) {
     @inline def contra[A](func: T => A): A = func(value)
   }
-
-  val ziox = ZIOExtension
 
   /**
    * Trim String value safely.
