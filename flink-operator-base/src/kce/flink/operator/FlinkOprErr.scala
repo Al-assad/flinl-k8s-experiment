@@ -1,7 +1,8 @@
 package kce.flink.operator
 
 import com.coralogix.zio.k8s.client.K8sFailure
-import kce.common.{FailStackFill, PotaFail}
+import kce.common.{FailProxy, FailStackFill, PotaFail}
+import kce.fs.S3Err
 import kce.k8s
 
 /**
@@ -21,8 +22,11 @@ object FlinkOprErr {
 
   case class SubmitFlinkSessionClusterErr(clusterId: String, namespace: String, cause: Throwable)     extends FlinkOprErr with FailStackFill
   case class SubmitFlinkApplicationClusterErr(clusterId: String, namespace: String, cause: Throwable) extends FlinkOprErr with FailStackFill
+  case class NotSupportJobJarPath(path: String)                                                       extends FlinkOprErr
+  case class UnableToResolveS3Resource(potaFail: S3Err)                                               extends FlinkOprErr with FailProxy
+  case class ClusterNotFound(clusterId: String, namespace: String)                                    extends FlinkOprErr
 
-  case class ClusterNotFound(clusterId: String, namespace: String) extends FlinkOprErr
+  case class RequestFlinkRestApiErr(message: String) extends FlinkOprErr
 
   case class RequestK8sApiErr(k8sFailure: K8sFailure, cause: Throwable) extends FlinkOprErr with FailStackFill
   object RequestK8sApiErr {

@@ -3,6 +3,8 @@ package kce.flink.operator
 import com.coralogix.zio.k8s.client.NotFound
 import com.coralogix.zio.k8s.client.kubernetes.Kubernetes
 import com.coralogix.zio.k8s.model.pkg.apis.meta.v1.DeleteOptions
+import kce.common.PathTool.{fileName, isS3Path}
+import kce.common.ZIOExtension.ScopeZIOWrapper
 import kce.common.ziox.usingAttempt
 import kce.conf.PotaConf
 import kce.flink.operator.FlinkConfigExtension.configurationToPF
@@ -10,12 +12,17 @@ import kce.flink.operator.FlinkK8sOperator.getClusterClientFactory
 import kce.flink.operator.FlinkOprErr._
 import kce.flink.operator.share.FlinkExecMode.K8sSession
 import kce.flink.operator.share.{FlinkAppClusterDef, FlinkRestSvcEndpoint, FlinkSessClusterDef, FlinkSessJobDef}
-import kce.fs.S3Operator
+import kce.fs.{lfs, S3Operator}
 import kce.k8s.stringToK8sNamespace
 import org.apache.flink.client.deployment.application.ApplicationConfiguration
-import zio.IO
+import sttp.client3._
+import sttp.client3.httpclient.zio.HttpClientZioBackend
+import sttp.client3.ziojson._
 import zio.ZIO.{attempt, attemptBlockingInterrupt, logInfo, scoped}
+import zio._
 import zio.json._
+
+import java.io.File
 
 /**
  * Default FlinkK8sOperator implementation.
@@ -100,76 +107,78 @@ class FlinkK8sOperatorLive(potaConf: PotaConf, k8sClient: Kubernetes, s3Operator
    */
   override def submitJobToSession(jobDef: FlinkSessJobDef): IO[FlinkOprErr, String] = {
 
-//    def uploadJar(filePath: String, restUrl: String)(implicit backend: SttpBackend[Task, Any]) =
-//      basicRequest
-//        .post(uri"$restUrl/jars/upload")
-//        .multipartBody(
-//          multipartFile("jarfile", new File(filePath))
-//            .fileName(fileName(filePath))
-//            .contentType("application/java-archive")
-//        )
-//        .send(backend)
-//        .map(_.body)
-//        .flatMap(ZIO.fromEither)
-//        .flatMap(rsp => attempt(ujson.read(rsp)("filename").str.split("/").last))
-//
-//    def runJar(jarId: String, restUrl: String)(implicit backend: SttpBackend[Task, Any]) =
-//      basicRequest
-//        .post(uri"$restUrl/jars/$jarId/run")
-//        .body(FlinkJobRunReq(jobDef))
-//        .send(backend)
-//        .map(_.body)
-//        .flatMap(ZIO.fromEither)
-//        .flatMap(rsp => attempt(ujson.read(rsp)("jobid").str))
-//
-//    def deleteJar(jarId: String, restUrl: String)(implicit backend: SttpBackend[Task, Any]) =
-//      basicRequest
-//        .delete(uri"$restUrl/jars/$jarId")
-//        .send(backend)
-//        .ignore
-//
-//    for {
-//      // get rest api url of session cluster
-//      restUrl <- retrieveRestEndpoint(jobDef.clusterId, jobDef.namespace).flatMap {
-//        case Some(restUrl) => succeed(restUrl.clusterIpRest)
-//        case None          => ZIO.fail(ClusterNotFound(jobDef.clusterId, jobDef.namespace))
-//      }
-//      // download job jar
-//      _ <- ZIO.fail(NotSupportJobPath(jobDef.jobJar)).unless(isS3Path(jobDef.jobJar))
-//      expectFilePath = s"${kceConf.flink.localTmpDir}/${jobDef.namespace}@${jobDef.clusterId}/${fileName(jobDef.jobJar)}"
-//      actJarFilePath <- s3Operator
-//        .download(jobDef.jobJar, expectFilePath)
-//        .mapBoth(SubmitFlinkSessJobErr("Fail to download job jar from s3." tag jobDef.logTags, _), _.getPath)
-//
-//      // submit job
-//      jobId <- HttpClientZioBackend
-//        .scoped()
-//        .flatMap { implicit backend =>
-//          for {
-//            jarId <- uploadJar(actJarFilePath, restUrl)
-//            jobId <- runJar(jarId, restUrl)
-//            _     <- deleteJar(jarId, restUrl)
-//          } yield jobId
-//        }
-//        .mapError(err => RequestFlinkRestApiErr(err.toString))
-//        .endScoped()
-//    } yield jobId
-    ???
+    def uploadJar(filePath: String, restUrl: String)(implicit backend: SttpBackend[Task, Any]) =
+      basicRequest
+        .post(uri"$restUrl/jars/upload")
+        .multipartBody(
+          multipartFile("jarfile", new File(filePath))
+            .fileName(fileName(filePath))
+            .contentType("application/java-archive")
+        )
+        .send(backend)
+        .map(_.body)
+        .flatMap(ZIO.fromEither(_))
+        .flatMap(rsp => attempt(ujson.read(rsp)("filename").str.split("/").last))
+
+    def runJar(jarId: String, restUrl: String)(implicit backend: SttpBackend[Task, Any]) =
+      basicRequest
+        .post(uri"$restUrl/jars/$jarId/run")
+        .body(FlinkJobRunReq(jobDef))
+        .send(backend)
+        .map(_.body)
+        .flatMap(ZIO.fromEither(_))
+        .flatMap(rsp => attempt(ujson.read(rsp)("jobid").str))
+
+    def deleteJar(jarId: String, restUrl: String)(implicit backend: SttpBackend[Task, Any]) =
+      basicRequest
+        .delete(uri"$restUrl/jars/$jarId")
+        .send(backend)
+        .ignore
+
+    for {
+      // get rest api url of session cluster
+      restUrl <- retrieveRestEndpoint(jobDef.clusterId, jobDef.namespace).map(_.clusterIpRest)
+      _       <- ZIO.fail(NotSupportJobJarPath(jobDef.jobJar)).unless(isS3Path(jobDef.jobJar))
+
+      // download job jar
+      _ <- logInfo(s"Downloading flink job jar from s3 storage: ${jobDef.jobJar}")
+      jobJarPath <- s3Operator
+        .download(jobDef.jobJar, s"${potaConf.flink.localTmpDir}/${jobDef.namespace}@${jobDef.clusterId}/${fileName(jobDef.jobJar)}")
+        .mapBoth(UnableToResolveS3Resource(_), _.getPath)
+
+      // submit job
+      _ <- logInfo(s"Start to submit job to flink cluster:\n${jobDef.toPrettyPrint}".stripMargin)
+      jobId <- HttpClientZioBackend
+        .scoped()
+        .flatMap { implicit backend =>
+          for {
+            _     <- logInfo(s"Uploading flink job jar to flink cluster, clusterId=${jobDef.clusterId}, namespace=${jobDef.namespace}")
+            jarId <- uploadJar(jobJarPath, restUrl)
+            jobId <- runJar(jarId, restUrl)
+            _     <- deleteJar(jarId, restUrl)
+          } yield jobId
+        }
+        .mapError(err => RequestFlinkRestApiErr(err.toString))
+        .endScoped()
+      _ <- lfs.rm(jobJarPath).ignore.fork
+      _ <- logInfo(s"Submit job to flink session cluster successfully, clusterId=${jobDef.clusterId}, namespace=${jobDef.namespace}.")
+    } yield jobId
   }
 
-  case class FlinkJobRunReq(
+  private case class FlinkJobRunReq(
       @jsonField("entry-class") entryClass: Option[String],
-      programArgs: Array[String],
+      programArgs: Option[String],
       parallelism: Option[Int],
       savepointPath: Option[String],
       restoreMode: Option[String],
       allowNonRestoredState: Option[Boolean])
 
-  object FlinkJobRunReq {
+  private object FlinkJobRunReq {
     implicit def codec: JsonCodec[FlinkJobRunReq] = DeriveJsonCodec.gen[FlinkJobRunReq]
+
     def apply(jobDef: FlinkSessJobDef): FlinkJobRunReq = FlinkJobRunReq(
       entryClass = jobDef.appMain,
-      programArgs = jobDef.appArgs.toArray,
+      programArgs = if (jobDef.appArgs.isEmpty) None else Some(jobDef.appArgs.mkString(" ")),
       parallelism = jobDef.parallelism,
       savepointPath = jobDef.savepointRestore.map(_.savepointPath),
       restoreMode = jobDef.savepointRestore.map(_.restoreMode.toString),

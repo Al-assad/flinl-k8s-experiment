@@ -13,7 +13,21 @@ case class FlinkSessJobDef(
     appMain: Option[String] = None,
     appArgs: List[String] = List.empty,
     parallelism: Option[Int] = None,
-    savepointRestore: Option[SavepointRestoreConf] = None)
+    savepointRestore: Option[SavepointRestoreConf] = None) {
+
+  def toPrettyPrint: String = {
+    s"""clusterId = $clusterId
+       |namespace = $namespace
+       |jobJar = $jobJar
+       |appMain = ${appMain.getOrElse("null")}
+       |appArgs = ${appArgs.mkString(" ")}
+       |parallelism = ${parallelism.getOrElse("null")}
+       |savepointRestore.savepointPath = ${savepointRestore.map(_.savepointPath).getOrElse("null")}
+       |savepointRestore.restoreMode = ${savepointRestore.map(_.restoreMode.toString).getOrElse("null")}
+       |savepointRestore.allowNonRestoredState = ${savepointRestore.map(_.allowNonRestoredState).getOrElse("null")}
+       |""".stripMargin
+  }
+}
 
 /**
  * @see [[org.apache.flink.runtime.jobgraph.SavepointRestoreSettings]]

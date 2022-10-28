@@ -10,6 +10,7 @@ lazy val ScalaTestVer    = "3.2.14"
 lazy val AkkaVer      = "2.6.20"
 lazy val CatsVer      = "2.8.0"
 lazy val ZIOVer       = "2.0.2"
+lazy val ZIOLoggingVer = "2.1.2"
 lazy val ZIOJsonVer   = "0.3.0"
 lazy val ZIOHttpVer   = "2.0.0-RC10"
 lazy val ZIOK8sVer    = "2.0.1"
@@ -79,6 +80,7 @@ lazy val kceCommon = (project in file("kce-common"))
       "com.typesafe.akka"             %% "akka-serialization-jackson" % AkkaVer,
       "dev.zio"                       %% "zio"                        % ZIOVer,
       "dev.zio"                       %% "zio-macros"                 % ZIOVer,
+      "dev.zio"                       %% "zio-logging-slf4j"          % ZIOLoggingVer,
       "dev.zio"                       %% "zio-json"                   % ZIOJsonVer,
       "org.typelevel"                 %% "cats-core"                  % CatsVer,
       "com.softwaremill.quicklens"    %% "quicklens"                  % QuicklensVer,
