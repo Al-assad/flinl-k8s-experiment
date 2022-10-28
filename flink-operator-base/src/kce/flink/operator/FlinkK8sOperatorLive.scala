@@ -40,17 +40,15 @@ class FlinkK8sOperatorLive(potaConf: PotaConf, k8sClient: Kubernetes, s3Operator
       }
       _ <- logInfo(s"Start to deploy flink session cluster:\n${rawConfig.toPrettyPrint}".stripMargin)
       // deploy app cluster
-      _ <- ZIO
-        .scoped {
-          for {
-            clusterClientFactory <- getClusterClientFactory(K8sSession)
-            clusterSpecification <- attempt(clusterClientFactory.getClusterSpecification(rawConfig))
-            appConfiguration     <- attempt(new ApplicationConfiguration(clusterDef.appArgs.toArray, clusterDef.appMain.orNull))
-            k8sClusterDescriptor <- usingAttempt(clusterClientFactory.createClusterDescriptor(rawConfig))
-            _                    <- attemptBlockingInterrupt(k8sClusterDescriptor.deployApplicationCluster(clusterSpecification, appConfiguration))
-          } yield ()
-        }
-        .mapError(SubmitFlinkSessionClusterErr(definition.clusterId, definition.namespace, _))
+      _ <- scoped {
+        for {
+          clusterClientFactory <- getClusterClientFactory(K8sSession)
+          clusterSpecification <- attempt(clusterClientFactory.getClusterSpecification(rawConfig))
+          appConfiguration     <- attempt(new ApplicationConfiguration(clusterDef.appArgs.toArray, clusterDef.appMain.orNull))
+          k8sClusterDescriptor <- usingAttempt(clusterClientFactory.createClusterDescriptor(rawConfig))
+          _                    <- attemptBlockingInterrupt(k8sClusterDescriptor.deployApplicationCluster(clusterSpecification, appConfiguration))
+        } yield ()
+      }.mapError(SubmitFlinkSessionClusterErr(definition.clusterId, definition.namespace, _))
       _ <- logInfo(s"Deploy flink session cluster successfully, clusterId=${definition.clusterId}, namespace=${definition.clusterId}.")
     } yield ()
   }
