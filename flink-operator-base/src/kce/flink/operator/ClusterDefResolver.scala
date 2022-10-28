@@ -18,7 +18,7 @@ import scala.language.implicitConversions
 /**
  * Flink cluster definition resolver for [[kce.flink.operator.share.FlinkClusterDef]]
  */
-sealed private trait ClusterDefResolver[ClusterDef <: FlinkClusterDef[ClusterDef]] {
+sealed trait ClusterDefResolver[ClusterDef <: FlinkClusterDef[ClusterDef]] {
 
   /**
    * Whether built-in s3 storage support is required.

@@ -12,33 +12,33 @@ class S3OperatorSpec extends STSpec {
       S3Operator
         .download("s3://flink-dev/flink-connector-jdbc-1.15.2.jar", "spec-test/flink-connector-jdbc-1.15.2.jar")
         .provide(PotaConf.live, S3Operator.live)
-        .debugErr
+        .debugStack
         .run
     }
     "upload" in {
       S3Operator
         .upload("spec-test/flink-connector-jdbc-1.15.2.jar", "s3://flink-dev/flink-connector-jdbc-1.15.2@re.jar", MimeType.jar)
         .provide(PotaConf.live, S3Operator.live)
-        .debugErr
+        .debugStack
         .run
     }
     "remove" in {
       S3Operator
         .remove("s3://flink-dev/flink-connector-jdbc-1.15.2@re.jar")
         .provide(PotaConf.live, S3Operator.live)
-        .debugErr
+        .debugStack
         .run
     }
     "exists" in {
       S3Operator
         .exists("s3://flink-dev/flink-connector-jdbc-1.15.2@re.jar")
         .provide(PotaConf.live, S3Operator.live)
-        .debugErr
+        .debugStack
         .run
       S3Operator
         .exists("s3://flink-dev/flink-connector-jdbc-1.15.2.jar")
         .provide(PotaConf.live, S3Operator.live)
-        .debugErr
+        .debugStack
         .run
     }
   }

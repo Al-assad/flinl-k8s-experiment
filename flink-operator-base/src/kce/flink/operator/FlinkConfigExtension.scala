@@ -27,10 +27,10 @@ object FlinkConfigExtension {
 
     def append(key: String, value: Any): ConfigurationPF = {
       val rawValue = value match {
-        case v: Iterable[_]         => v.map(_.toString).mkString(";")
-        case v: Array[_]            => v.map(_.toString).mkString(";")
-        case v: Map[String, String] => v.map(kv => s"${kv._1}=${kv._2}").mkString(";")
-        case v                      => v.toString
+        case v: Map[_, _]   => v.map(kv => s"${kv._1}=${kv._2}").mkString(";")
+        case v: Iterable[_] => v.map(_.toString).mkString(";")
+        case v: Array[_]    => v.map(_.toString).mkString(";")
+        case v              => v.toString
       }
       conf.setString(key, rawValue)
       this

@@ -1,20 +1,21 @@
 package kce.flink.operator
 
-import com.coralogix.zio.k8s.client.K8sFailure.syntax.K8sZIOSyntax
+import com.coralogix.zio.k8s.client.NotFound
 import com.coralogix.zio.k8s.client.kubernetes.Kubernetes
+import com.coralogix.zio.k8s.model.pkg.apis.meta.v1.DeleteOptions
 import kce.common.ziox.usingAttempt
 import kce.conf.PotaConf
 import kce.flink.operator.FlinkConfigExtension.configurationToPF
-import kce.flink.operator.FlinkOprErr.{RequestK8sApiErr, SubmitFlinkApplicationClusterErr, SubmitFlinkSessionClusterErr}
-import kce.flink.operator.FlinkOprHelper.getClusterClientFactory
+import kce.flink.operator.FlinkK8sOperator.getClusterClientFactory
+import kce.flink.operator.FlinkOprErr._
 import kce.flink.operator.share.FlinkExecMode.K8sSession
 import kce.flink.operator.share.{FlinkAppClusterDef, FlinkRestSvcEndpoint, FlinkSessClusterDef, FlinkSessJobDef}
 import kce.fs.S3Operator
 import kce.k8s.stringToK8sNamespace
 import org.apache.flink.client.deployment.application.ApplicationConfiguration
+import zio.IO
 import zio.ZIO.{attempt, attemptBlockingInterrupt, logInfo, scoped}
 import zio.json._
-import zio.{IO, ZIO}
 
 /**
  * Default FlinkK8sOperator implementation.
@@ -79,6 +80,19 @@ class FlinkK8sOperatorLive(potaConf: PotaConf, k8sClient: Kubernetes, s3Operator
       }.mapError(SubmitFlinkApplicationClusterErr(definition.clusterId, definition.namespace, _))
       _ <- logInfo(s"Deploy flink application cluster successfully, clusterId=${definition.clusterId}, namespace=${definition.clusterId}.")
     } yield ()
+  }
+
+  /**
+   * Terminate the flink cluster and reclaim all associated k8s resources.
+   */
+  override def killCluster(clusterId: String, namespace: String): IO[FlinkOprErr, Unit] = {
+    k8sClient.apps.v1.deployments
+      .delete(name = clusterId, namespace = namespace, deleteOptions = DeleteOptions())
+      .mapError {
+        case NotFound => ClusterNotFound(clusterId, namespace)
+        case failure  => FlinkOprErr.RequestK8sApiErr(failure)
+      }
+      .unit
   }
 
   /**
@@ -166,27 +180,27 @@ class FlinkK8sOperatorLive(potaConf: PotaConf, k8sClient: Kubernetes, s3Operator
   /**
    * Retrieve Flink rest endpoint via kubernetes api.
    */
-  override def retrieveRestEndpoint(clusterId: String, namespace: String): IO[FlinkOprErr, Option[FlinkRestSvcEndpoint]] = {
+  override def retrieveRestEndpoint(clusterId: String, namespace: String): IO[FlinkOprErr, FlinkRestSvcEndpoint] = {
     k8sClient.v1.services
       .get(s"$clusterId-rest", namespace)
-      .ifFound
-      .flatMap {
-        case None => ZIO.succeed(None)
-        case Some(svc) =>
-          for {
-            metadata  <- svc.getMetadata
-            name      <- metadata.getName
-            ns        <- metadata.getNamespace
-            spec      <- svc.getSpec
-            clusterIp <- spec.getClusterIP
-            ports     <- spec.getPorts
-            restPort = ports
-              .find(_.port == 8081)
-              .flatMap(_.targetPort.map(_.value.fold(identity, _.toInt)).toOption)
-              .getOrElse(8081)
-          } yield Some(FlinkRestSvcEndpoint(name, ns, restPort, clusterIp))
+      .flatMap { svc =>
+        for {
+          metadata  <- svc.getMetadata
+          name      <- metadata.getName
+          ns        <- metadata.getNamespace
+          spec      <- svc.getSpec
+          clusterIp <- spec.getClusterIP
+          ports     <- spec.getPorts
+          restPort = ports
+            .find(_.port == 8081)
+            .flatMap(_.targetPort.map(_.value.fold(identity, _.toInt)).toOption)
+            .getOrElse(8081)
+        } yield FlinkRestSvcEndpoint(name, ns, restPort, clusterIp)
       }
-      .mapError(RequestK8sApiErr(_))
+      .mapError {
+        case NotFound => ClusterNotFound(clusterId, namespace)
+        case failure  => FlinkOprErr.RequestK8sApiErr(failure)
+      }
   }
 
 }

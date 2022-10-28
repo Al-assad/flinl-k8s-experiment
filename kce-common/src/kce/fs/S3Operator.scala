@@ -76,7 +76,7 @@ object S3Operator {
             )
             new File(targetPath)
           }
-          .mapError(DownloadObjErr(s3Path, objectName, S3Location(s3Conf), _))
+          .mapError(DownloadObjErr(s3Path, objectName, S3Err.S3Location(s3Conf), _))
         file <- ZIO.succeed(new File(targetPath))
       } yield file
     }
@@ -101,7 +101,7 @@ object S3Operator {
                 .contentType(contentType)
                 .build())
           }
-          .mapError(UploadObjErr(s3Path, objectName, S3Location(s3Conf), _))
+          .mapError(UploadObjErr(s3Path, objectName, S3Err.S3Location(s3Conf), _))
       } yield ()
     }
 
@@ -114,7 +114,7 @@ object S3Operator {
           .attemptBlockingInterrupt {
             minioClient.removeObject(RemoveObjectArgs.builder().bucket(s3Conf.bucket).`object`(objectName).build())
           }
-          .mapError(RemoveObjErr(s3Path, objectName, S3Location(s3Conf), _))
+          .mapError(RemoveObjErr(s3Path, objectName, S3Err.S3Location(s3Conf), _))
       }
     }
 
@@ -129,7 +129,7 @@ object S3Operator {
           }
           .as(true)
           .catchSome { case e: ErrorResponseException if e.errorResponse().code() == "NoSuchKey" => succeed(false) }
-          .mapError(GetObjErr(s3Path, objectName, S3Location(s3Conf), _))
+          .mapError(GetObjErr(s3Path, objectName, S3Err.S3Location(s3Conf), _))
       }
     }
 

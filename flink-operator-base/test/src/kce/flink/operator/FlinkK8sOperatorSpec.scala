@@ -147,4 +147,12 @@ class FlinkK8sOperatorSpec extends STSpec {
     }
   }
 
+  "kill flink cluster" in {
+    FlinkK8sOperator
+      .killCluster("app-t1", "fdev")
+      .provide(layers)
+      .debugStack
+      .run
+  }
+
 }

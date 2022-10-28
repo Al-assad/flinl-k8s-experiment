@@ -22,6 +22,8 @@ object FlinkOprErr {
   case class SubmitFlinkSessionClusterErr(clusterId: String, namespace: String, cause: Throwable)     extends FlinkOprErr with FailStackFill
   case class SubmitFlinkApplicationClusterErr(clusterId: String, namespace: String, cause: Throwable) extends FlinkOprErr with FailStackFill
 
+  case class ClusterNotFound(clusterId: String, namespace: String) extends FlinkOprErr
+
   case class RequestK8sApiErr(k8sFailure: K8sFailure, cause: Throwable) extends FlinkOprErr with FailStackFill
   object RequestK8sApiErr {
     def apply(k8sFailure: K8sFailure): RequestK8sApiErr = RequestK8sApiErr(k8sFailure, k8s.liftException(k8sFailure).orNull)

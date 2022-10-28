@@ -2,8 +2,11 @@ package kce.flink.operator
 
 import com.coralogix.zio.k8s.client.kubernetes.Kubernetes
 import kce.conf.PotaConf
+import kce.flink.operator.FlinkConfigExtension.{configurationToPF, EmptyConfiguration}
+import kce.flink.operator.share.FlinkExecMode.FlinkExecMode
 import kce.flink.operator.share.{FlinkAppClusterDef, FlinkRestSvcEndpoint, FlinkSessClusterDef, FlinkSessJobDef}
 import kce.fs.S3Operator
+import org.apache.flink.client.deployment.{ClusterClientFactory, DefaultClusterClientServiceLoader}
 import zio._
 import zio.macros.accessible
 
@@ -25,6 +28,11 @@ trait FlinkK8sOperator {
   def deploySessionCluster(definition: FlinkSessClusterDef): IO[FlinkOprErr, Unit]
 
   /**
+   * Terminate the flink cluster and reclaim all associated k8s resources.
+   */
+  def killCluster(clusterId: String, namespace: String): IO[FlinkOprErr, Unit]
+
+  /**
    * Submit job to Flink session cluster.
    * @return flink job-id
    */
@@ -41,10 +49,11 @@ trait FlinkK8sOperator {
   /**
    * Retrieve Flink rest endpoint via kubernetes api.
    */
-  def retrieveRestEndpoint(clusterId: String, namespace: String): IO[FlinkOprErr, Option[FlinkRestSvcEndpoint]]
+  def retrieveRestEndpoint(clusterId: String, namespace: String): IO[FlinkOprErr, FlinkRestSvcEndpoint]
 }
 
 object FlinkK8sOperator {
+
   val live = ZLayer {
     for {
       kceConf    <- ZIO.service[PotaConf]
@@ -52,4 +61,15 @@ object FlinkK8sOperator {
       s3Operator <- ZIO.service[S3Operator]
     } yield new FlinkK8sOperatorLive(kceConf, k8sClient, s3Operator)
   }
+
+  private val clusterClientLoader = new DefaultClusterClientServiceLoader()
+
+  /**
+   * Get Flink ClusterClientFactory by execution mode.
+   */
+  def getClusterClientFactory(execMode: FlinkExecMode): Task[ClusterClientFactory[String]] = ZIO.attempt {
+    val conf = EmptyConfiguration().append("execution.target", execMode.toString).value
+    clusterClientLoader.getClusterClientFactory(conf)
+  }
+
 }

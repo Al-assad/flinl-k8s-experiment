@@ -41,11 +41,10 @@ object FlinkRawConf {
     mapping
       .filter { case (_, value) =>
         value match {
-          case None                          => false
-          case value: Iterable[String]       => value.nonEmpty
-          case Some(value: Iterable[String]) => value.nonEmpty
-          case value: Map[_, _]              => value.nonEmpty
-          case _                             => true
+          case None                     => false
+          case value: Iterable[_]       => value.nonEmpty
+          case Some(value: Iterable[_]) => value.nonEmpty
+          case _                        => true
         }
       }
       .map {
