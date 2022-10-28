@@ -37,8 +37,12 @@ object FlinkConfigExtension {
     }
     def appendWhen(cond: => Boolean)(key: String, value: Any): ConfigurationPF = if (cond) append(key, value) else this
 
-    def append(rawConf: FlinkRawConf): ConfigurationPF         = rawConf.injectRaw(this)
-    def append(rawConf: Option[FlinkRawConf]): ConfigurationPF = rawConf.map(_.injectRaw(this)).getOrElse(this)
+    def append(rawConf: FlinkRawConf): ConfigurationPF = {
+      rawConf.effectedRawMapping.foldLeft(this) { case (conf, (key, value)) =>
+        conf.append(key, value)
+      }
+    }
+    def append(rawConf: Option[FlinkRawConf]): ConfigurationPF = rawConf.map(append(_)).getOrElse(this)
 
     def tap(f: Configuration => Any): Configuration                                        = { f(this.conf); this }
     def pipe(f: ConfigurationPF => ConfigurationPF): ConfigurationPF                       = f(this)

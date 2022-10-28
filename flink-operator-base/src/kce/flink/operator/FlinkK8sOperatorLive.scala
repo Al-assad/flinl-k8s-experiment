@@ -3,7 +3,6 @@ package kce.flink.operator
 import com.coralogix.zio.k8s.client.K8sFailure.syntax.K8sZIOSyntax
 import com.coralogix.zio.k8s.client.kubernetes.Kubernetes
 import kce.common.ziox.usingAttempt
-import kce.k8s.stringToK8sNamespace
 import kce.conf.PotaConf
 import kce.flink.operator.FlinkConfigExtension.configurationToPF
 import kce.flink.operator.FlinkOprErr.{RequestK8sApiErr, SubmitFlinkApplicationClusterErr, SubmitFlinkSessionClusterErr}
@@ -11,8 +10,9 @@ import kce.flink.operator.FlinkOprHelper.getClusterClientFactory
 import kce.flink.operator.share.FlinkExecMode.K8sSession
 import kce.flink.operator.share.{FlinkAppClusterDef, FlinkRestSvcEndpoint, FlinkSessClusterDef, FlinkSessJobDef}
 import kce.fs.S3Operator
+import kce.k8s.stringToK8sNamespace
 import org.apache.flink.client.deployment.application.ApplicationConfiguration
-import zio.ZIO.{attempt, attemptBlockingInterrupt, logInfo, scoped, succeed}
+import zio.ZIO.{attempt, attemptBlockingInterrupt, logInfo, scoped}
 import zio.json._
 import zio.{IO, ZIO}
 
@@ -21,23 +21,23 @@ import zio.{IO, ZIO}
  */
 class FlinkK8sOperatorLive(potaConf: PotaConf, k8sClient: Kubernetes, s3Operator: S3Operator) extends FlinkK8sOperator {
 
-  private val podTplResolver = new PodTemplateResolver(potaConf)
+  private val podTplResolver = PodTemplateResolver
+  private val clDefResolver  = ClusterDefResolver
 
   /**
    * Deploy Flink Application cluster.
    */
   override def deployApplicationCluster(definition: FlinkAppClusterDef): IO[FlinkOprErr, Unit] = {
     for {
-      clusterDef      <- succeed(definition.revise())
-      podTemplateFile <- podTplResolver.resolvePodTemplateAndDump(clusterDef)
+      clusterDef      <- clDefResolver.application.revise(definition)
+      podTemplateFile <- podTplResolver.resolvePodTemplateAndDump(clusterDef, potaConf)
       // convert to effective flink configuration
-      rawConfig <- succeed(
-        clusterDef
-          .toFlinkRawConfig(potaConf)
+      rawConfig <- clDefResolver.application.toFlinkRawConfig(clusterDef, potaConf).map { conf =>
+        conf
           .append("kubernetes.pod-template-file.jobmanager", podTemplateFile)
           .append("kubernetes.pod-template-file.taskmanager", podTemplateFile)
           .append("$internal.deployment.config-dir", potaConf.flink.logConfDir)
-      )
+      }
       _ <- logInfo(s"Start to deploy flink session cluster:\n${rawConfig.toPrettyPrint}".stripMargin)
       // deploy app cluster
       _ <- ZIO
@@ -60,16 +60,15 @@ class FlinkK8sOperatorLive(potaConf: PotaConf, k8sClient: Kubernetes, s3Operator
    */
   override def deploySessionCluster(definition: FlinkSessClusterDef): IO[FlinkOprErr, Unit] = {
     for {
-      clusterDef      <- succeed(definition.revise())
-      podTemplateFile <- podTplResolver.resolvePodTemplateAndDump(clusterDef)
+      clusterDef      <- clDefResolver.session.revise(definition)
+      podTemplateFile <- podTplResolver.resolvePodTemplateAndDump(clusterDef, potaConf)
       // convert to effective flink configuration
-      rawConfig <- succeed(
-        clusterDef
-          .toFlinkRawConfig(potaConf)
+      rawConfig <- clDefResolver.session.toFlinkRawConfig(clusterDef, potaConf).map { conf =>
+        conf
           .append("kubernetes.pod-template-file.jobmanager", podTemplateFile)
           .append("kubernetes.pod-template-file.taskmanager", podTemplateFile)
           .append("$internal.deployment.config-dir", potaConf.flink.logConfDir)
-      )
+      }
       _ <- logInfo(s"Start to deploy flink application cluster:\n${rawConfig.toPrettyPrint}\n".stripMargin)
       // deploy cluster
       _ <- scoped {
