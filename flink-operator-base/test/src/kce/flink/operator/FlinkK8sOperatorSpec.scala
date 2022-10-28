@@ -4,7 +4,7 @@ import kce.common.valueToSome
 import kce.conf.{K8sClient, PotaConf}
 import kce.flink.operator.share.CheckpointStorageType.Filesystem
 import kce.flink.operator.share.StateBackendType.Rocksdb
-import kce.flink.operator.share.{FlinkAppClusterDef, FlinkSessClusterDef, FlinkSessJobDef, FlinkVer, StateBackendConf}
+import kce.flink.operator.share._
 import kce.fs.S3Operator
 import kce.testkit.STSpec
 
@@ -17,7 +17,7 @@ class FlinkK8sOperatorSpec extends STSpec {
     FlinkK8sOperator
       .retrieveRestEndpoint("session-01", "fdev")
       .provide(layers)
-      .debug
+      .debugStack
       .run
   }
 
@@ -32,7 +32,7 @@ class FlinkK8sOperatorSpec extends STSpec {
             image = "flink:1.15.2"
           ))
         .provide(layers)
-        .debug
+        .debugStack
         .run
     }
     "with state backend " in {
@@ -52,7 +52,7 @@ class FlinkK8sOperatorSpec extends STSpec {
             )
           ))
         .provide(layers)
-        .debug
+        .debugStack
         .run
     }
     "with state backend and extra dependencies" in {
@@ -76,7 +76,7 @@ class FlinkK8sOperatorSpec extends STSpec {
             )
           ))
         .provide(layers)
-        .debug
+        .debugStack
         .run
     }
   }
@@ -93,7 +93,7 @@ class FlinkK8sOperatorSpec extends STSpec {
             jobJar = "local:///opt/flink/examples/streaming/StateMachineExample.jar"
           ))
         .provide(layers)
-        .debug
+        .debugStack
         .run
     }
     "with user jar on s3" in {
@@ -107,7 +107,7 @@ class FlinkK8sOperatorSpec extends STSpec {
             jobJar = "s3://flink-dev/flink-1.15.2/example/streaming/StateMachineExample.jar"
           ))
         .provide(layers)
-        .debug
+        .debugStack
         .run
     }
     "with state backend" in {
@@ -128,7 +128,7 @@ class FlinkK8sOperatorSpec extends STSpec {
             )
           ))
         .provide(layers)
-        .debug
+        .debugStack
         .run
     }
 
@@ -142,7 +142,7 @@ class FlinkK8sOperatorSpec extends STSpec {
           )
         )
         .provide(layers)
-        .debugErr
+        .debugStack
         .run
     }
   }

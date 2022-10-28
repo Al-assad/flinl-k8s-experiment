@@ -37,7 +37,9 @@ final case class PotaFailException(fail: PotaFail) extends NoStackTrace
 
 final case class FutureException[T](reason: T) extends NoStackTrace
 
-object PotaFail {
+object PotaFail extends PotaFailExtension
+
+trait PotaFailExtension {
 
   /**
    * Dump the stack trace of Throwable to String.
@@ -48,7 +50,7 @@ object PotaFail {
     sw.toString
   }
 
-  implicit class PotaFailZIOWrapper[R, E <: PotaFail, A](zio: ZIO[R, E, A]) {
+  implicit class PotaFailZIOWrapper[R, E, A](zio: ZIO[R, E, A]) {
 
     /**
      * Similar to [[ZIO.debug]], but with [[FailStackFill]] appended to the error output content.
