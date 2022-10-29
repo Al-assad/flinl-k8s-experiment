@@ -1,1 +1,2 @@
-addSbtPlugin("com.lucidchart" % "sbt-cross" % "4.0")
+addSbtPlugin("com.lucidchart"      % "sbt-cross"           % "4.0")
+

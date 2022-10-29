@@ -7,19 +7,19 @@ lazy val LogbackVer      = "1.4.3"
 lazy val ScalaLoggingVer = "3.9.5"
 lazy val ScalaTestVer    = "3.2.14"
 
-lazy val AkkaVer      = "2.6.20"
-lazy val CatsVer      = "2.8.0"
-lazy val ZIOVer       = "2.0.2"
+lazy val AkkaVer       = "2.6.20"
+lazy val CatsVer       = "2.8.0"
+lazy val ZIOVer        = "2.0.2"
 lazy val ZIOLoggingVer = "2.1.2"
-lazy val ZIOJsonVer   = "0.3.0"
-lazy val ZIOHttpVer   = "2.0.0-RC10"
-lazy val ZIOK8sVer    = "2.0.1"
-lazy val SttpVer      = "3.8.3"
-lazy val UpickleVer   = "2.0.0"
-lazy val PPrintVer    = "0.8.0"
-lazy val QuicklensVer = "1.9.0"
-lazy val HoconVer     = "1.4.2"
-lazy val MinioVer     = "8.4.5"
+lazy val ZIOJsonVer    = "0.3.0"
+lazy val ZIOHttpVer    = "2.0.0-RC10"
+lazy val ZIOK8sVer     = "2.0.1"
+lazy val SttpVer       = "3.8.3"
+lazy val UpickleVer    = "2.0.0"
+lazy val PPrintVer     = "0.8.0"
+lazy val QuicklensVer  = "1.9.0"
+lazy val HoconVer      = "1.4.2"
+lazy val MinioVer      = "8.4.5"
 
 lazy val FlinkDefaultVer = Flink15Ver
 lazy val Flink15Ver      = "1.15.2"
@@ -91,7 +91,9 @@ lazy val kceCommon = (project in file("kce-common"))
       "com.softwaremill.sttp.client3" %% "zio-json"                   % SttpVer,
       "com.softwaremill.sttp.client3" %% "slf4j-backend"              % SttpVer,
       "com.coralogix"                 %% "zio-k8s-client"             % ZIOK8sVer,
-      "io.minio"                       % "minio"                      % MinioVer
+      "io.minio"                       % "minio"                      % MinioVer excludeAll (
+        ExclusionRule(organization = "com.fasterxml.jackson.core")
+      )
     )
   )
   .cross
