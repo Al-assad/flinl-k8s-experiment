@@ -1,6 +1,7 @@
 package potamoi.conf
 
 import com.softwaremill.quicklens._
+import potamoi.common
 import potamoi.common.PathTool.rmSlashPrefix
 import potamoi.common.{ComplexEnum, GenericPF}
 import potamoi.conf.S3AccessStyle.{PathStyle, S3AccessStyle, VirtualHostedStyle}
@@ -10,7 +11,9 @@ import zio.{ULayer, ZIO, ZLayer}
  * Potamoi root configuration.
  */
 case class PotaConf(localStorageDir: String, k8s: K8sConf, s3: S3Conf, flink: FlinkConf) {
-  def resolve: PotaConf = Vector(k8s, s3, flink).foldLeft(this)((a, c) => c.resolve(a))
+
+  def resolve: PotaConf      = Vector(k8s, s3, flink).foldLeft(this)((a, c) => c.resolve(a))
+  def toPrettyString: String = common.toPrettyString(this)
 }
 
 object PotaConf {
@@ -27,7 +30,7 @@ object PotaConf {
     flink = FlinkConf(
       k8sAccount = "flink-opr",
       minioClientImage = "minio/mc:RELEASE.2022-10-12T18-12-50Z",
-      localTmpDir = "flink/tmp"
+      localTmpDir = "tmp/flink"
     )
   ).resolve
 

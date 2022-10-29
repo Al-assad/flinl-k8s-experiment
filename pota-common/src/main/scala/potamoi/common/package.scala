@@ -24,4 +24,9 @@ package object common {
    */
   implicit def valueToSome[T](value: T): Option[T] = Some(value)
 
+  /**
+   * A more reader-friendly version of toString.
+   */
+  def toPrettyString(value: Any): String = pprint.apply(value).render
+
 }

@@ -12,7 +12,7 @@ import scala.util.control.NoStackTrace
  * Type-safe Error type.
  */
 trait PotaFail {
-  override def toString: String      = pprint.apply(this).render
+  override def toString: String      = toPrettyString(this)
   def toException: PotaFailException = PotaFailException(this)
 }
 
