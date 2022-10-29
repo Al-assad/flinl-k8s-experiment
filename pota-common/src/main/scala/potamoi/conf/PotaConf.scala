@@ -74,7 +74,6 @@ case class S3Conf(
         segs(0) + "://" + revisePathSegs.mkString("/")
     }
   }
-
 }
 
 /**
