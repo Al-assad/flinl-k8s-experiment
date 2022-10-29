@@ -2,17 +2,17 @@ package potamoi.flink.operator
 
 import com.coralogix.zio.k8s.model.core.v1._
 import com.coralogix.zio.k8s.model.pkg.apis.meta.v1.ObjectMeta
-import potamoi.conf.PotaConf
-import potamoi.flink.operator.FlinkOprErr.{DecodePodTemplateYamlErr, EncodePodTemplateYamlErr, GenPodTemplateErr, IOErr}
-import potamoi.flink.share.{FlinkAppClusterDef, FlinkClusterDef}
-import zio.ZIO.succeed
-import zio.prelude.data.Optional.{Absent, Present}
-import zio.{IO, ZIO}
 import io.circe.syntax._
 import io.circe.yaml.parser.{parse => parseYaml}
 import io.circe.yaml.syntax._
 import potamoi.common.PathTool.{isS3Path, purePath}
+import potamoi.conf.PotaConf
+import potamoi.flink.operator.FlinkOprErr.{DecodePodTemplateYamlErr, EncodePodTemplateYamlErr, GenPodTemplateErr, IOErr}
+import potamoi.flink.share.{FlinkAppClusterDef, FlinkClusterDef}
 import potamoi.fs.lfs
+import zio.ZIO.logInfo
+import zio.prelude.data.Optional.{Absent, Present}
+import zio.{IO, ZIO}
 
 /**
  * Flink K8s PodTemplate resolver.
@@ -22,12 +22,11 @@ object PodTemplateResolver {
   /**
    * Generate PodTemplate and dump it to local dir, return the yaml file path on local fs.
    */
-  def resolvePodTemplateAndDump(definition: FlinkClusterDef[_], potaConf: PotaConf): IO[FlinkOprErr, String] = {
+  def resolvePodTemplateAndDump(definition: FlinkClusterDef[_], potaConf: PotaConf, outputPath: String): IO[FlinkOprErr, Unit] = {
     for {
-      podTemplate     <- resolvePodTemplate(definition, potaConf)
-      podTemplatePath <- succeed(s"${potaConf.flink.localTmpDir}/${definition.namespace}@${definition.clusterId}/flink-podtemplate.yaml")
-      _               <- writeToLocal(podTemplate, podTemplatePath)
-    } yield podTemplatePath
+      podTemplate <- resolvePodTemplate(definition, potaConf)
+      _           <- writeToLocal(podTemplate, outputPath)
+    } yield ()
   }
 
   /**
@@ -115,7 +114,8 @@ object PodTemplateResolver {
   def writeToLocal(podTemplate: Pod, path: String): IO[FlinkOprErr, Unit] =
     for {
       yaml <- encodePodTemplateToYaml(podTemplate)
-      _    <- (lfs.rm(path) *> lfs.write(path, yaml)).mapError(IOErr(s"Fail to write podtemplate to local file: $path", _))
+      _    <- (lfs.rm(path) *> lfs.write(path, yaml)).mapError(e => IOErr(s"fail to write podtemplate to local file: $path", e.cause))
+      _    <- logInfo(s"wrote flink cluster podtemplate to local file: $path")
     } yield ()
 
 }

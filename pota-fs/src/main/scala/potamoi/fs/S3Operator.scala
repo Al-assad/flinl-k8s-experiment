@@ -62,7 +62,7 @@ object S3Operator {
         objectName <- extractObjectName(s3Path)
         _ <- lfs
           .ensureParentDir(targetPath)
-          .mapError(IOErr(s"Fail to create parent directory of target file: $targetPath.", _))
+          .mapError(e => IOErr(s"fail to create parent directory of target file: $targetPath.", e.cause))
         _ <- ZIO
           .attemptBlockingInterrupt {
             minioClient.downloadObject(

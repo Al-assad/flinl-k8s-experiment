@@ -17,13 +17,13 @@ import potamoi.flink.operator.FlinkOprErr.{
   SubmitFlinkSessionClusterErr,
   UnableToResolveS3Resource
 }
-import potamoi.flink.share.{FlinkAppClusterDef, FlinkRestSvcEndpoint, FlinkSessClusterDef, FlinkSessJobDef}
+import potamoi.flink.share.{FlinkAppClusterDef, FlinkClusterDef, FlinkRestSvcEndpoint, FlinkSessClusterDef, FlinkSessJobDef}
 import potamoi.flink.share.FlinkExecMode.K8sSession
 import potamoi.fs.{lfs, S3Operator}
 import sttp.client3._
 import sttp.client3.httpclient.zio.HttpClientZioBackend
 import sttp.client3.ziojson._
-import zio.ZIO.{attempt, attemptBlockingInterrupt, logInfo, scoped}
+import zio.ZIO.{attempt, attemptBlockingInterrupt, logInfo, scoped, succeed}
 import zio._
 import zio.json._
 import potamoi.k8s.stringToK8sNamespace
@@ -35,24 +35,47 @@ import java.io.File
  */
 class FlinkK8sOperatorLive(potaConf: PotaConf, k8sClient: Kubernetes, s3Operator: S3Operator) extends FlinkK8sOperator {
 
-  private val podTplResolver = PodTemplateResolver
-  private val clDefResolver  = ClusterDefResolver
+  private val clDefResolver   = ClusterDefResolver
+  private val podTplResolver  = PodTemplateResolver
+  private val logConfResolver = LogConfigResolver
+
+  /**
+   * Local workplace directory for each Flink cluster.
+   */
+  private def clusterLocalWp(clusterId: String, namespace: String): UIO[String] =
+    succeed(s"${potaConf.flink.localTmpDir}/${namespace}@${clusterId}")
+
+  /**
+   * Local Generated flink kubernetes pod-template file output path.
+   */
+  private def podTemplateFileOutputPath(clusterDef: FlinkClusterDef[_]): UIO[String] =
+    clusterLocalWp(clusterDef.clusterId, clusterDef.namespace).map(wp => s"$wp/flink-podtemplate.yaml")
+
+  /**
+   * Local Generated flink kubernetes config file output path.
+   */
+  private def logConfFileOutputPath(clusterDef: FlinkClusterDef[_]): UIO[String] =
+    clusterLocalWp(clusterDef.clusterId, clusterDef.namespace).map(wp => s"$wp/log-conf")
 
   /**
    * Deploy Flink Application cluster.
    */
-  override def deployApplicationCluster(definition: FlinkAppClusterDef): IO[FlinkOprErr, Unit] = {
+  override def deployApplicationCluster(clusterDef: FlinkAppClusterDef): IO[FlinkOprErr, Unit] = {
     for {
-      clusterDef      <- clDefResolver.application.revise(definition)
-      podTemplateFile <- podTplResolver.resolvePodTemplateAndDump(clusterDef, potaConf)
+      clusterDef <- clDefResolver.application.revise(clusterDef)
+      // resolve flink pod template and log config
+      podTemplateFilePath <- podTemplateFileOutputPath(clusterDef)
+      logConfFilePath     <- logConfFileOutputPath(clusterDef)
+      _                   <- podTplResolver.resolvePodTemplateAndDump(clusterDef, potaConf, podTemplateFilePath)
+      _                   <- logConfResolver.ensureFlinkLogsConfigFiles(logConfFilePath, overwrite = true)
       // convert to effective flink configuration
       rawConfig <- clDefResolver.application.toFlinkRawConfig(clusterDef, potaConf).map { conf =>
         conf
-          .append("kubernetes.pod-template-file.jobmanager", podTemplateFile)
-          .append("kubernetes.pod-template-file.taskmanager", podTemplateFile)
-          .append("$internal.deployment.config-dir", potaConf.flink.logConfDir)
+          .append("kubernetes.pod-template-file.jobmanager", podTemplateFilePath)
+          .append("kubernetes.pod-template-file.taskmanager", podTemplateFilePath)
+          .append("$internal.deployment.config-dir", logConfFilePath)
       }
-      _ <- logInfo(s"Start to deploy flink session cluster:\n${rawConfig.toPrettyPrint}".stripMargin)
+      _ <- logInfo(s"start to deploy flink session cluster:\n${rawConfig.toPrettyPrint}".stripMargin)
       // deploy app cluster
       _ <- scoped {
         for {
@@ -62,26 +85,30 @@ class FlinkK8sOperatorLive(potaConf: PotaConf, k8sClient: Kubernetes, s3Operator
           k8sClusterDescriptor <- usingAttempt(clusterClientFactory.createClusterDescriptor(rawConfig))
           _                    <- attemptBlockingInterrupt(k8sClusterDescriptor.deployApplicationCluster(clusterSpecification, appConfiguration))
         } yield ()
-      }.mapError(SubmitFlinkSessionClusterErr(definition.clusterId, definition.namespace, _))
-      _ <- logInfo(s"Deploy flink session cluster successfully, clusterId=${definition.clusterId}, namespace=${definition.clusterId}.")
+      }.mapError(SubmitFlinkSessionClusterErr(clusterDef.clusterId, clusterDef.namespace, _))
+      _ <- logInfo(s"deploy flink session cluster successfully, clusterId=${clusterDef.clusterId}, namespace=${clusterDef.clusterId}.")
     } yield ()
   }
 
   /**
    * Deploy Flink session cluster.
    */
-  override def deploySessionCluster(definition: FlinkSessClusterDef): IO[FlinkOprErr, Unit] = {
+  override def deploySessionCluster(clusterDef: FlinkSessClusterDef): IO[FlinkOprErr, Unit] = {
     for {
-      clusterDef      <- clDefResolver.session.revise(definition)
-      podTemplateFile <- podTplResolver.resolvePodTemplateAndDump(clusterDef, potaConf)
+      clusterDef <- clDefResolver.session.revise(clusterDef)
+      // resolve flink pod template and log config
+      podTemplateFilePath <- podTemplateFileOutputPath(clusterDef)
+      logConfFilePath     <- logConfFileOutputPath(clusterDef)
+      _                   <- podTplResolver.resolvePodTemplateAndDump(clusterDef, potaConf, podTemplateFilePath)
+      _                   <- logConfResolver.ensureFlinkLogsConfigFiles(logConfFilePath, overwrite = true)
       // convert to effective flink configuration
       rawConfig <- clDefResolver.session.toFlinkRawConfig(clusterDef, potaConf).map { conf =>
         conf
-          .append("kubernetes.pod-template-file.jobmanager", podTemplateFile)
-          .append("kubernetes.pod-template-file.taskmanager", podTemplateFile)
-          .append("$internal.deployment.config-dir", potaConf.flink.logConfDir)
+          .append("kubernetes.pod-template-file.jobmanager", podTemplateFilePath)
+          .append("kubernetes.pod-template-file.taskmanager", podTemplateFilePath)
+          .append("$internal.deployment.config-dir", logConfFilePath)
       }
-      _ <- logInfo(s"Start to deploy flink application cluster:\n${rawConfig.toPrettyPrint}\n".stripMargin)
+      _ <- logInfo(s"start to deploy flink application cluster:\n${rawConfig.toPrettyPrint}\n".stripMargin)
       // deploy cluster
       _ <- scoped {
         for {
@@ -90,8 +117,8 @@ class FlinkK8sOperatorLive(potaConf: PotaConf, k8sClient: Kubernetes, s3Operator
           k8sClusterDescriptor <- usingAttempt(clusterClientFactory.createClusterDescriptor(rawConfig))
           _                    <- attemptBlockingInterrupt(k8sClusterDescriptor.deploySessionCluster(clusterSpecification))
         } yield ()
-      }.mapError(SubmitFlinkApplicationClusterErr(definition.clusterId, definition.namespace, _))
-      _ <- logInfo(s"Deploy flink application cluster successfully, clusterId=${definition.clusterId}, namespace=${definition.clusterId}.")
+      }.mapError(SubmitFlinkApplicationClusterErr(clusterDef.clusterId, clusterDef.namespace, _))
+      _ <- logInfo(s"deploy flink application cluster successfully, clusterId=${clusterDef.clusterId}, namespace=${clusterDef.clusterId}.")
     } yield ()
   }
 
@@ -147,18 +174,18 @@ class FlinkK8sOperatorLive(potaConf: PotaConf, k8sClient: Kubernetes, s3Operator
       _       <- ZIO.fail(NotSupportJobJarPath(jobDef.jobJar)).unless(isS3Path(jobDef.jobJar))
 
       // download job jar
-      _ <- logInfo(s"Downloading flink job jar from s3 storage: ${jobDef.jobJar}")
+      _ <- logInfo(s"downloading flink job jar from s3 storage: ${jobDef.jobJar}")
       jobJarPath <- s3Operator
         .download(jobDef.jobJar, s"${potaConf.flink.localTmpDir}/${jobDef.namespace}@${jobDef.clusterId}/${getFileName(jobDef.jobJar)}")
         .mapBoth(UnableToResolveS3Resource, _.getPath)
 
       // submit job
-      _ <- logInfo(s"Start to submit job to flink cluster:\n${jobDef.toPrettyPrint}".stripMargin)
+      _ <- logInfo(s"start to submit job to flink cluster:\n${jobDef.toPrettyPrint}".stripMargin)
       jobId <- HttpClientZioBackend
         .scoped()
         .flatMap { implicit backend =>
           for {
-            _     <- logInfo(s"Uploading flink job jar to flink cluster, clusterId=${jobDef.clusterId}, namespace=${jobDef.namespace}")
+            _     <- logInfo(s"uploading flink job jar to flink cluster, clusterId=${jobDef.clusterId}, namespace=${jobDef.namespace}")
             jarId <- uploadJar(jobJarPath, restUrl)
             jobId <- runJar(jarId, restUrl)
             _     <- deleteJar(jarId, restUrl)
@@ -167,7 +194,7 @@ class FlinkK8sOperatorLive(potaConf: PotaConf, k8sClient: Kubernetes, s3Operator
         .mapError(err => RequestFlinkRestApiErr(err.toString))
         .endScoped()
       _ <- lfs.rm(jobJarPath).ignore.fork
-      _ <- logInfo(s"Submit job to flink session cluster successfully, clusterId=${jobDef.clusterId}, namespace=${jobDef.namespace}.")
+      _ <- logInfo(s"submit job to flink session cluster successfully, clusterId=${jobDef.clusterId}, namespace=${jobDef.namespace}.")
     } yield jobId
   }
 

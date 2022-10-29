@@ -27,7 +27,6 @@ object PotaConf {
     flink = FlinkConf(
       k8sAccount = "flink-opr",
       minioClientImage = "minio/mc:RELEASE.2022-10-12T18-12-50Z",
-      logConfDir = "flink/logconf",
       localTmpDir = "flink/tmp"
     )
   ).resolve
@@ -87,12 +86,8 @@ object S3AccessStyle extends ComplexEnum {
 /**
  * Flink config.
  */
-case class FlinkConf(k8sAccount: String, minioClientImage: String, logConfDir: String, localTmpDir: String) extends ResolveConf {
+case class FlinkConf(k8sAccount: String, minioClientImage: String, localTmpDir: String) extends ResolveConf {
   override def resolve = { root =>
-    root
-      .modify(_.flink.logConfDir)
-      .using(dir => s"${root.localStorageDir}/${rmSlashPrefix(dir)}")
-      .modify(_.flink.localTmpDir)
-      .using(dir => s"${root.localStorageDir}/${rmSlashPrefix(dir)}")
+    root.modify(_.flink.localTmpDir).using(dir => s"${root.localStorageDir}/${rmSlashPrefix(dir)}")
   }
 }

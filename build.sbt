@@ -80,6 +80,7 @@ lazy val potaCommon = (projectMatrix in file("pota-common"))
       "com.typesafe.akka"             %% "akka-cluster-typed"         % AkkaVer,
       "com.typesafe.akka"             %% "akka-serialization-jackson" % AkkaVer,
       "dev.zio"                       %% "zio"                        % ZIOVer,
+      "dev.zio"                       %% "zio-concurrent"             % ZIOVer,
       "dev.zio"                       %% "zio-macros"                 % ZIOVer,
       "dev.zio"                       %% "zio-logging-slf4j"          % ZIOLoggingVer,
       "dev.zio"                       %% "zio-json"                   % ZIOJsonVer,
