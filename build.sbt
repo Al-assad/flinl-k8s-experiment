@@ -126,6 +126,7 @@ lazy val potaFs = (projectMatrix in file("pota-fs"))
     )
   )
   .jvmPlatform(scalaVersions = Seq(Scala213, Scala212))
+  .dependsOn(potaCommon)
 
 /**
  * kubernetes system interaction module.
