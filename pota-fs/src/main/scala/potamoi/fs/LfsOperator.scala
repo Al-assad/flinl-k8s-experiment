@@ -4,7 +4,6 @@ import potamoi.common.{FailStackFill, GenericPF, PotaFail}
 import zio.{IO, ZIO}
 
 import java.io.File
-import scala.reflect.io.Directory
 
 /**
  * Local file system operator.
@@ -23,16 +22,9 @@ object LfsOperator {
   /**
    * Delete file or directory recursively of given path.
    */
-  def rm(path: String): IO[LfsIOErr, Boolean] = {
-    ZIO
-      .attemptBlocking {
-        new File(path).contra { file =>
-          if (file.isDirectory) new Directory(file).deleteRecursively()
-          else file.delete()
-        }
-      }
-      .mapError(LfsIOErr)
-  }
+  def rm(path: String): IO[LfsIOErr, Unit] = ZIO
+    .attemptBlocking(os.remove.all(os.Path(path)))
+    .mapError(LfsIOErr)
 
   /**
    * Write content to file.

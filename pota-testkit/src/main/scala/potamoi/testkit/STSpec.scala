@@ -1,9 +1,9 @@
 package potamoi.testkit
 
-import potamoi.common.{PotaFailExtension, ZIOExtension}
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
+import potamoi.common.{PotaFailExtension, ZIOExtension}
 
 /**
  * Standard test specification.
