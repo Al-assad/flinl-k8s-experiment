@@ -51,7 +51,7 @@ lazy val root = (project in file("."))
   .settings(name := "potamoi")
   .aggregate(
     Seq(
-      potaSlf4j,
+      potaSlf4jBridge,
       potaCommon,
       potaFs,
       potaK8s,
@@ -69,6 +69,21 @@ lazy val testkitDeps = Seq(
 )
 
 /**
+ * ZIO Slf4j bridge with MDC support.
+ */
+lazy val potaSlf4jBridge = (projectMatrix in file("pota-slf4j-bridge"))
+  .settings(commonSettings)
+  .settings(
+    name := "potamoi-slf4j",
+    libraryDependencies ++= Seq(
+      "org.slf4j" % "slf4j-api"   % Slf4jVer,
+      "dev.zio"  %% "zio"         % ZIOVer        % Provided,
+      "dev.zio"  %% "zio-logging" % ZIOLoggingVer % Provided
+    )
+  )
+  .jvmPlatform(scalaVersions = Seq(Scala213, Scala212))
+
+/**
  * Common module.
  */
 lazy val potaCommon = (projectMatrix in file("pota-common"))
@@ -81,10 +96,10 @@ lazy val potaCommon = (projectMatrix in file("pota-common"))
       "com.typesafe.akka"             %% "akka-cluster-typed"         % AkkaVer,
       "com.typesafe.akka"             %% "akka-serialization-jackson" % AkkaVer,
       "dev.zio"                       %% "zio"                        % ZIOVer,
-      "dev.zio"                       %% "zio-concurrent"             % ZIOVer,
-      "dev.zio"                       %% "zio-macros"                 % ZIOVer,
       "dev.zio"                       %% "zio-logging"                % ZIOLoggingVer,
       "dev.zio"                       %% "zio-logging-slf4j"          % ZIOLoggingVer,
+      "dev.zio"                       %% "zio-concurrent"             % ZIOVer,
+      "dev.zio"                       %% "zio-macros"                 % ZIOVer,
       "dev.zio"                       %% "zio-json"                   % ZIOJsonVer,
       "org.typelevel"                 %% "cats-core"                  % CatsVer,
       "com.softwaremill.quicklens"    %% "quicklens"                  % QuicklensVer,
@@ -98,21 +113,7 @@ lazy val potaCommon = (projectMatrix in file("pota-common"))
     )
   )
   .jvmPlatform(scalaVersions = Seq(Scala213, Scala212))
-
-/**
- * ZIO Slf4j bridge with MDC support.
- */
-lazy val potaSlf4j = (projectMatrix in file("pota-slf4j"))
-  .settings(commonSettings)
-  .settings(
-    name := "potamoi-slf4j",
-    libraryDependencies ++= Seq(
-      "org.slf4j" % "slf4j-api"   % Slf4jVer,
-      "dev.zio"  %% "zio-logging" % ZIOLoggingVer % Provided,
-      "dev.zio"  %% "zio"         % ZIOVer        % Provided
-    )
-  )
-  .jvmPlatform(scalaVersions = Seq(Scala213, Scala212))
+  .dependsOn(potaSlf4jBridge)
 
 /**
  * File system handling module, such as s3 storage, local fs.
