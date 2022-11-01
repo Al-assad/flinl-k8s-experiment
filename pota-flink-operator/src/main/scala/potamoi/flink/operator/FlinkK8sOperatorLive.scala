@@ -75,7 +75,7 @@ class FlinkK8sOperatorLive(potaConf: PotaConf, k8sClient: Kubernetes, s3Operator
           .append("kubernetes.pod-template-file.taskmanager", podTemplateFilePath)
           .append("$internal.deployment.config-dir", logConfFilePath)
       }
-      _ <- logInfo(s"start to deploy flink session cluster:\n${rawConfig.toPrettyPrint}".stripMargin)
+      _ <- logInfo(s"Start to deploy flink session cluster:\n${rawConfig.toPrettyPrint}".stripMargin)
       // deploy app cluster
       _ <- scoped {
         for {
@@ -86,7 +86,7 @@ class FlinkK8sOperatorLive(potaConf: PotaConf, k8sClient: Kubernetes, s3Operator
           _                    <- attemptBlockingInterrupt(k8sClusterDescriptor.deployApplicationCluster(clusterSpecification, appConfiguration))
         } yield ()
       }.mapError(SubmitFlinkSessionClusterErr(clusterDef.clusterId, clusterDef.namespace, _))
-      _ <- logInfo(s"deploy flink session cluster successfully, clusterId=${clusterDef.clusterId}, namespace=${clusterDef.clusterId}.")
+      _ <- logInfo(s"Deploy flink session cluster successfully, clusterId=${clusterDef.clusterId}, namespace=${clusterDef.clusterId}.")
     } yield ()
   }
 
@@ -108,7 +108,7 @@ class FlinkK8sOperatorLive(potaConf: PotaConf, k8sClient: Kubernetes, s3Operator
           .append("kubernetes.pod-template-file.taskmanager", podTemplateFilePath)
           .append("$internal.deployment.config-dir", logConfFilePath)
       }
-      _ <- logInfo(s"start to deploy flink application cluster:\n${rawConfig.toPrettyPrint}\n".stripMargin)
+      _ <- logInfo(s"Start to deploy flink application cluster:\n${rawConfig.toPrettyPrint}\n".stripMargin)
       // deploy cluster
       _ <- scoped {
         for {
@@ -118,7 +118,7 @@ class FlinkK8sOperatorLive(potaConf: PotaConf, k8sClient: Kubernetes, s3Operator
           _                    <- attemptBlockingInterrupt(k8sClusterDescriptor.deploySessionCluster(clusterSpecification))
         } yield ()
       }.mapError(SubmitFlinkApplicationClusterErr(clusterDef.clusterId, clusterDef.namespace, _))
-      _ <- logInfo(s"deploy flink application cluster successfully, clusterId=${clusterDef.clusterId}, namespace=${clusterDef.clusterId}.")
+      _ <- logInfo(s"Deploy flink application cluster successfully, clusterId=${clusterDef.clusterId}, namespace=${clusterDef.clusterId}.")
     } yield ()
   }
 
@@ -174,18 +174,18 @@ class FlinkK8sOperatorLive(potaConf: PotaConf, k8sClient: Kubernetes, s3Operator
       _       <- ZIO.fail(NotSupportJobJarPath(jobDef.jobJar)).unless(isS3Path(jobDef.jobJar))
 
       // download job jar
-      _ <- logInfo(s"downloading flink job jar from s3 storage: ${jobDef.jobJar}")
+      _ <- logInfo(s"Downloading flink job jar from s3 storage: ${jobDef.jobJar}")
       jobJarPath <- s3Operator
         .download(jobDef.jobJar, s"${potaConf.flink.localTmpDir}/${jobDef.namespace}@${jobDef.clusterId}/${getFileName(jobDef.jobJar)}")
         .mapBoth(UnableToResolveS3Resource, _.getPath)
 
       // submit job
-      _ <- logInfo(s"start to submit job to flink cluster:\n${jobDef.toPrettyPrint}".stripMargin)
+      _ <- logInfo(s"Start to submit job to flink cluster:\n${jobDef.toPrettyPrint}".stripMargin)
       jobId <- HttpClientZioBackend
         .scoped()
         .flatMap { implicit backend =>
           for {
-            _     <- logInfo(s"uploading flink job jar to flink cluster, clusterId=${jobDef.clusterId}, namespace=${jobDef.namespace}")
+            _     <- logInfo(s"Uploading flink job jar to flink cluster, clusterId=${jobDef.clusterId}, namespace=${jobDef.namespace}")
             jarId <- uploadJar(jobJarPath, restUrl)
             jobId <- runJar(jarId, restUrl)
             _     <- deleteJar(jarId, restUrl)
@@ -194,7 +194,7 @@ class FlinkK8sOperatorLive(potaConf: PotaConf, k8sClient: Kubernetes, s3Operator
         .mapError(err => RequestFlinkRestApiErr(err.toString))
         .endScoped()
       _ <- lfs.rm(jobJarPath).ignore.fork
-      _ <- logInfo(s"submit job to flink session cluster successfully, clusterId=${jobDef.clusterId}, namespace=${jobDef.namespace}.")
+      _ <- logInfo(s"Submit job to flink session cluster successfully, clusterId=${jobDef.clusterId}, namespace=${jobDef.namespace}.")
     } yield jobId
   }
 

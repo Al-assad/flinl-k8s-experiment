@@ -12,6 +12,8 @@ import java.time.format.DateTimeFormatter
 
 /**
  * Potamoi ZIO logger layer.
+ * Automatic transfer of slf4j logs to zio-logging, and support for automatic
+ * extraction of slf4j MDC to zio-logging annotations.
  */
 object PotaLogger {
 
@@ -82,16 +84,6 @@ object PotaLogger {
       logLayer(conf.log.level, conf.log.style, conf.log.colored)
     }
   }
-
-  /**
-   * Default ZIO layer.
-   */
-  val default: ULayer[Unit] = logLayer()
-
-  /**
-   * Debugging ZIO layer.
-   */
-  val debug: ULayer[Unit] = logLayer(level = LogsLevel.DEBUG)
 
 }
 

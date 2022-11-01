@@ -114,8 +114,8 @@ object PodTemplateResolver {
   def writeToLocal(podTemplate: Pod, path: String): IO[FlinkOprErr, Unit] =
     for {
       yaml <- encodePodTemplateToYaml(podTemplate)
-      _    <- (lfs.rm(path) *> lfs.write(path, yaml)).mapError(e => IOErr(s"fail to write podtemplate to local file: $path", e.cause))
-      _    <- logInfo(s"wrote flink cluster podtemplate to local file: $path")
+      _    <- (lfs.rm(path) *> lfs.write(path, yaml)).mapError(e => IOErr(s"Fail to write podtemplate to local file: $path", e.cause))
+      _    <- logInfo(s"Wrote flink cluster podtemplate to local file: $path")
     } yield ()
 
 }

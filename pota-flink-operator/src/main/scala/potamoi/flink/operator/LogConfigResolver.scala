@@ -29,7 +29,7 @@ object LogConfigResolver {
     val isAllFilesExist = ZIO
       .foreachPar(flinkLogConfigNames.map(n => s"$confDir/$n"))(lfs.fileExists)
       .mapBoth(
-        e => FlinkOprErr.IOErr(s"unable to access flink log config directory: $confDir", e.cause),
+        e => FlinkOprErr.IOErr(s"Unable to access flink log config directory: $confDir", e.cause),
         r => !r.contains(false)
       )
     val writeConfigFiles =
@@ -38,8 +38,8 @@ object LogConfigResolver {
           targetFilePath <- succeed(s"$confDir/$fName")
           _ <- lfs
             .write(targetFilePath, content)
-            .mapError(e => FlinkOprErr.IOErr(s"fail to write flink config file: $confDir/$fName", e.cause))
-          _ <- logInfo(s"wrote flink log config file: $targetFilePath")
+            .mapError(e => FlinkOprErr.IOErr(s"Fail to write flink config file: $confDir/$fName", e.cause))
+          _ <- logInfo(s"Wrote flink log config file: $targetFilePath")
         } yield ()
       }
     if (overwrite) writeConfigFiles.unit
