@@ -4,20 +4,27 @@ import com.softwaremill.quicklens._
 import potamoi.common
 import potamoi.common.PathTool.rmSlashPrefix
 import potamoi.common.{ComplexEnum, GenericPF}
+import potamoi.conf.LogsLevel.LogsLevel
+import potamoi.conf.LogsStyle.LogsStyle
 import potamoi.conf.S3AccessStyle.{PathStyle, S3AccessStyle, VirtualHostedStyle}
 import zio.{ULayer, ZIO, ZLayer}
 
 /**
  * Potamoi root configuration.
  */
-case class PotaConf(localStorageDir: String, k8s: K8sConf, s3: S3Conf, flink: FlinkConf) {
-
+case class PotaConf(log: LogConf, localStorageDir: String, k8s: K8sConf, s3: S3Conf, flink: FlinkConf) {
   def resolve: PotaConf      = Vector(k8s, s3, flink).foldLeft(this)((a, c) => c.resolve(a))
   def toPrettyString: String = common.toPrettyString(this)
 }
 
 object PotaConf {
-  val default: PotaConf = PotaConf(
+
+  val dev: PotaConf = PotaConf(
+    log = LogConf(
+      level = LogsLevel.DEBUG,
+      style = LogsStyle.Plain,
+      colored = true
+    ),
     localStorageDir = "var/potamoi",
     k8s = K8sConf(),
     s3 = S3Conf(
@@ -25,7 +32,7 @@ object PotaConf {
       bucket = "flink-dev",
       accessKey = "minio",
       secretKey = "minio123",
-      accessStyle = PathStyle
+      accessStyle = S3AccessStyle.PathStyle
     ),
     flink = FlinkConf(
       k8sAccount = "flink-opr",
@@ -34,12 +41,18 @@ object PotaConf {
     )
   ).resolve
 
-  val live: ULayer[PotaConf] = ZLayer(ZIO.succeed(PotaConf.default))
+  val live: ULayer[PotaConf] = ZLayer(ZIO.succeed(PotaConf.dev))
+
 }
 
 sealed trait ResolveConf {
   def resolve: PotaConf => PotaConf = identity
 }
+
+/**
+ * Logging config.
+ */
+case class LogConf(level: LogsLevel = LogsLevel.INFO, style: LogsStyle = LogsStyle.Plain, colored: Boolean = true)
 
 /**
  * Kubernetes config.

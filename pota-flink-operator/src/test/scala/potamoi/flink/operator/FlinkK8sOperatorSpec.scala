@@ -18,8 +18,7 @@ class FlinkK8sOperatorSpec extends STSpec {
     FlinkK8sOperator
       .retrieveRestEndpoint("session-01", "fdev")
       .provide(layers)
-      .debugStack
-      .run
+      .runDebug
   }
 
   "deploy session cluster" should {
@@ -33,8 +32,7 @@ class FlinkK8sOperatorSpec extends STSpec {
             image = "flink:1.15.2"
           ))
         .provide(layers)
-        .debugStack
-        .run
+        .runDebug
     }
     "with state backend" taggedAs UnsafeEnv in {
       FlinkK8sOperator
@@ -54,7 +52,7 @@ class FlinkK8sOperatorSpec extends STSpec {
           ))
         .provide(layers)
         .debugStack
-        .run
+        .runDebug
     }
     "with state backend and extra dependencies" taggedAs UnsafeEnv in {
       FlinkK8sOperator
@@ -77,8 +75,7 @@ class FlinkK8sOperatorSpec extends STSpec {
             )
           ))
         .provide(layers)
-        .debugStack
-        .run
+        .runDebug
     }
   }
 
@@ -94,8 +91,7 @@ class FlinkK8sOperatorSpec extends STSpec {
             jobJar = "local:///opt/flink/examples/streaming/StateMachineExample.jar"
           ))
         .provide(layers)
-        .debugStack
-        .run
+        .runDebug
     }
     "with user jar on s3" taggedAs UnsafeEnv in {
       FlinkK8sOperator
@@ -108,8 +104,7 @@ class FlinkK8sOperatorSpec extends STSpec {
             jobJar = "s3://flink-dev/flink-1.15.2/example/streaming/StateMachineExample.jar"
           ))
         .provide(layers)
-        .debugStack
-        .run
+        .runDebug
     }
     "with state backend" taggedAs UnsafeEnv in {
       FlinkK8sOperator
@@ -129,8 +124,7 @@ class FlinkK8sOperatorSpec extends STSpec {
             )
           ))
         .provide(layers)
-        .debugStack
-        .run
+        .runDebug
     }
 
     "submit job to session cluster" taggedAs UnsafeEnv in {
@@ -143,8 +137,7 @@ class FlinkK8sOperatorSpec extends STSpec {
           )
         )
         .provide(layers)
-        .debugStack
-        .run
+        .runDebug
     }
   }
 
@@ -152,8 +145,7 @@ class FlinkK8sOperatorSpec extends STSpec {
     FlinkK8sOperator
       .killCluster("session-t1", "fdev")
       .provide(layers)
-      .debugStack
-      .run
+      .runDebug
   }
 
 }

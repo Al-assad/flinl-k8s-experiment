@@ -23,7 +23,7 @@ object LfsOperator {
    * Delete file or directory recursively of given path.
    */
   def rm(path: String): IO[LfsIOErr, Unit] = ZIO
-    .attemptBlocking(os.remove.all(os.Path(path)))
+    .attemptBlocking(os.remove.all(os.Path(new File(path).getAbsolutePath)))
     .mapError(LfsIOErr)
 
   /**
