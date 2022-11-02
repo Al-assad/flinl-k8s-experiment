@@ -54,6 +54,7 @@ sealed trait ResolveConf {
  * Logging config.
  */
 case class LogConf(level: LogsLevel = LogsLevel.INFO, style: LogsStyle = LogsStyle.Plain, colored: Boolean = true, inOneLine: Boolean = false)
+    extends ResolveConf
 
 /**
  * Kubernetes config.
