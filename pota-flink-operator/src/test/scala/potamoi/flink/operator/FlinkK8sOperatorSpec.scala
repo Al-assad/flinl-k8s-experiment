@@ -155,7 +155,7 @@ class FlinkK8sOperatorSpec extends STSpec {
 
   "kill flink cluster" taggedAs UnsafeEnv in {
     FlinkK8sOperator
-      .killCluster("session-t1", "fdev")
+      .killCluster("app-t1", "fdev")
       .provide(layers)
       .debug
       .run
