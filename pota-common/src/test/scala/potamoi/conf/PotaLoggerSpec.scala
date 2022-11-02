@@ -34,7 +34,7 @@ class PotaLoggerSpec extends STActorSpec {
     ZIO.logInfo("msg3")
   }
 
-  "PotaLogger" should {
+  "PotaLogger" ignore {
 
     "normal" in {
       ef.provide(logLayer(level = DEBUG)).debug.run

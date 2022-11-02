@@ -3,7 +3,7 @@ package potamoi.conf
 import potamoi.common.ComplexEnum
 import potamoi.conf.LogsLevel.{toZIOLogLevel, LogsLevel}
 import potamoi.conf.LogsStyle.LogsStyle
-import potamoi.conf.PotaLogger.Formatter.{logAnnoIfNonEmpty, sourceLoc}
+import potamoi.conf.PotaLogger.Formatter.{empty, logAnnoIfNonEmpty, sourceLoc}
 import potamoi.slf4j.Slf4jBridge
 import zio.logging.LogFormat._
 import zio.logging.{console, consoleJson, LogColor, LogFormat}
@@ -27,12 +27,13 @@ object PotaLogger {
   /**
    * Standard log format for Potamoi.
    */
-  val stLogFormat: LogFormat = {
+  def stLogFormat(appendLogFormat: Option[LogFormat] = None): LogFormat = {
     label("ts", timestamp(DateTimeFormatter.ISO_LOCAL_DATE_TIME).fixed(26)) |-|
     label("level", level) |-|
     label("fiber", fiberId) |-|
     sourceLoc |-|
     logAnnoIfNonEmpty +
+    appendLogFormat.map(_ + space).getOrElse(empty) +
     label("msg", quoted(line)) +
     ifCauseNonEmpty(space + label("cause", cause))
   }
@@ -40,17 +41,20 @@ object PotaLogger {
   /**
    * Colored standard log format for Potamoi.
    */
-  val stLogFormatColored: LogFormat = {
+  def stLogFormatColored(appendLogFormat: Option[LogFormat] = None): LogFormat = {
     label("ts", timestamp(DateTimeFormatter.ISO_LOCAL_DATE_TIME).fixed(26)).color(LogColor.BLUE) |-|
     label("level", level).highlight |-|
     label("fiber", fiberId).color(LogColor.WHITE) |-|
     sourceLoc.color(LogColor.WHITE) |-|
     logAnnoIfNonEmpty.color(LogColor.WHITE) +
+    appendLogFormat.map(_ + space).getOrElse(empty) +
     label("msg", quoted(line)).highlight +
     ifCauseNonEmpty(space + label("cause", cause))
   }
 
   object Formatter {
+
+    private[potamoi] val empty: LogFormat = LogFormat.text("")
 
     /**
      * Source code location or Slf4j logger logging formatter.
@@ -97,16 +101,16 @@ object PotaLogger {
    * @param level   logging level.
    * @param style   Log line style.
    * @param colored Whether to colorize log line.
-   * @param revise  revise log format.
+   * @param appendLf  Appended log format content.
    */
   def logLayer(
       level: LogsLevel = LogsLevel.INFO,
       style: LogsStyle = LogsStyle.Plain,
       colored: Boolean = true,
       allowedMdc: Set[String] = Set.empty,
-      revise: LogFormat => LogFormat = identity): ULayer[Unit] = {
+      appendLf: Option[LogFormat] = None): ULayer[Unit] = {
 
-    val logFormat = revise(if (colored) stLogFormatColored else stLogFormat)
+    val logFormat = if (colored) stLogFormatColored(appendLf) else stLogFormat(appendLf)
     val logLevel  = toZIOLogLevel(level)
     val logLayer = style match {
       case LogsStyle.Plain => console(logFormat, logLevel)
