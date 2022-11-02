@@ -3,7 +3,7 @@ package potamoi.flink.operator
 import org.apache.flink.configuration.Configuration
 import potamoi.flink.share.FlinkRawConf
 
-import scala.collection.immutable.Iterable
+import scala.collection.immutable.{Iterable, TreeMap}
 import scala.jdk.CollectionConverters._
 import scala.language.implicitConversions
 
@@ -25,6 +25,9 @@ object FlinkConfigExtension {
    */
   class ConfigurationPF(conf: Configuration) {
 
+    /**
+     * Append key value to internal configuration.
+     */
     def append(key: String, value: Any): ConfigurationPF = {
       val rawValue = value match {
         case v: Map[_, _]   => v.map(kv => s"${kv._1}=${kv._2}").mkString(";")
@@ -35,8 +38,10 @@ object FlinkConfigExtension {
       conf.setString(key, rawValue)
       this
     }
-    def appendWhen(cond: => Boolean)(key: String, value: Any): ConfigurationPF = if (cond) append(key, value) else this
 
+    /**
+     * Append [[FlinkRawConf]] to internal configuration.
+     */
     def append(rawConf: FlinkRawConf): ConfigurationPF = {
       rawConf.effectedRawMapping.foldLeft(this) { case (conf, (key, value)) =>
         conf.append(key, value)
@@ -44,20 +49,49 @@ object FlinkConfigExtension {
     }
     def append(rawConf: Option[FlinkRawConf]): ConfigurationPF = rawConf.map(append).getOrElse(this)
 
+    /**
+     * Tapping internal configuration.
+     */
     def tap(f: Configuration => Any): Configuration = {
       f(this.conf); this
     }
+
+    /**
+     * Handling internal configuration via monand.
+     */
     def pipe(f: ConfigurationPF => ConfigurationPF): ConfigurationPF                       = f(this)
     def pipeWhen(cond: => Boolean)(f: ConfigurationPF => ConfigurationPF): ConfigurationPF = if (cond) f(this) else this
 
+    /**
+     * Merge key value in Map to internal configuration.
+     */
     def merge(anotherConf: Map[String, String]): ConfigurationPF = {
       anotherConf.foreach { case (k, v) => conf.setString(k, v) }
       this
     }
 
+    /**
+     * Get internal configuration.
+     */
     def value: Configuration = conf
 
-    def toPrettyPrint: String = conf.toMap.asScala.toList.sortBy(_._1).map { case (k, v) => s"$k = $v" }.mkString("\n")
+    /**
+     * Convert to internal configuration to Map with confidential value handling settings.
+     */
+    def toMap(protect: Boolean = false): Map[String, String] = {
+      val map = TreeMap(conf.toMap.asScala.toArray: _*)
+      if (protect) map.map { case (k, v) => if (protectedFlinkConfigKeys.contains(k)) k -> "***" else k -> v }
+      else map
+    }
   }
+
+  /**
+   * The keys in the flink configuration that may need to be protected.
+   */
+  val protectedFlinkConfigKeys = Vector(
+    "hive.s3.aws-secret-key",
+    "fs.s3a.secret.key",
+    "s3.secret-key"
+  )
 
 }
