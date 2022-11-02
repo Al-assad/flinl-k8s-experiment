@@ -29,4 +29,8 @@ package object common {
    */
   def toPrettyString(value: Any): String = pprint.apply(value).render
 
+  implicit class PrettyPrintable(value: AnyRef) {
+    def toPrettyString: String = common.toPrettyString(value)
+  }
+
 }

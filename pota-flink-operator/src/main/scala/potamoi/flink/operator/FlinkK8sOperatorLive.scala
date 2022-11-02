@@ -5,6 +5,7 @@ import com.coralogix.zio.k8s.client.kubernetes.Kubernetes
 import com.coralogix.zio.k8s.model.pkg.apis.meta.v1.DeleteOptions
 import org.apache.flink.client.deployment.application.ApplicationConfiguration
 import potamoi.common.PathTool.{getFileName, isS3Path}
+import potamoi.common.PrettyPrintable
 import potamoi.common.ZIOExtension.{usingAttempt, ScopeZIOWrapper}
 import potamoi.conf.PotaConf
 import potamoi.flink.operator.FlinkConfigExtension.configurationToPF
@@ -174,7 +175,7 @@ class FlinkK8sOperatorLive(potaConf: PotaConf, k8sClient: Kubernetes, s3Operator
         .mapBoth(UnableToResolveS3Resource, _.getPath)
 
       // submit job
-      _ <- logInfo(s"Start to submit job to flink cluster:\n${jobDef.toPrettyPrint}".stripMargin)
+      _ <- logInfo(s"Start to submit job to flink cluster: \n${jobDef.toPrettyString}".stripMargin)
       jobId <- HttpClientZioBackend
         .scoped()
         .flatMap { implicit backend =>

@@ -1,6 +1,6 @@
 package potamoi.conf
 
-import potamoi.common.ComplexEnum
+import potamoi.common.{ComplexEnum, GenericPF}
 import potamoi.conf.LogsLevel.{toZIOLogLevel, LogsLevel}
 import potamoi.conf.LogsStyle.LogsStyle
 import potamoi.slf4j.Slf4jBridge
@@ -55,7 +55,7 @@ object PotaLogger {
   val live: ZLayer[PotaConf, Nothing, Unit] = {
     ZLayer.service[PotaConf].flatMap { confLayer =>
       val conf = confLayer.get
-      logLayer(conf.log.level, conf.log.style, conf.log.colored)
+      logLayer(conf.log.level, conf.log.style, conf.log.colored, conf.log.inOneLine)
     }
   }
 
@@ -69,7 +69,7 @@ object PotaLogger {
     sourceLoc |-|
     logAnnoIfNonEmpty +
     appendLogFormat.map(_ + space).getOrElse(empty) +
-    (if (inOneLine) empty else newLine + space.fixed(30)) + label("msg", quoted(line)) +
+    prettyMessage(inOneLine) +
     ifCauseNonEmpty((if (inOneLine) space else empty) + label("cause", cause))
   }
 
@@ -83,11 +83,31 @@ object PotaLogger {
     sourceLoc.color(LogColor.WHITE) |-|
     logAnnoIfNonEmpty.color(LogColor.WHITE) +
     appendLogFormat.map(_ + space).getOrElse(empty) +
-    (if (inOneLine) empty else newLine + space.fixed(30)) + label("msg", quoted(line)).highlight +
+    prettyMessage(inOneLine).highlight +
     ifCauseNonEmpty((if (inOneLine) space else empty) + label("cause", cause))
   }
 
-  private[potamoi] val empty: LogFormat = LogFormat.text("")
+  private val fixedWidthSpaceStr = (0 until 30).map(_ => " ").mkString("")
+
+  /**
+   * Messages content logging formatter.
+   */
+  private def prettyMessage(inOneLine: Boolean): LogFormat = {
+    def prettyLine(inOneLine: Boolean): LogFormat =
+      LogFormat.make { (builder, _, _, _, line, _, _, _, _) =>
+        Option(line()).contra {
+          case None => builder
+          case Some(lines) =>
+            if (inOneLine) builder.appendText(lines.split('\n').map(_.trim).mkString(" "))
+            else builder.appendText(lines.split('\n').mkString("\n" + fixedWidthSpaceStr))
+        }
+      }
+    (if (inOneLine) empty else newLine + text(fixedWidthSpaceStr)) + label("msg", quoted(prettyLine(inOneLine))).highlight
+  }
+
+  private[potamoi] val empty: LogFormat = {
+    LogFormat.make { (builder, _, _, _, _, _, _, _, _) => builder }
+  }
 
   /**
    * Source code location or Slf4j logger logging formatter.

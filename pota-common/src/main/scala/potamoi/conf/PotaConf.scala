@@ -13,7 +13,7 @@ import zio.{ULayer, ZIO, ZLayer}
  * Potamoi root configuration.
  */
 case class PotaConf(log: LogConf, localStorageDir: String, k8s: K8sConf, s3: S3Conf, flink: FlinkConf) {
-  def resolve: PotaConf      = Vector(k8s, s3, flink).foldLeft(this)((a, c) => c.resolve(a))
+  def resolve: PotaConf      = Vector(log, k8s, s3, flink).foldLeft(this)((a, c) => c.resolve(a))
   def toPrettyString: String = common.toPrettyString(this)
 }
 
@@ -22,14 +22,14 @@ object PotaConf {
   val dev: PotaConf = PotaConf(
     log = LogConf(
       level = LogsLevel.INFO,
-      style = LogsStyle.Plain,
+      style = LogsStyle.Json,
       colored = true,
       inOneLine = false
     ),
     localStorageDir = "var/potamoi",
     k8s = K8sConf(),
     s3 = S3Conf(
-      endpoint = "http://192.168.3.17:30255",
+      endpoint = "http://minio.assad.site:30255",
       bucket = "flink-dev",
       accessKey = "minio",
       secretKey = "minio123",
@@ -54,7 +54,14 @@ sealed trait ResolveConf {
  * Logging config.
  */
 case class LogConf(level: LogsLevel = LogsLevel.INFO, style: LogsStyle = LogsStyle.Plain, colored: Boolean = true, inOneLine: Boolean = false)
-    extends ResolveConf
+    extends ResolveConf {
+
+  override def resolve: PotaConf => PotaConf = { root =>
+    root.modify(_.log).using { conf =>
+      if (conf.style == LogsStyle.Json) conf.copy(colored = false, inOneLine = true) else conf
+    }
+  }
+}
 
 /**
  * Kubernetes config.
