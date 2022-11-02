@@ -12,7 +12,12 @@ import potamoi.testkit.{STSpec, UnsafeEnv}
 // todo unsafe
 class FlinkK8sOperatorSpec extends STSpec {
 
-  val layers = PotaConf.live >+> PotaLogger.live ++ K8sClient.live >+> S3Operator.live >>> FlinkK8sOperator.live
+  val layers = {
+    PotaConf.live >+>
+    PotaLogger.live ++ K8sClient.live >+>
+    S3Operator.live >>>
+    FlinkK8sOperator.live
+  }
 
   "retrieve flink rest endpoint" taggedAs UnsafeEnv in {
     FlinkK8sOperator
@@ -142,7 +147,7 @@ class FlinkK8sOperatorSpec extends STSpec {
             jobJar = "s3://flink-dev/flink-1.15.2/example/streaming/StateMachineExample.jar"
           )
         )
-        .provide(layers)
+        .provideSome(layers)
         .debug
         .run
     }

@@ -21,9 +21,10 @@ object PotaConf {
 
   val dev: PotaConf = PotaConf(
     log = LogConf(
-      level = LogsLevel.DEBUG,
+      level = LogsLevel.INFO,
       style = LogsStyle.Plain,
-      colored = true
+      colored = true,
+      inOneLine = false
     ),
     localStorageDir = "var/potamoi",
     k8s = K8sConf(),
@@ -52,7 +53,7 @@ sealed trait ResolveConf {
 /**
  * Logging config.
  */
-case class LogConf(level: LogsLevel = LogsLevel.INFO, style: LogsStyle = LogsStyle.Plain, colored: Boolean = true)
+case class LogConf(level: LogsLevel = LogsLevel.INFO, style: LogsStyle = LogsStyle.Plain, colored: Boolean = true, inOneLine: Boolean = false)
 
 /**
  * Kubernetes config.

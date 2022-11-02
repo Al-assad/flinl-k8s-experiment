@@ -9,24 +9,17 @@ import potamoi.common.ZIOExtension.{usingAttempt, ScopeZIOWrapper}
 import potamoi.conf.PotaConf
 import potamoi.flink.operator.FlinkConfigExtension.configurationToPF
 import potamoi.flink.operator.FlinkK8sOperator.getClusterClientFactory
-import potamoi.flink.operator.FlinkOprErr.{
-  ClusterNotFound,
-  NotSupportJobJarPath,
-  RequestFlinkRestApiErr,
-  SubmitFlinkApplicationClusterErr,
-  SubmitFlinkSessionClusterErr,
-  UnableToResolveS3Resource
-}
-import potamoi.flink.share.{FlinkAppClusterDef, FlinkClusterDef, FlinkRestSvcEndpoint, FlinkSessClusterDef, FlinkSessJobDef}
+import potamoi.flink.operator.FlinkOprErr._
 import potamoi.flink.share.FlinkExecMode.K8sSession
+import potamoi.flink.share._
 import potamoi.fs.{lfs, S3Operator}
+import potamoi.k8s.stringToK8sNamespace
 import sttp.client3._
 import sttp.client3.httpclient.zio.HttpClientZioBackend
 import sttp.client3.ziojson._
 import zio.ZIO.{attempt, attemptBlockingInterrupt, logInfo, scoped, succeed}
 import zio._
 import zio.json._
-import potamoi.k8s.stringToK8sNamespace
 
 import java.io.File
 
@@ -86,9 +79,9 @@ class FlinkK8sOperatorLive(potaConf: PotaConf, k8sClient: Kubernetes, s3Operator
           _                    <- attemptBlockingInterrupt(k8sClusterDescriptor.deployApplicationCluster(clusterSpecification, appConfiguration))
         } yield ()
       }.mapError(SubmitFlinkSessionClusterErr(clusterDef.clusterId, clusterDef.namespace, _))
-      _ <- logInfo(s"Deploy flink session cluster successfully, clusterId=${clusterDef.clusterId}, namespace=${clusterDef.clusterId}.")
+      _ <- logInfo(s"Deploy flink session cluster successfully.")
     } yield ()
-  }
+  } @@ ZIOAspect.annotated("flink.clusterId" -> clusterDef.clusterId, "flink.namespace" -> clusterDef.namespace)
 
   /**
    * Deploy Flink session cluster.
@@ -118,9 +111,9 @@ class FlinkK8sOperatorLive(potaConf: PotaConf, k8sClient: Kubernetes, s3Operator
           _                    <- attemptBlockingInterrupt(k8sClusterDescriptor.deploySessionCluster(clusterSpecification))
         } yield ()
       }.mapError(SubmitFlinkApplicationClusterErr(clusterDef.clusterId, clusterDef.namespace, _))
-      _ <- logInfo(s"Deploy flink application cluster successfully, clusterId=${clusterDef.clusterId}, namespace=${clusterDef.clusterId}.")
+      _ <- logInfo(s"Deploy flink application cluster successfully.")
     } yield ()
-  }
+  } @@ ZIOAspect.annotated("flink.clusterId" -> clusterDef.clusterId, "flink.namespace" -> clusterDef.namespace)
 
   /**
    * Terminate the flink cluster and reclaim all associated k8s resources.
@@ -171,6 +164,7 @@ class FlinkK8sOperatorLive(potaConf: PotaConf, k8sClient: Kubernetes, s3Operator
     for {
       // get rest api url of session cluster
       restUrl <- retrieveRestEndpoint(jobDef.clusterId, jobDef.namespace).map(_.clusterIpRest)
+      _       <- logInfo(s"Connect flink rest service: $restUrl")
       _       <- ZIO.fail(NotSupportJobJarPath(jobDef.jobJar)).unless(isS3Path(jobDef.jobJar))
 
       // download job jar
@@ -185,7 +179,7 @@ class FlinkK8sOperatorLive(potaConf: PotaConf, k8sClient: Kubernetes, s3Operator
         .scoped()
         .flatMap { implicit backend =>
           for {
-            _     <- logInfo(s"Uploading flink job jar to flink cluster, clusterId=${jobDef.clusterId}, namespace=${jobDef.namespace}")
+            _     <- logInfo(s"Uploading flink job jar to flink cluster, path: $jobJarPath, flink-rest: $restUrl")
             jarId <- uploadJar(jobJarPath, restUrl)
             jobId <- runJar(jarId, restUrl)
             _     <- deleteJar(jarId, restUrl)
@@ -194,9 +188,9 @@ class FlinkK8sOperatorLive(potaConf: PotaConf, k8sClient: Kubernetes, s3Operator
         .mapError(err => RequestFlinkRestApiErr(err.toString))
         .endScoped()
       _ <- lfs.rm(jobJarPath).ignore.fork
-      _ <- logInfo(s"Submit job to flink session cluster successfully, clusterId=${jobDef.clusterId}, namespace=${jobDef.namespace}.")
+      _ <- logInfo(s"Submit job to flink session cluster successfully, jobId: $jobId")
     } yield jobId
-  }
+  } @@ ZIOAspect.annotated("flink.clusterId" -> jobDef.clusterId, "flink.namespace" -> jobDef.namespace)
 
   private case class FlinkJobRunReq(
       @jsonField("entry-class") entryClass: Option[String],
@@ -243,6 +237,6 @@ class FlinkK8sOperatorLive(potaConf: PotaConf, k8sClient: Kubernetes, s3Operator
         case NotFound => ClusterNotFound(clusterId, namespace)
         case failure  => FlinkOprErr.RequestK8sApiErr(failure)
       }
-  }
+  } @@ ZIOAspect.annotated("flink.clusterId" -> clusterId, "flink.namespace" -> namespace)
 
 }
