@@ -22,7 +22,7 @@ object PotaConf {
   val dev: PotaConf = PotaConf(
     log = LogConf(
       level = LogsLevel.INFO,
-      style = LogsStyle.Json,
+      style = LogsStyle.Plain,
       colored = true,
       inOneLine = false
     ),
