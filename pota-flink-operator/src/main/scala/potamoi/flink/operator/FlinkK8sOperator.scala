@@ -54,9 +54,9 @@ trait FlinkK8sOperator {
 
 object FlinkK8sOperator {
 
-  val live = ZLayer {
+  val live: ZLayer[S3Operator with Kubernetes with PotaConf, Nothing, FlinkK8sOperatorLive] = ZLayer {
     for {
-      potaConf    <- ZIO.service[PotaConf]
+      potaConf   <- ZIO.service[PotaConf]
       k8sClient  <- ZIO.service[Kubernetes]
       s3Operator <- ZIO.service[S3Operator]
     } yield new FlinkK8sOperatorLive(potaConf, k8sClient, s3Operator)

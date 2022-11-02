@@ -123,7 +123,8 @@ object PotaLogger {
    * Living ZIO layer.
    */
   val live: ZLayer[PotaConf, Nothing, Unit] = {
-    ZLayer.service[PotaConf].project { conf =>
+    ZLayer.service[PotaConf].flatMap { confLayer =>
+      val conf = confLayer.get
       logLayer(conf.log.level, conf.log.style, conf.log.colored)
     }
   }
