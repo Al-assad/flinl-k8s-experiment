@@ -9,7 +9,7 @@ import potamoi.common.PrettyPrintable
 import potamoi.common.ZIOExtension.{usingAttempt, ScopeZIOWrapper}
 import potamoi.conf.PotaConf
 import potamoi.flink.operator.FlinkConfigExtension.configurationToPF
-import potamoi.flink.operator.FlinkK8sOperator.getClusterClientFactory
+import potamoi.flink.operator.FlinkK8sOperator.{getClusterClientFactory, JobId, SavepointTriggerId}
 import potamoi.flink.operator.FlinkOprErr._
 import potamoi.flink.share.FlinkExecMode.K8sSession
 import potamoi.flink.share._
@@ -79,10 +79,10 @@ class FlinkK8sOperatorLive(potaConf: PotaConf, k8sClient: Kubernetes, s3Operator
           k8sClusterDescriptor <- usingAttempt(clusterClientFactory.createClusterDescriptor(rawConfig))
           _                    <- attemptBlockingInterrupt(k8sClusterDescriptor.deployApplicationCluster(clusterSpecification, appConfiguration))
         } yield ()
-      }.mapError(SubmitFlinkSessionClusterErr(clusterDef.clusterId, clusterDef.namespace, _))
+      }.mapError(SubmitFlinkSessionClusterErr(clusterDef.fcid, _))
       _ <- logInfo(s"Deploy flink session cluster successfully.")
     } yield ()
-  } @@ ZIOAspect.annotated("flink.clusterId" -> clusterDef.clusterId, "flink.namespace" -> clusterDef.namespace)
+  } @@ ZIOAspect.annotated(clusterDef.fcid.toAnno: _*)
 
   /**
    * Deploy Flink session cluster.
@@ -111,28 +111,15 @@ class FlinkK8sOperatorLive(potaConf: PotaConf, k8sClient: Kubernetes, s3Operator
           k8sClusterDescriptor <- usingAttempt(clusterClientFactory.createClusterDescriptor(rawConfig))
           _                    <- attemptBlockingInterrupt(k8sClusterDescriptor.deploySessionCluster(clusterSpecification))
         } yield ()
-      }.mapError(SubmitFlinkApplicationClusterErr(clusterDef.clusterId, clusterDef.namespace, _))
+      }.mapError(SubmitFlinkApplicationClusterErr(clusterDef.fcid, _))
       _ <- logInfo(s"Deploy flink application cluster successfully.")
     } yield ()
-  } @@ ZIOAspect.annotated("flink.clusterId" -> clusterDef.clusterId, "flink.namespace" -> clusterDef.namespace)
-
-  /**
-   * Terminate the flink cluster and reclaim all associated k8s resources.
-   */
-  override def killCluster(clusterId: String, namespace: String): IO[FlinkOprErr, Unit] = {
-    k8sClient.apps.v1.deployments
-      .delete(name = clusterId, namespace = namespace, deleteOptions = DeleteOptions())
-      .mapError {
-        case NotFound => ClusterNotFound(clusterId, namespace)
-        case failure  => FlinkOprErr.RequestK8sApiErr(failure)
-      }
-      .unit
-  }
+  } @@ ZIOAspect.annotated(clusterDef.fcid.toAnno: _*)
 
   /**
    * Submit job to Flink session cluster.
    */
-  override def submitJobToSession(jobDef: FlinkSessJobDef): IO[FlinkOprErr, String] = {
+  override def submitJobToSession(jobDef: FlinkSessJobDef): IO[FlinkOprErr, JobId] = {
 
     def uploadJar(filePath: String, restUrl: String)(implicit backend: SttpBackend[Task, Any]) =
       basicRequest
@@ -191,7 +178,7 @@ class FlinkK8sOperatorLive(potaConf: PotaConf, k8sClient: Kubernetes, s3Operator
       _ <- lfs.rm(jobJarPath).ignore.fork
       _ <- logInfo(s"Submit job to flink session cluster successfully, jobId: $jobId")
     } yield jobId
-  } @@ ZIOAspect.annotated("flink.clusterId" -> jobDef.clusterId, "flink.namespace" -> jobDef.namespace)
+  } @@ ZIOAspect.annotated(Fcid(jobDef.clusterId, jobDef.namespace).toAnno: _*)
 
   private case class FlinkJobRunReq(
       @jsonField("entry-class") entryClass: Option[String],
@@ -215,11 +202,40 @@ class FlinkK8sOperatorLive(potaConf: PotaConf, k8sClient: Kubernetes, s3Operator
   }
 
   /**
+   * Cancel job in flink session cluster.
+   */
+  override def cancelSessionJob(fcid: Fcid, jobId: String, savepoint: FlinkJobSptConf): IO[FlinkOprErr, Option[SavepointTriggerId]] = {
+
+    ???
+  }
+
+  /**
+   * Cancel job in flink application cluster.
+   */
+  override def cancelApplicationJob(fcid: Fcid, savepoint: FlinkJobSptConf): IO[FlinkOprErr, Option[SavepointTriggerId]] = {
+    ???
+  }
+
+  /**
+   * Terminate the flink cluster and reclaim all associated k8s resources.
+   */
+  override def killCluster(fcid: Fcid): IO[FlinkOprErr, Unit] = {
+    k8sClient.apps.v1.deployments
+      .delete(name = fcid.clusterId, namespace = fcid.namespace, deleteOptions = DeleteOptions())
+      .mapError {
+        case NotFound => ClusterNotFound(fcid)
+        case failure  => FlinkOprErr.RequestK8sApiErr(failure)
+      }
+      .unit <*
+    logInfo(s"Delete flink cluster successfully.")
+  } @@ ZIOAspect.annotated(fcid.toAnno: _*)
+
+  /**
    * Retrieve Flink rest endpoint via kubernetes api.
    */
-  override def retrieveRestEndpoint(clusterId: String, namespace: String): IO[FlinkOprErr, FlinkRestSvcEndpoint] = {
+  override def retrieveRestEndpoint(fcid: Fcid): IO[FlinkOprErr, FlinkRestSvcEndpoint] = {
     k8sClient.v1.services
-      .get(s"$clusterId-rest", namespace)
+      .get(s"${fcid.clusterId}-rest", fcid.namespace)
       .flatMap { svc =>
         for {
           metadata  <- svc.getMetadata
@@ -235,9 +251,9 @@ class FlinkK8sOperatorLive(potaConf: PotaConf, k8sClient: Kubernetes, s3Operator
         } yield FlinkRestSvcEndpoint(name, ns, restPort, clusterIp)
       }
       .mapError {
-        case NotFound => ClusterNotFound(clusterId, namespace)
+        case NotFound => ClusterNotFound(fcid)
         case failure  => FlinkOprErr.RequestK8sApiErr(failure)
       }
-  } @@ ZIOAspect.annotated("flink.clusterId" -> clusterId, "flink.namespace" -> namespace)
+  } @@ ZIOAspect.annotated(fcid.toAnno: _*)
 
 }

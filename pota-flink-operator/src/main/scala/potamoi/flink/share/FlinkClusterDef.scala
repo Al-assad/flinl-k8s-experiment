@@ -33,6 +33,7 @@ sealed trait FlinkClusterDef[SubType <: FlinkClusterDef[SubType]] { this: SubTyp
   val overridePodTemplate: Option[String]
 
   val mode: FlinkExecMode
+  lazy val fcid: Fcid = Fcid(clusterId, namespace)
 
   private[flink] def copyExtRawConfigs(extRawConfigs: Map[String, String]): SubType
   private[flink] def copyBuiltInPlugins(builtInPlugins: Set[String]): SubType

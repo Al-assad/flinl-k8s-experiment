@@ -4,8 +4,9 @@ import com.coralogix.zio.k8s.client.kubernetes.Kubernetes
 import org.apache.flink.client.deployment.{ClusterClientFactory, DefaultClusterClientServiceLoader}
 import potamoi.conf.PotaConf
 import potamoi.flink.operator.FlinkConfigExtension.{configurationToPF, EmptyConfiguration}
+import potamoi.flink.operator.FlinkK8sOperator.{JobId, SavepointTriggerId}
 import potamoi.flink.share.FlinkExecMode.FlinkExecMode
-import potamoi.flink.share.{FlinkAppClusterDef, FlinkRestSvcEndpoint, FlinkSessClusterDef, FlinkSessJobDef}
+import potamoi.flink.share._
 import potamoi.fs.S3Operator
 import zio._
 import zio.macros.accessible
@@ -28,39 +29,43 @@ trait FlinkK8sOperator {
   def deploySessionCluster(definition: FlinkSessClusterDef): IO[FlinkOprErr, Unit]
 
   /**
-   * Terminate the flink cluster and reclaim all associated k8s resources.
+   * Submit job to Flink session cluster.
    */
-  def killCluster(clusterId: String, namespace: String): IO[FlinkOprErr, Unit]
+  def submitJobToSession(definition: FlinkSessJobDef): IO[FlinkOprErr, JobId]
 
   /**
-   * Submit job to Flink session cluster.
-   * @return flink job-id
+   * Cancel job in flink session cluster.
    */
-  def submitJobToSession(definition: FlinkSessJobDef): IO[FlinkOprErr, String]
+  def cancelSessionJob(fcid: Fcid, jobId: String, savepoint: FlinkJobSptConf): IO[FlinkOprErr, Option[SavepointTriggerId]]
 
-  // def killCluster
+  /**
+   * Cancel job in flink application cluster.
+   */
+  def cancelApplicationJob(fcid: Fcid, savepoint: FlinkJobSptConf): IO[FlinkOprErr, Option[SavepointTriggerId]]
 
-  // def cancelJob
-
-  // def getJobStatus
-
-  // def listJobs
+  /**
+   * Terminate the flink cluster and reclaim all associated k8s resources.
+   */
+  def killCluster(fcid: Fcid): IO[FlinkOprErr, Unit]
 
   /**
    * Retrieve Flink rest endpoint via kubernetes api.
    */
-  def retrieveRestEndpoint(clusterId: String, namespace: String): IO[FlinkOprErr, FlinkRestSvcEndpoint]
+  def retrieveRestEndpoint(fcid: Fcid): IO[FlinkOprErr, FlinkRestSvcEndpoint]
 }
 
 object FlinkK8sOperator {
 
-  val live: ZLayer[S3Operator with Kubernetes with PotaConf, Nothing, FlinkK8sOperatorLive] = ZLayer {
+  val live: ZLayer[S3Operator with Kubernetes with PotaConf, Nothing, FlinkK8sOperator] = ZLayer {
     for {
       potaConf   <- ZIO.service[PotaConf]
       k8sClient  <- ZIO.service[Kubernetes]
       s3Operator <- ZIO.service[S3Operator]
     } yield new FlinkK8sOperatorLive(potaConf, k8sClient, s3Operator)
   }
+
+  type JobId              = String
+  type SavepointTriggerId = String
 
   private val clusterClientLoader = new DefaultClusterClientServiceLoader()
 
