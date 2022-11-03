@@ -9,23 +9,19 @@ import potamoi.conf.LogsStyle.LogsStyle
 import potamoi.conf.S3AccessStyle.{PathStyle, S3AccessStyle, VirtualHostedStyle}
 import zio.{ULayer, ZIO, ZLayer}
 
+import scala.concurrent.duration.{DurationInt, FiniteDuration}
+
 /**
  * Potamoi root configuration.
  */
-case class PotaConf(log: LogConf, localStorageDir: String, k8s: K8sConf, s3: S3Conf, flink: FlinkConf) {
+case class PotaConf(localStorageDir: String, k8s: K8sConf, s3: S3Conf, flink: FlinkConf, log: LogConf, akka: AkkaConf) {
+
   def resolve: PotaConf      = Vector(log, k8s, s3, flink).foldLeft(this)((a, c) => c.resolve(a))
   def toPrettyString: String = common.toPrettyString(this)
 }
 
 object PotaConf {
-
   val dev: PotaConf = PotaConf(
-    log = LogConf(
-      level = LogsLevel.INFO,
-      style = LogsStyle.Plain,
-      colored = true,
-      inOneLine = false
-    ),
     localStorageDir = "var/potamoi",
     k8s = K8sConf(),
     s3 = S3Conf(
@@ -39,6 +35,15 @@ object PotaConf {
       k8sAccount = "flink-opr",
       minioClientImage = "minio/mc:RELEASE.2022-10-12T18-12-50Z",
       localTmpDir = "tmp/flink"
+    ),
+    log = LogConf(
+      level = LogsLevel.INFO,
+      style = LogsStyle.Plain,
+      colored = true,
+      inOneLine = false
+    ),
+    akka = AkkaConf(
+      ddata = DDataConf(askTimeout = 2.seconds)
     )
   ).resolve
 
@@ -48,19 +53,6 @@ object PotaConf {
 
 sealed trait ResolveConf {
   def resolve: PotaConf => PotaConf = identity
-}
-
-/**
- * Logging config.
- */
-case class LogConf(level: LogsLevel = LogsLevel.INFO, style: LogsStyle = LogsStyle.Plain, colored: Boolean = true, inOneLine: Boolean = false)
-    extends ResolveConf {
-
-  override def resolve: PotaConf => PotaConf = { root =>
-    root.modify(_.log).using { conf =>
-      if (conf.style == LogsStyle.Json) conf.copy(colored = false, inOneLine = true) else conf
-    }
-  }
 }
 
 /**
@@ -115,3 +107,26 @@ case class FlinkConf(k8sAccount: String, minioClientImage: String, localTmpDir: 
     root.modify(_.flink.localTmpDir).using(dir => s"${root.localStorageDir}/${rmSlashPrefix(dir)}")
   }
 }
+
+/**
+ * Logging config.
+ */
+case class LogConf(level: LogsLevel = LogsLevel.INFO, style: LogsStyle = LogsStyle.Plain, colored: Boolean = true, inOneLine: Boolean = false)
+    extends ResolveConf {
+
+  override def resolve: PotaConf => PotaConf = { root =>
+    root.modify(_.log).using { conf =>
+      if (conf.style == LogsStyle.Json) conf.copy(colored = false, inOneLine = true) else conf
+    }
+  }
+}
+
+/**
+ * Akka system config.
+ */
+case class AkkaConf(ddata: DDataConf = DDataConf()) extends ResolveConf
+
+/**
+ * Akka distributed data config.
+ */
+case class DDataConf(askTimeout: FiniteDuration = 2.seconds)
