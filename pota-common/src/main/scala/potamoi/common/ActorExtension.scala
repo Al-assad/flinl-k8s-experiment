@@ -1,13 +1,13 @@
 package potamoi.common
 
 import akka.actor.typed.receptionist.{Receptionist, ServiceKey}
-import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import akka.actor.typed.scaladsl.AskPattern.Askable
-import akka.actor.typed.{ActorRef, ActorSystem, Behavior, SupervisorStrategy}
+import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
+import akka.actor.typed._
 import akka.util.Timeout
 import potamoi.common.CollectionExtension.IterableWrapper
 import potamoi.common.TimeExtension.FiniteDurationWrapper
-import zio.{Schedule, Task, ZIO}
+import zio.{IO, Schedule, UIO, ZIO}
 
 import scala.concurrent.Future
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
@@ -23,7 +23,7 @@ trait ActorExtension {
       ctx.pipeToSelf(future)(rs => mapResult(rs.toEither))
   }
 
-  val defaultAskTimeout: FiniteDuration = 2.seconds
+  val defaultAskTimeout: FiniteDuration = 5.seconds
 
   /**
    * Find ActorRef from ActorSystem via ServiceKey.
@@ -49,28 +49,33 @@ trait ActorExtension {
     /**
      * Wrap [[ActorRef.tell]] into ZIO.
      */
-    def tellZIO(msg: T): Task[Unit] = ZIO.attempt(actor ! msg)
+    def tellZIO(msg: T): IO[ActorInteropErr, Unit] = ZIO.attempt(actor ! msg).mapError(ActorInteropErr)
 
     /**
      * Wrap [[Askable.ask]] into ZIO.
      */
-    def askZIO[Res](replyTo: ActorRef[Res] => T, timeout: Timeout = defaultAskTimeout): ZIO[ActorSystem[_], Throwable, Res] =
-      for {
-        sys <- ZIO.service[ActorSystem[_]]
-        res <- ZIO.fromFuture(implicit ec => actor.ask(replyTo)(timeout, sys.scheduler))
-      } yield res
+    def askZIO[Res](replyTo: ActorRef[Res] => T)(implicit sc: Scheduler, askTimeout: Timeout = defaultAskTimeout): IO[ActorInteropErr, Res] = {
+      ZIO.fromFuture(implicit ec => actor.ask(replyTo)(askTimeout, sc)).mapError(ActorInteropErr)
+    }
 
     /**
      * Alias for [[tellZIO]]
      */
-    @inline def !>(msg: T): Task[Unit] = tellZIO(msg)
+    def !>(msg: T): IO[ActorInteropErr, Unit] = ZIO.attempt(actor ! msg).mapError(ActorInteropErr)
+
+    /**
+     * Wrapping actor tell behavior via zio and ignoring all side effects.
+     */
+    def !!>(msg: T): UIO[Unit] = ZIO.attempt(actor ! msg).ignore
 
     /**
      * Alias for [[askZIO]]
      */
-    @inline def ?>[Res](replyTo: ActorRef[Res] => T, timeout: Timeout = defaultAskTimeout): ZIO[ActorSystem[_], Throwable, Res] =
-      askZIO(replyTo, timeout)
+    def ?>[Res](replyTo: ActorRef[Res] => T)(implicit sc: Scheduler, askTimeout: Timeout = defaultAskTimeout): IO[ActorInteropErr, Res] =
+      ZIO.fromFuture(implicit ec => actor.ask(replyTo)(askTimeout, sc)).mapError(ActorInteropErr)
   }
+
+  case class ActorInteropErr(cause: Throwable) extends Exception(cause)
 
   /**
    * Actor Behavior enhancement.

@@ -8,6 +8,8 @@ import potamoi.common.PathTool.{getFileName, isS3Path}
 import potamoi.common.PrettyPrintable
 import potamoi.common.ZIOExtension.{usingAttempt, ScopeZIOWrapper}
 import potamoi.conf.PotaConf
+import potamoi.flink.observer.FlinkK8sObserver
+import potamoi.flink.observer.FlinkObrErr.flattenFlinkOprErr
 import potamoi.flink.operator.FlinkConfigExtension.configurationToPF
 import potamoi.flink.operator.FlinkK8sOperator.getClusterClientFactory
 import potamoi.flink.operator.FlinkOprErr._
@@ -27,7 +29,8 @@ import java.io.File
 /**
  * Default FlinkK8sOperator implementation.
  */
-class FlinkK8sOperatorLive(potaConf: PotaConf, k8sClient: Kubernetes, s3Operator: S3Operator) extends FlinkK8sOperator {
+class FlinkK8sOperatorLive(potaConf: PotaConf, k8sClient: Kubernetes, s3Operator: S3Operator, flinkObserver: FlinkK8sObserver)
+    extends FlinkK8sOperator {
 
   private val clDefResolver   = ClusterDefResolver
   private val podTplResolver  = PodTemplateResolver
@@ -151,7 +154,7 @@ class FlinkK8sOperatorLive(potaConf: PotaConf, k8sClient: Kubernetes, s3Operator
 
     for {
       // get rest api url of session cluster
-      restUrl <- retrieveRestEndpoint(jobDef.clusterId, jobDef.namespace).map(_.clusterIpRest)
+      restUrl <- flinkObserver.retrieveRestEndpoint(jobDef.clusterId -> jobDef.namespace).mapBoth(flattenFlinkOprErr, _.clusterIpRest)
       _       <- logInfo(s"Connect flink rest service: $restUrl")
       _       <- ZIO.fail(NotSupportJobJarPath(jobDef.jobJar)).unless(isS3Path(jobDef.jobJar))
 
@@ -228,32 +231,6 @@ class FlinkK8sOperatorLive(potaConf: PotaConf, k8sClient: Kubernetes, s3Operator
       }
       .unit <*
     logInfo(s"Delete flink cluster successfully.")
-  } @@ ZIOAspect.annotated(fcid.toAnno: _*)
-
-  /**
-   * Retrieve Flink rest endpoint via kubernetes api.
-   */
-  override def retrieveRestEndpoint(fcid: Fcid): IO[FlinkOprErr, FlinkRestSvcEndpoint] = {
-    k8sClient.v1.services
-      .get(s"${fcid.clusterId}-rest", fcid.namespace)
-      .flatMap { svc =>
-        for {
-          metadata  <- svc.getMetadata
-          name      <- metadata.getName
-          ns        <- metadata.getNamespace
-          spec      <- svc.getSpec
-          clusterIp <- spec.getClusterIP
-          ports     <- spec.getPorts
-          restPort = ports
-            .find(_.port == 8081)
-            .flatMap(_.targetPort.map(_.value.fold(identity, _.toInt)).toOption)
-            .getOrElse(8081)
-        } yield FlinkRestSvcEndpoint(name, ns, restPort, clusterIp)
-      }
-      .mapError {
-        case NotFound => ClusterNotFound(fcid)
-        case failure  => FlinkOprErr.RequestK8sApiErr(failure)
-      }
   } @@ ZIOAspect.annotated(fcid.toAnno: _*)
 
 }

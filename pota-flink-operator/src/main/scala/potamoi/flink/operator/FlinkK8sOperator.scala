@@ -3,7 +3,8 @@ package potamoi.flink.operator
 import com.coralogix.zio.k8s.client.kubernetes.Kubernetes
 import org.apache.flink.client.deployment.{ClusterClientFactory, DefaultClusterClientServiceLoader}
 import potamoi.conf.PotaConf
-import potamoi.flink.operator.FlinkConfigExtension.{EmptyConfiguration, configurationToPF}
+import potamoi.flink.observer.FlinkK8sObserver
+import potamoi.flink.operator.FlinkConfigExtension.{configurationToPF, EmptyConfiguration}
 import potamoi.flink.share.FlinkExecMode.FlinkExecMode
 import potamoi.flink.share._
 import potamoi.fs.S3Operator
@@ -47,20 +48,17 @@ trait FlinkK8sOperator {
    */
   def killCluster(fcid: Fcid): IO[FlinkOprErr, Unit]
 
-  /**
-   * Retrieve Flink rest endpoint via kubernetes api.
-   */
-  def retrieveRestEndpoint(fcid: Fcid): IO[FlinkOprErr, FlinkRestSvcEndpoint]
 }
 
 object FlinkK8sOperator {
 
   val live: ZLayer[S3Operator with Kubernetes with PotaConf, Nothing, FlinkK8sOperator] = ZLayer {
     for {
-      potaConf   <- ZIO.service[PotaConf]
-      k8sClient  <- ZIO.service[Kubernetes]
-      s3Operator <- ZIO.service[S3Operator]
-    } yield new FlinkK8sOperatorLive(potaConf, k8sClient, s3Operator)
+      potaConf      <- ZIO.service[PotaConf]
+      k8sClient     <- ZIO.service[Kubernetes]
+      s3Operator    <- ZIO.service[S3Operator]
+      flinkObserver <- ZIO.service[FlinkK8sObserver]
+    } yield new FlinkK8sOperatorLive(potaConf, k8sClient, s3Operator, flinkObserver)
   }
 
   private val clusterClientLoader = new DefaultClusterClientServiceLoader()

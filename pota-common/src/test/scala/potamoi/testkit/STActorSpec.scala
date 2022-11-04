@@ -1,7 +1,7 @@
 package potamoi.testkit
 
 import akka.actor.testkit.typed.scaladsl.ActorTestKit
-import akka.actor.typed.{ActorRef, ActorSystem, Behavior, Props}
+import akka.actor.typed.{ActorRef, ActorSystem, Behavior, Props, Scheduler}
 import com.typesafe.config.ConfigFactory
 import potamoi.PotaLogger
 import potamoi.common.ActorExtension
@@ -19,6 +19,7 @@ trait STActorSpec extends STSpec with ActorExtension {
 
   lazy val actorKit: ActorTestKit                                      = resetActorKit
   lazy val actorSys: ActorSystem[Nothing]                              = actorKit.system
+  implicit lazy val sc: Scheduler                                      = actorSys.scheduler
   lazy val actorSysLayer: ZLayer[Any, Throwable, ActorSystem[Nothing]] = ZLayer(ZIO.attempt(actorKit.system))
 
   override def afterAll(): Unit = {

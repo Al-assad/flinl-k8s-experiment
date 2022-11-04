@@ -1,18 +1,18 @@
 package potamoi.flink.observer
 
 import potamoi.conf.AkkaConf
-import potamoi.flink.observer.ClusterRestEndpointDData._
+import potamoi.flink.observer.RestEptCache._
 import potamoi.flink.share.FlinkRestSvcEndpoint
 import potamoi.testkit.STActorClusterSpec
 
-class ClusterRestEndpointDDataSpec extends STActorClusterSpec {
+class RestEptCacheSpec extends STActorClusterSpec {
 
   "ClusterRestEndpointDDataSpec" should {
 
     "behavior normally" in {
       val endpoint = FlinkRestSvcEndpoint("app1", "n1", 8081, "10.2.1.0")
       val ef = for {
-        actor <- spawn(ClusterRestEndpointDData(AkkaConf()))
+        actor <- spawn(RestEptCache(AkkaConf()))
         _     <- actor !> Put("c1" -> "n1", endpoint)
         r     <- actor ?> (Get("c1" -> "n1", _))
         r1    <- actor ?> (Get("c1" -> "n1", _))

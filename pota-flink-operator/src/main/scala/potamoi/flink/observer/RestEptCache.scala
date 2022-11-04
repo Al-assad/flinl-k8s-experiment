@@ -15,7 +15,7 @@ import potamoi.flink.share.{Fcid, FlinkRestSvcEndpoint}
 /**
  * Flink cluster svc rest endpoint distributed data storage base on LWWMap.
  */
-object ClusterRestEndpointDData extends LWWMapDData[Fcid, FlinkRestSvcEndpoint] {
+private[observer] object RestEptCache extends LWWMapDData[Fcid, FlinkRestSvcEndpoint] {
 
   val cacheId    = "flink-rest-endpoint"
   val init       = LWWMap.empty[Fcid, FlinkRestSvcEndpoint]

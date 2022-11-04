@@ -44,9 +44,7 @@ object PotaConf {
       colored = true,
       inOneLine = false
     ),
-    akka = AkkaConf(
-      ddata = DDataConf(askTimeout = 2.seconds)
-    )
+    akka = AkkaConf()
   ).resolve
 
   val live: ULayer[PotaConf] = ZLayer(ZIO.succeed(PotaConf.dev))
@@ -133,9 +131,10 @@ case class LogConf(level: LogsLevel = LogsLevel.INFO, style: LogsStyle = LogsSty
 /**
  * Akka system config.
  */
-case class AkkaConf(sysName: String = "potamoi", ddata: DDataConf = DDataConf()) extends ResolveConf
+case class AkkaConf(sysName: String = "potamoi", defaultActorAskTimeout: FiniteDuration = 5.seconds, ddata: DDataConf = DDataConf())
+    extends ResolveConf
 
 /**
  * Akka distributed data config.
  */
-case class DDataConf(askTimeout: FiniteDuration = 2.seconds)
+case class DDataConf(askTimeout: FiniteDuration = 5.seconds)
