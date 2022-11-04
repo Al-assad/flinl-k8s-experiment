@@ -1,11 +1,11 @@
 package potamoi.testkit
 
 import akka.actor.testkit.typed.scaladsl.ActorTestKit
-import akka.actor.typed.ActorSystem
+import akka.actor.typed.{ActorRef, ActorSystem, Behavior, Props}
 import com.typesafe.config.ConfigFactory
+import potamoi.PotaLogger
 import potamoi.common.ActorExtension
-import potamoi.conf.PotaLogger
-import zio.{ZIO, ZLayer}
+import zio.{Task, ZIO, ZLayer}
 
 /**
  * Standard test specification for Akka Actor.
@@ -32,6 +32,16 @@ trait STActorSpec extends STSpec with ActorExtension {
       else zio.provideLayer(actorSysLayer)
     }
   }
+
+  /**
+   * Spawn an actor with ZIO effect.
+   */
+  def spawn[T](behavior: Behavior[T], props: Props = Props.empty): Task[ActorRef[T]] = ZIO.attempt(actorKit.spawn(behavior, props))
+
+  /**
+   * Stop an actor with ZIO effect.
+   */
+  def stop[T](ref: ActorRef[T]): Task[Unit] = ZIO.attempt(actorKit.stop(ref))
 }
 
 /**
@@ -42,7 +52,10 @@ trait STActorClusterSpec extends STActorSpec {
   /**
    * Single-node actor cluster config.
    */
-  protected val defaultActorConf = ConfigFactory.parseString("akka.actor.provider=cluster")
+  protected val defaultActorConf = ConfigFactory
+    .parseString("""akka.actor.provider = cluster
+                   |akka.log-dead-letters-during-shutdown = false
+                   |""".stripMargin)
 
   override def resetActorKit: ActorTestKit = ActorTestKit(defaultActorConf)
 

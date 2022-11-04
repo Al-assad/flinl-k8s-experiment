@@ -3,8 +3,7 @@ package potamoi.flink.operator
 import com.coralogix.zio.k8s.client.kubernetes.Kubernetes
 import org.apache.flink.client.deployment.{ClusterClientFactory, DefaultClusterClientServiceLoader}
 import potamoi.conf.PotaConf
-import potamoi.flink.operator.FlinkConfigExtension.{configurationToPF, EmptyConfiguration}
-import potamoi.flink.operator.FlinkK8sOperator.{JobId, SavepointTriggerId}
+import potamoi.flink.operator.FlinkConfigExtension.{EmptyConfiguration, configurationToPF}
 import potamoi.flink.share.FlinkExecMode.FlinkExecMode
 import potamoi.flink.share._
 import potamoi.fs.S3Operator
@@ -63,9 +62,6 @@ object FlinkK8sOperator {
       s3Operator <- ZIO.service[S3Operator]
     } yield new FlinkK8sOperatorLive(potaConf, k8sClient, s3Operator)
   }
-
-  type JobId              = String
-  type SavepointTriggerId = String
 
   private val clusterClientLoader = new DefaultClusterClientServiceLoader()
 

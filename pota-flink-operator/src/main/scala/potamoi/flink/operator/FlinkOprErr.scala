@@ -2,6 +2,7 @@ package potamoi.flink.operator
 
 import com.coralogix.zio.k8s.client.K8sFailure
 import potamoi.common.{FailProxy, FailStackFill, PotaFail}
+import potamoi.flink.observer.FlinkObrErr
 import potamoi.flink.share.Fcid
 import potamoi.fs.S3Err
 import potamoi.k8s
@@ -25,8 +26,9 @@ object FlinkOprErr {
   case class SubmitFlinkApplicationClusterErr(fcid: Fcid, cause: Throwable) extends FlinkOprErr with FailStackFill
   case class NotSupportJobJarPath(path: String)                             extends FlinkOprErr
   case class UnableToResolveS3Resource(potaFail: S3Err)                     extends FlinkOprErr with FailProxy
-  case class ClusterNotFound(fcid: Fcid)                                    extends FlinkOprErr
+  case class UnHandleObserverErr(potaFail: FlinkObrErr)                     extends FlinkOprErr with FailProxy
 
+  case class ClusterNotFound(fcid: Fcid)             extends FlinkOprErr
   case class RequestFlinkRestApiErr(message: String) extends FlinkOprErr
 
   case class RequestK8sApiErr(k8sFailure: K8sFailure, cause: Throwable) extends FlinkOprErr with FailStackFill

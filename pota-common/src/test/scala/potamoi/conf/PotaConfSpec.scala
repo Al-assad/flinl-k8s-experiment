@@ -1,6 +1,6 @@
 package potamoi.conf
 
-import potamoi.conf.S3AccessStyle.{PathStyle, VirtualHostedStyle}
+import S3AccessStyle.{PathStyle, VirtualHostedStyle}
 import potamoi.testkit.STSpec
 
 class PotaConfSpec extends STSpec {

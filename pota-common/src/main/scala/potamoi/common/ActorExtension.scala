@@ -1,9 +1,9 @@
 package potamoi.common
 
 import akka.actor.typed.receptionist.{Receptionist, ServiceKey}
-import akka.actor.typed.scaladsl.ActorContext
+import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import akka.actor.typed.scaladsl.AskPattern.Askable
-import akka.actor.typed.{ActorRef, ActorSystem}
+import akka.actor.typed.{ActorRef, ActorSystem, Behavior, SupervisorStrategy}
 import akka.util.Timeout
 import potamoi.common.CollectionExtension.IterableWrapper
 import potamoi.common.TimeExtension.FiniteDurationWrapper
@@ -11,6 +11,7 @@ import zio.{Schedule, Task, ZIO}
 
 import scala.concurrent.Future
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
+import scala.reflect.ClassTag
 
 /**
  * Akka Extension for interoperability with ZIO and Future.
@@ -69,6 +70,26 @@ trait ActorExtension {
      */
     @inline def ?>[Res](replyTo: ActorRef[Res] => T, timeout: Timeout = defaultAskTimeout): ZIO[ActorSystem[_], Throwable, Res] =
       askZIO(replyTo, timeout)
+  }
+
+  /**
+   * Actor Behavior enhancement.
+   */
+  implicit class BehaviorWrapper[T](behavior: Behavior[T]) {
+
+    /**
+     * Behaviors.supervise.onFailure
+     */
+    def onFailure[Thr <: Throwable](strategy: SupervisorStrategy)(implicit tag: ClassTag[Thr] = ClassTag(classOf[Throwable])): Behavior[T] = {
+      Behaviors.supervise(behavior).onFailure[Thr](strategy)
+    }
+
+    /**
+     * Execute the function before the behavior begins.
+     */
+    def beforeIt(func: => Unit): Behavior[T] = {
+      func; behavior
+    }
   }
 
 }

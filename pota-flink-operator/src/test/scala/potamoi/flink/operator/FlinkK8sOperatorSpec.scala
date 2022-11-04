@@ -1,13 +1,14 @@
 package potamoi.flink.operator
 
-import potamoi.common.valueToSome
-import potamoi.conf.{PotaConf, PotaLogger}
+import potamoi.PotaLogger
+import potamoi.conf.PotaConf
 import potamoi.flink.share.CheckpointStorageType.Filesystem
 import potamoi.flink.share.StateBackendType.Rocksdb
 import potamoi.flink.share._
 import potamoi.fs.S3Operator
 import potamoi.k8s.K8sClient
 import potamoi.testkit.{STSpec, UnsafeEnv}
+import potamoi.common.valueToSome
 
 // todo unsafe
 class FlinkK8sOperatorSpec extends STSpec {

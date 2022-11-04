@@ -2,8 +2,9 @@ package potamoi.conf
 
 import org.slf4j.LoggerFactory
 import potamoi.common.TestActor
-import potamoi.conf.LogsLevel.{DEBUG, INFO}
-import potamoi.conf.PotaLogger.logLayer
+import potamoi.LogsLevel.{DEBUG, INFO}
+import potamoi.LogsStyle
+import potamoi.PotaLogger.logLayer
 import potamoi.testkit.STActorSpec
 import zio.{ZIO, ZIOAspect}
 

@@ -4,8 +4,8 @@ import io.minio._
 import io.minio.errors.ErrorResponseException
 import potamoi.common.GenericPF
 import potamoi.common.PathTool.purePath
-import potamoi.conf.PotaConf
 import potamoi.conf.S3AccessStyle.PathStyle
+import potamoi.conf.PotaConf
 import potamoi.fs.S3Err._
 import zio.ZIO.succeed
 import zio._

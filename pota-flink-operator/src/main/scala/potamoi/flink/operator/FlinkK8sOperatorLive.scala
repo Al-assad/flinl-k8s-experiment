@@ -9,7 +9,7 @@ import potamoi.common.PrettyPrintable
 import potamoi.common.ZIOExtension.{usingAttempt, ScopeZIOWrapper}
 import potamoi.conf.PotaConf
 import potamoi.flink.operator.FlinkConfigExtension.configurationToPF
-import potamoi.flink.operator.FlinkK8sOperator.{getClusterClientFactory, JobId, SavepointTriggerId}
+import potamoi.flink.operator.FlinkK8sOperator.getClusterClientFactory
 import potamoi.flink.operator.FlinkOprErr._
 import potamoi.flink.share.FlinkExecMode.K8sSession
 import potamoi.flink.share._

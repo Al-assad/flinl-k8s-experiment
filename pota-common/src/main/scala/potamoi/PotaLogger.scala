@@ -1,11 +1,12 @@
-package potamoi.conf
+package potamoi
 
+import potamoi.LogsLevel.{LogsLevel, toZIOLogLevel}
+import potamoi.LogsStyle.LogsStyle
 import potamoi.common.{ComplexEnum, GenericPF}
-import potamoi.conf.LogsLevel.{toZIOLogLevel, LogsLevel}
-import potamoi.conf.LogsStyle.LogsStyle
+import potamoi.conf.PotaConf
 import potamoi.slf4j.Slf4jBridge
 import zio.logging.LogFormat._
-import zio.logging.{console, consoleJson, LogColor, LogFormat}
+import zio.logging.{LogColor, LogFormat, console, consoleJson}
 import zio.{LogLevel, Trace, ULayer, ZLayer}
 
 import java.time.format.DateTimeFormatter

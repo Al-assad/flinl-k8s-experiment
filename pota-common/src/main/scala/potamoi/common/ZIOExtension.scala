@@ -68,6 +68,11 @@ trait ZIOExtension {
   def usingAttemptBlocking[RS <: AutoCloseable](code: => RS): ZIO[Scope, Throwable, RS] =
     ZIO.acquireRelease(ZIO.attemptBlockingInterrupt(code))(close)
 
+  /**
+   * Alias for [[ZIO.succeed]]
+   */
+  def pure[A](a: => A)(implicit trace: Trace): ZIO[Any, Nothing, A] = ZIO.succeed(a)
+
 }
 
 object ZIOExtension extends ZIOExtension

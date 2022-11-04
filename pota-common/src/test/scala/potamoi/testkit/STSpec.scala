@@ -3,8 +3,8 @@ package potamoi.testkit
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
+import potamoi.PotaLogger
 import potamoi.common.{PotaFailExtension, ZIOExtension}
-import potamoi.conf.PotaLogger
 import zio._
 
 /**

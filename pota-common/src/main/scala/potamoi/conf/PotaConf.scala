@@ -1,11 +1,12 @@
 package potamoi.conf
 
 import com.softwaremill.quicklens._
-import potamoi.common
+import potamoi.{common, LogsLevel, LogsStyle}
 import potamoi.common.PathTool.rmSlashPrefix
 import potamoi.common.{ComplexEnum, GenericPF}
-import potamoi.conf.LogsLevel.LogsLevel
-import potamoi.conf.LogsStyle.LogsStyle
+import potamoi.conf.FlkRestEndpointType.FlkRestEndpointType
+import potamoi.LogsLevel.LogsLevel
+import potamoi.LogsStyle.LogsStyle
 import potamoi.conf.S3AccessStyle.{PathStyle, S3AccessStyle, VirtualHostedStyle}
 import zio.{ULayer, ZIO, ZLayer}
 
@@ -34,7 +35,8 @@ object PotaConf {
     flink = FlinkConf(
       k8sAccount = "flink-opr",
       minioClientImage = "minio/mc:RELEASE.2022-10-12T18-12-50Z",
-      localTmpDir = "tmp/flink"
+      localTmpDir = "tmp/flink",
+      restEndpointTypeInternal = FlkRestEndpointType.ClusterIp,
     ),
     log = LogConf(
       level = LogsLevel.INFO,
@@ -102,10 +104,17 @@ object S3AccessStyle extends ComplexEnum {
 /**
  * Flink config.
  */
-case class FlinkConf(k8sAccount: String, minioClientImage: String, localTmpDir: String) extends ResolveConf {
+case class FlinkConf(k8sAccount: String, minioClientImage: String, localTmpDir: String, restEndpointTypeInternal: FlkRestEndpointType)
+    extends ResolveConf {
   override def resolve = { root =>
     root.modify(_.flink.localTmpDir).using(dir => s"${root.localStorageDir}/${rmSlashPrefix(dir)}")
   }
+}
+
+object FlkRestEndpointType extends ComplexEnum {
+  type FlkRestEndpointType = Value
+  val SvcDns    = Value("svc-dns")
+  val ClusterIp = Value("cluster-ip")
 }
 
 /**
@@ -124,7 +133,7 @@ case class LogConf(level: LogsLevel = LogsLevel.INFO, style: LogsStyle = LogsSty
 /**
  * Akka system config.
  */
-case class AkkaConf(ddata: DDataConf = DDataConf()) extends ResolveConf
+case class AkkaConf(sysName: String = "potamoi", ddata: DDataConf = DDataConf()) extends ResolveConf
 
 /**
  * Akka distributed data config.
