@@ -4,7 +4,7 @@ import org.slf4j.LoggerFactory
 import potamoi.common.TestActor
 import potamoi.LogsLevel.{DEBUG, INFO}
 import potamoi.LogsStyle
-import potamoi.PotaLogger.logLayer
+import potamoi.PotaLogger.layer
 import potamoi.testkit.STActorSpec
 import zio.{ZIO, ZIOAspect}
 
@@ -38,10 +38,10 @@ class PotaLoggerSpec extends STActorSpec {
   "PotaLogger" ignore {
 
     "normal" in {
-      ef.provide(logLayer(level = DEBUG)).debug.run
+      ef.provide(layer(level = DEBUG)).debug.run
     }
     "with annotation" in {
-      ef2.provide(logLayer(level = INFO, style = LogsStyle.Plain)).run
+      ef2.provide(layer(level = INFO, style = LogsStyle.Plain)).run
     }
   }
 

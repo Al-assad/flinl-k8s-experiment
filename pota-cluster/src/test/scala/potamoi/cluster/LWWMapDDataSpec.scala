@@ -1,8 +1,7 @@
 package potamoi.cluster
 
-import akka.actor.typed.{ActorRef, Behavior}
 import akka.actor.typed.scaladsl.Behaviors
-import akka.cluster.ddata.LWWMap
+import akka.actor.typed.{ActorRef, Behavior}
 import akka.cluster.ddata.typed.scaladsl.DistributedData
 import akka.cluster.ddata.typed.scaladsl.Replicator.{ReadLocal, WriteLocal}
 import akka.util.Timeout
@@ -73,7 +72,6 @@ class LWWMapDDataSpec extends STActorClusterSpec {
   object SimpleLWWMapActor extends LWWMapDData[String, String] {
 
     val cacheId    = "simple"
-    val init       = LWWMap.empty[String, String]
     val writeLevel = WriteLocal
     val readLevel  = ReadLocal
 
@@ -91,7 +89,6 @@ class LWWMapDDataSpec extends STActorClusterSpec {
     final case class Incr(key: String, inc: Int)                      extends UpdateCmd
 
     val cacheId    = "ext"
-    val init       = LWWMap.empty[String, Int]
     val writeLevel = WriteLocal
     val readLevel  = ReadLocal
 
@@ -99,19 +96,20 @@ class LWWMapDDataSpec extends STActorClusterSpec {
       implicit val node             = DistributedData(ctx.system).selfUniqueAddress
       implicit val timeout: Timeout = 2.seconds
       action(
-        get = (cmd, map) =>
-          cmd match {
-            case BiggerThan(n, reply) => reply ! map.entries.filter(_._2 > n).keySet
-            case LessThan(n, reply)   => reply ! map.entries.filter(_._2 < n).keySet
-          },
-        update = (cmd, map) =>
-          cmd match {
-            case Incr(key, inc) =>
-              map.get(key) match {
-                case Some(value) => map :+ (key, value + inc)
-                case None        => map
-              }
+        get = {
+          case (BiggerThan(n, reply), map) => reply ! map.entries.filter(_._2 > n).keySet
+          case (LessThan(n, reply), map)   => reply ! map.entries.filter(_._2 < n).keySet
+        },
+        notYetInit = {
+          case BiggerThan(_, reply) => reply ! Set.empty
+          case LessThan(_, reply)   => reply ! Set.empty
+        },
+        update = { case (Incr(key, inc), map) =>
+          map.get(key) match {
+            case Some(value) => map :+ (key, value + inc)
+            case None        => map
           }
+        }
       )
     }
   }

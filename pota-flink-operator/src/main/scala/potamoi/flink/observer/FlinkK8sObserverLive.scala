@@ -34,13 +34,15 @@ class FlinkK8sObserverLive(
       (restEptCache ?> (RestEptCache.Get(fcid, _)))
         .flatMap {
           case Some(r) => succeed(r)
-          case None    => fail(ClusterNotFound)
+          case None    => fail(NotFoundRecordFromCache)
         }
         .catchAll { err =>
           logDebug(s"Fallback to requesting k8s svc api directly due to $err") *>
           retrieveRestEndpointViaK8s(fcid)
         }
   } @@ ZIOAspect.annotated(fcid.toAnno: _*)
+
+  private case object NotFoundRecordFromCache
 
   private def retrieveRestEndpointViaK8s(fcid: Fcid): IO[FlinkObrErr, FlinkRestSvcEndpoint] = {
     k8sClient.v1.services

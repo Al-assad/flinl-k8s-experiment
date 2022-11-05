@@ -1,6 +1,7 @@
 package potamoi.flink.operator
 
 import potamoi.PotaLogger
+import potamoi.cluster.PotaActorSystem
 import potamoi.conf.PotaConf
 import potamoi.flink.share.CheckpointStorageType.Filesystem
 import potamoi.flink.share.StateBackendType.Rocksdb
@@ -9,23 +10,16 @@ import potamoi.fs.S3Operator
 import potamoi.k8s.K8sClient
 import potamoi.testkit.{STSpec, UnsafeEnv}
 import potamoi.common.valueToSome
+import potamoi.flink.observer.FlinkK8sObserver
 
 // todo unsafe
 class FlinkK8sOperatorSpec extends STSpec {
 
   val layers = {
     PotaConf.live >+>
-    PotaLogger.live ++ K8sClient.live >+>
-    S3Operator.live >>>
+    PotaLogger.live ++ K8sClient.live ++ PotaActorSystem.live >+>
+    S3Operator.live ++ FlinkK8sObserver.live >>>
     FlinkK8sOperator.live
-  }
-
-  "retrieve flink rest endpoint" taggedAs UnsafeEnv in {
-    FlinkK8sOperator
-      .retrieveRestEndpoint("session-01", "fdev")
-      .provide(layers)
-      .debug
-      .run
   }
 
   "deploy session cluster" should {

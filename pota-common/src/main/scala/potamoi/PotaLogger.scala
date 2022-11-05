@@ -1,12 +1,12 @@
 package potamoi
 
-import potamoi.LogsLevel.{LogsLevel, toZIOLogLevel}
+import potamoi.LogsLevel.{toZIOLogLevel, LogsLevel}
 import potamoi.LogsStyle.LogsStyle
 import potamoi.common.{ComplexEnum, GenericPF}
 import potamoi.conf.PotaConf
 import potamoi.slf4j.Slf4jBridge
 import zio.logging.LogFormat._
-import zio.logging.{LogColor, LogFormat, console, consoleJson}
+import zio.logging.{console, consoleJson, LogColor, LogFormat}
 import zio.{LogLevel, Trace, ULayer, ZLayer}
 
 import java.time.format.DateTimeFormatter
@@ -33,7 +33,7 @@ object PotaLogger {
    * @param colored   Whether to colorize log line.
    * @param appendLf  Appended log format content.
    */
-  def logLayer(
+  def layer(
       level: LogsLevel = LogsLevel.INFO,
       style: LogsStyle = LogsStyle.Plain,
       colored: Boolean = true,
@@ -56,7 +56,7 @@ object PotaLogger {
   val live: ZLayer[PotaConf, Nothing, Unit] = {
     ZLayer.service[PotaConf].flatMap { confLayer =>
       val conf = confLayer.get
-      logLayer(conf.log.level, conf.log.style, conf.log.colored, conf.log.inOneLine)
+      layer(conf.log.level, conf.log.style, conf.log.colored, conf.log.inOneLine)
     }
   }
 

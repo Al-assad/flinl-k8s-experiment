@@ -1,13 +1,14 @@
 package potamoi.conf
 
 import com.softwaremill.quicklens._
-import potamoi.{common, LogsLevel, LogsStyle}
+import com.typesafe.config.{Config, ConfigFactory}
+import potamoi.LogsLevel.LogsLevel
+import potamoi.LogsStyle.LogsStyle
 import potamoi.common.PathTool.rmSlashPrefix
 import potamoi.common.{ComplexEnum, GenericPF}
 import potamoi.conf.FlkRestEndpointType.FlkRestEndpointType
-import potamoi.LogsLevel.LogsLevel
-import potamoi.LogsStyle.LogsStyle
 import potamoi.conf.S3AccessStyle.{PathStyle, S3AccessStyle, VirtualHostedStyle}
+import potamoi.{common, LogsLevel, LogsStyle}
 import zio.{ULayer, ZIO, ZLayer}
 
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
@@ -48,6 +49,8 @@ object PotaConf {
   ).resolve
 
   val live: ULayer[PotaConf] = ZLayer(ZIO.succeed(PotaConf.dev))
+
+  def layer(conf: PotaConf): ULayer[PotaConf] = ZLayer(ZIO.succeed(conf))
 
 }
 
@@ -132,7 +135,17 @@ case class LogConf(level: LogsLevel = LogsLevel.INFO, style: LogsStyle = LogsSty
  * Akka system config.
  */
 case class AkkaConf(sysName: String = "potamoi", defaultActorAskTimeout: FiniteDuration = 5.seconds, ddata: DDataConf = DDataConf())
-    extends ResolveConf
+    extends ResolveConf {
+
+  // TODO Redesign the actor configuration loading mechanism.
+  lazy val rawActorConfig: Config = {
+    ConfigFactory
+      .parseString("""akka.actor.provider = cluster
+                     |akka.log-dead-letters-during-shutdown = false
+                     |""".stripMargin)
+      .withFallback(ConfigFactory.load())
+  }
+}
 
 /**
  * Akka distributed data config.

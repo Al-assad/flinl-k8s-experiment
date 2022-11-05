@@ -17,7 +17,7 @@ object PotaActorSystem {
         potaConf <- ZIO.service[PotaConf]
         system <-
           ZIO.acquireRelease {
-            attempt(ActorSystem(ActorGuardian(), potaConf.akka.sysName))
+            attempt(ActorSystem(ActorGuardian(), potaConf.akka.sysName, potaConf.akka.rawActorConfig))
           } { system =>
             attempt(system.terminate()).ignore
           }

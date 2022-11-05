@@ -29,7 +29,7 @@ trait STActorSpec extends STSpec with ActorExtension {
 
   implicit class ActorSpecZIORunner[E, A](zio: ZIO[ActorSystem[Nothing], E, A]) {
     def runActorSpec: A = zioRunInSpec {
-      if (enableLog) zio.provideLayer(actorSysLayer ++ PotaLogger.logLayer())
+      if (enableLog) zio.provideLayer(actorSysLayer ++ PotaLogger.layer())
       else zio.provideLayer(actorSysLayer)
     }
   }
@@ -55,7 +55,6 @@ trait STActorClusterSpec extends STActorSpec {
    */
   protected val defaultActorConf = ConfigFactory
     .parseString("""akka.actor.provider = cluster
-                   |akka.log-dead-letters-during-shutdown = false
                    |""".stripMargin)
 
   override def resetActorKit: ActorTestKit = ActorTestKit(defaultActorConf)

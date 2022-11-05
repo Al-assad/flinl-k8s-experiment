@@ -2,7 +2,7 @@ package potamoi.cluster
 
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior}
-import akka.cluster.ddata.Replicator.{GetResponse, ReadConsistency, UpdateResponse, WriteConsistency}
+import akka.cluster.ddata.Replicator.{GetResponse, NotFound, ReadConsistency, UpdateResponse, WriteConsistency}
 import akka.cluster.ddata.typed.scaladsl.{DistributedData, Replicator, ReplicatorMessageAdapter}
 import akka.cluster.ddata.{LWWMap, LWWMapKey, SelfUniqueAddress}
 import akka.util.Timeout
@@ -37,7 +37,7 @@ trait LWWMapDData[Key, Value] {
   /**
    * LWWMap initial value.
    */
-  def init: LWWMap[Key, Value]
+  def init: LWWMap[Key, Value] = LWWMap.empty
 
   /**
    * LWWMap write consistency level.
@@ -56,10 +56,13 @@ trait LWWMapDData[Key, Value] {
    */
   protected def action(
       get: (GetCmd, LWWMap[Key, Value]) => Unit = (_, _) => (),
+      notYetInit: GetCmd => Unit = _ => (),
       update: (UpdateCmd, LWWMap[Key, Value]) => LWWMap[Key, Value] = (_, m) => m)(
       implicit ctx: ActorContext[Cmd],
       node: SelfUniqueAddress,
       askTimeout: Timeout): Behavior[Cmd] = {
+
+    var firstNotFoundRsp = true
 
     DistributedData.withReplicatorMessageAdapter[Cmd, LWWMap[Key, Value]] { implicit replicator =>
       Behaviors.receiveMessage {
@@ -77,8 +80,9 @@ trait LWWMapDData[Key, Value] {
             case c               => modifyShape(update(c, _))
           }
 
-        case InternalGet(rsp @ Replicator.GetSuccess(cacheId), cmd) =>
-          val map = rsp.get(cacheId)
+        // get replica successfully
+        case InternalGet(rsp @ Replicator.GetSuccess(cacheKey), cmd) =>
+          val map = rsp.get(cacheKey)
           cmd match {
             case Get(key, reply)      => reply ! map.get(key)
             case Contains(key, reply) => reply ! map.contains(key)
@@ -89,15 +93,33 @@ trait LWWMapDData[Key, Value] {
           }
           Behaviors.same
 
+        // update replica successfully
         case InternalUpdate(_ @Replicator.UpdateSuccess(_)) =>
           Behaviors.same
 
-        case InternalUpdate(rsp) =>
-          ctx.log.error(s"Update data replica failed: ${rsp.toString}")
+        // fail to get replica
+        case InternalGet(rsp, cmd) =>
+          rsp match {
+            case NotFound(_, _) =>
+              if (firstNotFoundRsp) cmd match {
+                case Get(_, reply)      => reply ! None
+                case Contains(_, reply) => reply ! false
+                case ListKeys(reply)    => reply ! Set.empty
+                case ListAll(reply)     => reply ! Map.empty
+                case Size(reply)        => reply ! 0
+                case c: GetCmd          => notYetInit(c)
+              }
+              else {
+                firstNotFoundRsp = false
+                ctx.log.error(s"Get data replica failed: ${rsp.toString}")
+              }
+            case _ => ctx.log.error(s"Get data replica failed: ${rsp.toString}")
+          }
           Behaviors.same
 
-        case InternalGet(rsp, _) =>
-          ctx.log.error(s"Get data replica failed: ${rsp.toString}")
+        // fail to update replica
+        case InternalUpdate(rsp) =>
+          ctx.log.error(s"Update data replica failed: ${rsp.toString}")
           Behaviors.same
       }
     }

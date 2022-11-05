@@ -1,6 +1,6 @@
 package potamoi.flink.observer
 
-import akka.actor.typed.ActorSystem
+import akka.actor.typed.{ActorRef, ActorSystem}
 import com.coralogix.zio.k8s.client.kubernetes.Kubernetes
 import potamoi.cluster.ActorGuardian
 import potamoi.cluster.ActorGuardian.SpawnActor
@@ -33,7 +33,7 @@ object FlinkK8sObserver {
       k8sClient <- ZIO.service[Kubernetes]
       guardian  <- ZIO.service[ActorSystem[ActorGuardian.Cmd]]
       sc = guardian.scheduler
-      restEptCache <- guardian.askZIO(SpawnActor("flinkRestEndpointCache", RestEptCache(potaConf.akka), _))(sc)
+      restEptCache <- guardian.askZIO[ActorRef[RestEptCache.Cmd]](SpawnActor("flinkRestEndpointCache", RestEptCache(potaConf.akka), _))(sc)
     } yield new FlinkK8sObserverLive(potaConf.flink, k8sClient, guardian, restEptCache)
   }
 }

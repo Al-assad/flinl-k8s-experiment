@@ -26,7 +26,7 @@ trait STSpec extends AnyWordSpecLike with Matchers with BeforeAndAfterAll with Z
    * Run ZIO effect.
    */
   implicit class SpecZIORunner[E, A](zio: IO[E, A]) {
-    def runSpec: A = zioRunInSpec(if (enableLog) zio.provideLayer(PotaLogger.logLayer()) else zio)
+    def runSpec: A = zioRunInSpec(if (enableLog) zio.provideLayer(PotaLogger.layer()) else zio)
   }
 
 }

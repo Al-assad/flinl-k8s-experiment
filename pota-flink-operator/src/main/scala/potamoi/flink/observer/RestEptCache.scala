@@ -3,7 +3,6 @@ package potamoi.flink.observer
 import akka.actor.typed.Behavior
 import akka.actor.typed.SupervisorStrategy.restart
 import akka.actor.typed.scaladsl.Behaviors
-import akka.cluster.ddata.LWWMap
 import akka.cluster.ddata.typed.scaladsl.DistributedData
 import akka.cluster.ddata.typed.scaladsl.Replicator.{ReadLocal, WriteLocal}
 import akka.util.Timeout
@@ -18,7 +17,6 @@ import potamoi.flink.share.{Fcid, FlinkRestSvcEndpoint}
 private[observer] object RestEptCache extends LWWMapDData[Fcid, FlinkRestSvcEndpoint] {
 
   val cacheId    = "flink-rest-endpoint"
-  val init       = LWWMap.empty[Fcid, FlinkRestSvcEndpoint]
   val writeLevel = WriteLocal
   val readLevel  = ReadLocal
 
