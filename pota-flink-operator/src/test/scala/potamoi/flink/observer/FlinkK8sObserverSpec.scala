@@ -24,8 +24,6 @@ class FlinkK8sObserverSpec extends STSpec {
   "FlinkK8sObserver" should {
 
     "retrieve flink rest endpoint" taggedAs UnsafeEnv in {
-      val ef = retrieveRestEndpoint("session-01" -> "fdev").debug
-
       val ef2 = retrieveRestEndpoint("session-01" -> "fdev").debug *>
         retrieveRestEndpoint("session-14" -> "fdev").debug
       ef2.provide(layers).run

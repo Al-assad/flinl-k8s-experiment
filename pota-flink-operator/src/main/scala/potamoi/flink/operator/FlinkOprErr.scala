@@ -28,12 +28,11 @@ object FlinkOprErr {
   case class UnableToResolveS3Resource(potaFail: S3Err)                     extends FlinkOprErr with FailProxy
   case class UnHandleObserverErr(potaFail: FlinkObrErr)                     extends FlinkOprErr with FailProxy
 
-  case class ClusterNotFound(fcid: Fcid)             extends FlinkOprErr
-  case class RequestFlinkRestApiErr(message: String) extends FlinkOprErr
-
+  case class ClusterNotFound(fcid: Fcid)                                extends FlinkOprErr
+  case class RequestFlinkRestApiErr(cause: Throwable)                   extends FlinkOprErr with FailStackFill
   case class RequestK8sApiErr(k8sFailure: K8sFailure, cause: Throwable) extends FlinkOprErr with FailStackFill
+
   object RequestK8sApiErr {
     def apply(k8sFailure: K8sFailure): RequestK8sApiErr = RequestK8sApiErr(k8sFailure, k8s.liftException(k8sFailure).orNull)
   }
-
 }

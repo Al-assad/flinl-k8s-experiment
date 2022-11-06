@@ -5,6 +5,7 @@ import scala.language.implicitConversions
 package object common {
 
   val ziox  = ZIOExtension
+  val sttpx = SttpTool
   val paths = PathTool
 
   /**
