@@ -1,14 +1,14 @@
 package potamoi.flink.operator
 
 import potamoi.common.PathTool.getFileName
-import potamoi.common.SttpExtension.{usingSttp, RequestBodyIOWrapper}
-import potamoi.flink.operator.FlinkRestRequest.{FlinkJobRunReq, JarId}
+import potamoi.common.SttpExtension.{RequestBodyIOWrapper, usingSttp}
+import potamoi.flink.operator.FlinkRestRequest.{FlinkJobRunReq, JarId, JobId}
 import potamoi.flink.share.FlinkSessJobDef
 import sttp.client3._
 import sttp.client3.ziojson._
 import zio.IO
 import zio.ZIO.attempt
-import zio.json.{jsonField, DeriveJsonCodec, JsonCodec}
+import zio.json.{DeriveJsonCodec, JsonCodec, jsonField}
 
 import java.io.File
 
@@ -40,7 +40,7 @@ case class FlinkRestRequest(restUrl: String) {
    * Running job from jar file.
    * see: https://nightlies.apache.org/flink/flink-docs-master/docs/ops/rest_api/#jars-jarid-run
    */
-  def runJar(jarId: String, jobRunReq: FlinkJobRunReq) = usingSttp { backend =>
+  def runJar(jarId: String, jobRunReq: FlinkJobRunReq): IO[Throwable, JobId] = usingSttp { backend =>
     basicRequest
       .post(uri"$restUrl/jars/$jarId/run")
       .body(jobRunReq)
@@ -67,6 +67,7 @@ object FlinkRestRequest {
   def apply(restUrl: String): FlinkRestRequest = new FlinkRestRequest(restUrl)
 
   type JarId = String
+  type JobId = String
 
   case class FlinkJobRunReq(
       @jsonField("entry-class") entryClass: Option[String],
