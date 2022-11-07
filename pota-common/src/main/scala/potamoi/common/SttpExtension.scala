@@ -31,4 +31,11 @@ object SttpExtension {
     }
   }
 
+  implicit class RequestDeserializationBodyIOWrapper[DeE <: Throwable, A](requestIO: IO[Throwable, Either[DeE, A]]) {
+    def narrowEither: IO[Throwable, A] = requestIO.flatMap {
+      case Left(err)  => ZIO.fail(err)
+      case Right(rsp) => ZIO.succeed(rsp)
+    }
+  }
+
 }

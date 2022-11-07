@@ -13,7 +13,7 @@ import potamoi.flink.observer.FlinkObrErr.flattenFlinkOprErr
 import potamoi.flink.operator.FlinkConfigExtension.configurationToPF
 import potamoi.flink.operator.FlinkK8sOperator.getClusterClientFactory
 import potamoi.flink.operator.FlinkOprErr._
-import potamoi.flink.operator.FlinkRestRequest.FlinkJobRunReq
+import potamoi.flink.operator.FlinkRestRequest.RunJobReq
 import potamoi.flink.share.FlinkExecMode.K8sSession
 import potamoi.flink.share._
 import potamoi.fs.{lfs, S3Operator}
@@ -140,7 +140,7 @@ class FlinkK8sOperatorLive(potaConf: PotaConf, k8sClient: Kubernetes, s3Operator
           _ <- logInfo(s"Uploading flink job jar to flink cluster, path: $jobJarPath, flink-rest: $restUrl")
           rest = FlinkRestRequest(restUrl)
           jarId <- rest.uploadJar(jobJarPath)
-          jobId <- rest.runJar(jarId, FlinkJobRunReq(jobDef))
+          jobId <- rest.runJar(jarId, RunJobReq(jobDef))
           _     <- rest.deleteJar(jarId).ignore
         } yield jobId
       }.mapError(err => RequestFlinkRestApiErr(err))
@@ -153,7 +153,7 @@ class FlinkK8sOperatorLive(potaConf: PotaConf, k8sClient: Kubernetes, s3Operator
   /**
    * Cancel job in flink session cluster.
    */
-  override def cancelSessionJob(fcid: Fcid, jobId: String, savepoint: FlinkJobSptConf): IO[FlinkOprErr, Option[SavepointTriggerId]] = {
+  override def cancelSessionJob(fjid: Fjid, savepoint: FlinkJobSptConf): IO[FlinkOprErr, Option[TriggerId]] = {
 
     ???
   }
@@ -161,7 +161,9 @@ class FlinkK8sOperatorLive(potaConf: PotaConf, k8sClient: Kubernetes, s3Operator
   /**
    * Cancel job in flink application cluster.
    */
-  override def cancelApplicationJob(fcid: Fcid, savepoint: FlinkJobSptConf): IO[FlinkOprErr, Option[SavepointTriggerId]] = {
+  override def cancelApplicationJob(fcid: Fcid, savepoint: FlinkJobSptConf): IO[FlinkOprErr, Option[TriggerId]] = {
+    flinkObserver.retrieveRestEndpoint(fcid)
+//      .flatMap(restUrl => )
     ???
   }
 

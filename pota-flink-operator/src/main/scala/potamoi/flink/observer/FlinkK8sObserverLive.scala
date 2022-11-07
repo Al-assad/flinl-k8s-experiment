@@ -6,8 +6,9 @@ import com.coralogix.zio.k8s.client.kubernetes.Kubernetes
 import potamoi.cluster.ActorGuardian
 import potamoi.common.ActorExtension.ActorRefWrapper
 import potamoi.conf.FlinkConf
-import potamoi.flink.observer.FlinkObrErr.ClusterNotFound
-import potamoi.flink.share.{Fcid, FlinkRestSvcEndpoint}
+import potamoi.flink.observer.FlinkObrErr.{CacheInteropErr, ClusterNotFound, RequestFlinkApiErr}
+import potamoi.flink.operator.FlinkRestRequest
+import potamoi.flink.share.{Fcid, FlinkRestSvcEndpoint, JobId}
 import potamoi.k8s.{liftException, stringToK8sNamespace}
 import zio.ZIO.{fail, logDebug, succeed}
 import zio.{IO, ZIOAspect}
@@ -19,10 +20,12 @@ class FlinkK8sObserverLive(
     flinkConf: FlinkConf,
     k8sClient: Kubernetes,
     guardian: ActorSystem[ActorGuardian.Cmd],
-    restEptCache: ActorRef[RestEptCache.Cmd])
+    restEptCache: ActorRef[RestEptCache.Cmd],
+    jobOvCache: ActorRef[JobOverviewCache.Cmd])
     extends FlinkK8sObserver {
 
   implicit private val actorSc = guardian.scheduler
+  private val flinkRest        = FlinkRestRequest
 
   /**
    * Retrieve Flink rest endpoint via kubernetes api.
@@ -68,6 +71,20 @@ class FlinkK8sObserverLive(
       .tapBoth(
         { case ClusterNotFound(fcid) => restEptCache !!> RestEptCache.Remove(fcid) },
         endpoint => restEptCache !!> RestEptCache.Put(fcid, endpoint))
+  }
+
+  /**
+   * Get all job id under the flink cluster.
+   */
+  override def listJobIds(fcid: Fcid): IO[FlinkObrErr, Set[JobId]] = {
+    val fromCache = jobOvCache.?>(JobOverviewCache.ListJobIdByFcid(fcid, _)).mapError(CacheInteropErr)
+    val fromRestApi = retrieveRestEndpoint(fcid).flatMap { endpoint =>
+      flinkRest(endpoint.clusterIpRest).listJobsStatusInfo.mapBoth(RequestFlinkApiErr, _.map(_.id).toSet)
+    }
+    fromCache.catchAll { err =>
+      logDebug(s"Fallback to requesting flink rest api directly due to $err") *>
+      fromRestApi
+    }
   }
 
 }

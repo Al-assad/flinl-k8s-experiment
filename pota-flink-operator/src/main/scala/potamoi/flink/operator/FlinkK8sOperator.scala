@@ -36,12 +36,12 @@ trait FlinkK8sOperator {
   /**
    * Cancel job in flink session cluster.
    */
-  def cancelSessionJob(fcid: Fcid, jobId: String, savepoint: FlinkJobSptConf): IO[FlinkOprErr, Option[SavepointTriggerId]]
+  def cancelSessionJob(fjid: Fjid, savepoint: FlinkJobSptConf): IO[FlinkOprErr, Option[TriggerId]]
 
   /**
    * Cancel job in flink application cluster.
    */
-  def cancelApplicationJob(fcid: Fcid, savepoint: FlinkJobSptConf): IO[FlinkOprErr, Option[SavepointTriggerId]]
+  def cancelApplicationJob(fcid: Fcid, savepoint: FlinkJobSptConf): IO[FlinkOprErr, Option[TriggerId]]
 
   /**
    * Terminate the flink cluster and reclaim all associated k8s resources.

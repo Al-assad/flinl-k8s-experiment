@@ -15,6 +15,7 @@ object FlinkObrErr {
 
   case class ClusterNotFound(fcid: Fcid)                                extends FlinkObrErr
   case class RequestK8sApiErr(k8sFailure: K8sFailure, cause: Throwable) extends FlinkObrErr with FailStackFill
+  case class RequestFlinkApiErr(cause: Throwable)                       extends FlinkObrErr with FailStackFill
   case class CacheInteropErr(cause: ActorInteropErr)                    extends FlinkObrErr with FailStackFill
 
   /**

@@ -1,11 +1,13 @@
 package potamoi.cluster
 
+import akka.actor.typed.SupervisorStrategy.restart
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior}
 import akka.cluster.ddata.Replicator.{GetResponse, NotFound, ReadConsistency, UpdateResponse, WriteConsistency}
 import akka.cluster.ddata.typed.scaladsl.{DistributedData, Replicator, ReplicatorMessageAdapter}
 import akka.cluster.ddata.{LWWMap, LWWMapKey, SelfUniqueAddress}
 import akka.util.Timeout
+import potamoi.common.ActorExtension.BehaviorWrapper
 
 /**
  * Akka LWWMap type DData structure wrapped implementation.
@@ -50,6 +52,22 @@ trait LWWMapDData[Key, Value] {
   def readLevel: ReadConsistency
 
   lazy val cacheKey = LWWMapKey[Key, Value](cacheId)
+
+  /**
+   * Start actor behavior.
+   */
+  protected def start(askTimeout: Timeout)(
+      get: (GetCmd, LWWMap[Key, Value]) => Unit = (_, _) => (),
+      notYetInit: GetCmd => Unit = _ => (),
+      update: (UpdateCmd, LWWMap[Key, Value]) => LWWMap[Key, Value] = (_, m) => m): Behavior[Cmd] = {
+
+    Behaviors.setup { implicit ctx =>
+      implicit val node             = DistributedData(ctx.system).selfUniqueAddress
+      implicit val timeout: Timeout = askTimeout
+      ctx.log.info(s"Distributed data actor[$cacheId] started.")
+      action(get, notYetInit, update).onFailure[Exception](restart)
+    }
+  }
 
   /**
    * Receive message behavior.
