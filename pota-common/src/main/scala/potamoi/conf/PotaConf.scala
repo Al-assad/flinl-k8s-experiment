@@ -7,6 +7,7 @@ import potamoi.LogsStyle.LogsStyle
 import potamoi.common.PathTool.rmSlashPrefix
 import potamoi.common.{ComplexEnum, GenericPF}
 import potamoi.conf.FlkRestEndpointType.FlkRestEndpointType
+import potamoi.conf.NodeRole.NodeRole
 import potamoi.conf.S3AccessStyle.{PathStyle, S3AccessStyle, VirtualHostedStyle}
 import potamoi.{common, LogsLevel, LogsStyle}
 import zio.{ULayer, ZIO, ZLayer}
@@ -16,15 +17,15 @@ import scala.concurrent.duration.{DurationInt, FiniteDuration}
 /**
  * Potamoi root configuration.
  */
-case class PotaConf(localStorageDir: String, k8s: K8sConf, s3: S3Conf, flink: FlinkConf, log: LogConf, akka: AkkaConf) {
-
+case class PotaConf(nodeRoles: Set[NodeRole], localStgDir: String, k8s: K8sConf, s3: S3Conf, flink: FlinkConf, log: LogConf, akka: AkkaConf) {
   def resolve: PotaConf      = Vector(log, k8s, s3, flink).foldLeft(this)((a, c) => c.resolve(a))
   def toPrettyString: String = common.toPrettyString(this)
 }
 
 object PotaConf {
   val dev: PotaConf = PotaConf(
-    localStorageDir = "var/potamoi",
+    nodeRoles = Set(NodeRole.Server),
+    localStgDir = "var/potamoi",
     k8s = K8sConf(),
     s3 = S3Conf(
       endpoint = "http://10.144.74.197:30255",
@@ -38,6 +39,7 @@ object PotaConf {
       minioClientImage = "minio/mc:RELEASE.2022-10-12T18-12-50Z",
       localTmpDir = "tmp/flink",
       restEndpointTypeInternal = FlkRestEndpointType.ClusterIp,
+      jobTrackingPollInterval = 500.millis
     ),
     log = LogConf(
       level = LogsLevel.INFO,
@@ -105,10 +107,15 @@ object S3AccessStyle extends ComplexEnum {
 /**
  * Flink config.
  */
-case class FlinkConf(k8sAccount: String, minioClientImage: String, localTmpDir: String, restEndpointTypeInternal: FlkRestEndpointType)
+case class FlinkConf(
+    k8sAccount: String,
+    minioClientImage: String,
+    localTmpDir: String,
+    restEndpointTypeInternal: FlkRestEndpointType,
+    jobTrackingPollInterval: FiniteDuration)
     extends ResolveConf {
   override def resolve = { root =>
-    root.modify(_.flink.localTmpDir).using(dir => s"${root.localStorageDir}/${rmSlashPrefix(dir)}")
+    root.modify(_.flink.localTmpDir).using(dir => s"${root.localStgDir}/${rmSlashPrefix(dir)}")
   }
 }
 
@@ -134,15 +141,24 @@ case class LogConf(level: LogsLevel = LogsLevel.INFO, style: LogsStyle = LogsSty
 /**
  * Akka system config.
  */
-case class AkkaConf(sysName: String = "potamoi", defaultActorAskTimeout: FiniteDuration = 5.seconds, ddata: DDataConf = DDataConf())
+case class AkkaConf(
+    sysName: String = "potamoi",
+    nodeRoles: Set[String] = Set.empty,
+    defaultAskTimeout: FiniteDuration = 5.seconds,
+    ddata: DDataConf = DDataConf())
     extends ResolveConf {
+
+  override def resolve: PotaConf => PotaConf = { root =>
+    root.modify(_.akka.nodeRoles).using(_ => root.nodeRoles.map(_.toString))
+  }
 
   // TODO Redesign the actor configuration loading mechanism.
   lazy val rawActorConfig: Config = {
     ConfigFactory
-      .parseString("""akka.actor.provider = cluster
-                     |akka.log-dead-letters-during-shutdown = false
-                     |""".stripMargin)
+      .parseString(s"""akka.actor.provider = cluster
+                      |akka.cluster.roles = [${nodeRoles.mkString(",")}]
+                      |akka.cluster.sharding.remember-entities-store = ddata
+                      |""".stripMargin)
       .withFallback(ConfigFactory.load())
   }
 }

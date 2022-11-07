@@ -49,19 +49,19 @@ trait ActorExtension {
     /**
      * Wrap [[ActorRef.tell]] into ZIO.
      */
-    def tellZIO(msg: T): IO[ActorInteropErr, Unit] = ZIO.attempt(actor ! msg).mapError(ActorInteropErr)
+    def tellZIO(msg: T): IO[ActorInteropException, Unit] = ZIO.attempt(actor ! msg).mapError(ActorInteropException)
 
     /**
      * Wrap [[Askable.ask]] into ZIO.
      */
-    def askZIO[Res](replyTo: ActorRef[Res] => T)(implicit sc: Scheduler, askTimeout: Timeout = defaultAskTimeout): IO[ActorInteropErr, Res] = {
-      ZIO.fromFuture(implicit ec => actor.ask(replyTo)(askTimeout, sc)).mapError(ActorInteropErr)
+    def askZIO[Res](replyTo: ActorRef[Res] => T)(implicit sc: Scheduler, askTimeout: Timeout = defaultAskTimeout): IO[ActorInteropException, Res] = {
+      ZIO.fromFuture(implicit ec => actor.ask(replyTo)(askTimeout, sc)).mapError(ActorInteropException)
     }
 
     /**
      * Alias for [[tellZIO]]
      */
-    def !>(msg: T): IO[ActorInteropErr, Unit] = ZIO.attempt(actor ! msg).mapError(ActorInteropErr)
+    def !>(msg: T): IO[ActorInteropException, Unit] = ZIO.attempt(actor ! msg).mapError(ActorInteropException)
 
     /**
      * Wrapping actor tell behavior via zio and ignoring all side effects.
@@ -71,11 +71,9 @@ trait ActorExtension {
     /**
      * Alias for [[askZIO]]
      */
-    def ?>[Res](replyTo: ActorRef[Res] => T)(implicit sc: Scheduler, askTimeout: Timeout = defaultAskTimeout): IO[ActorInteropErr, Res] =
-      ZIO.fromFuture(implicit ec => actor.ask(replyTo)(askTimeout, sc)).mapError(ActorInteropErr)
+    def ?>[Res](replyTo: ActorRef[Res] => T)(implicit sc: Scheduler, askTimeout: Timeout = defaultAskTimeout): IO[ActorInteropException, Res] =
+      ZIO.fromFuture(implicit ec => actor.ask(replyTo)(askTimeout, sc)).mapError(ActorInteropException)
   }
-
-  case class ActorInteropErr(cause: Throwable) extends Exception(cause)
 
   /**
    * Actor Behavior enhancement.
@@ -100,6 +98,11 @@ trait ActorExtension {
 }
 
 object ActorExtension extends ActorExtension
+
+/**
+ * Actor interoperation error.
+ */
+case class ActorInteropException(cause: Throwable) extends Exception(cause)
 
 /**
  * The ActorRef with the specified ServiceKey is not found in Akka Receptionist.

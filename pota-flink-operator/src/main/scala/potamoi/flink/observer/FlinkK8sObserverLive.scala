@@ -1,31 +1,49 @@
 package potamoi.flink.observer
 
-import akka.actor.typed.{ActorRef, ActorSystem}
+import akka.actor.typed.ActorSystem
+import akka.util.Timeout
 import com.coralogix.zio.k8s.client.NotFound
 import com.coralogix.zio.k8s.client.kubernetes.Kubernetes
 import potamoi.cluster.ActorGuardian
+import potamoi.cluster.PotaActorSystem.ActorGuardianExtension
 import potamoi.common.ActorExtension.ActorRefWrapper
-import potamoi.conf.FlinkConf
-import potamoi.flink.observer.FlinkObrErr.{CacheInteropErr, ClusterNotFound, RequestFlinkApiErr}
-import potamoi.flink.operator.FlinkRestRequest
+import potamoi.conf.PotaConf
+import potamoi.flink.observer.FlinkObrErr.{ActorInteropErr, ClusterNotFound, RequestFlinkApiErr}
+import potamoi.flink.operator.flinkRest
 import potamoi.flink.share.{Fcid, FlinkRestSvcEndpoint, JobId}
 import potamoi.k8s.{liftException, stringToK8sNamespace}
 import zio.ZIO.{fail, logDebug, succeed}
-import zio.{IO, ZIOAspect}
+import zio._
 
 /**
  * Default FlinkK8sObserver implementation.
  */
-class FlinkK8sObserverLive(
-    flinkConf: FlinkConf,
-    k8sClient: Kubernetes,
-    guardian: ActorSystem[ActorGuardian.Cmd],
-    restEptCache: ActorRef[RestEptCache.Cmd],
-    jobOvCache: ActorRef[JobOverviewCache.Cmd])
-    extends FlinkK8sObserver {
+class FlinkK8sObserverLive(potaConf: PotaConf, k8sClient: Kubernetes, guardian: ActorSystem[ActorGuardian.Cmd]) extends FlinkK8sObserver {
 
-  implicit private val actorSc = guardian.scheduler
-  private val flinkRest        = FlinkRestRequest
+  implicit private val actorSc             = guardian.scheduler
+  implicit private val askTimeout: Timeout = Timeout(potaConf.akka.defaultAskTimeout)
+
+  // initialize actors unsafely
+  private val restEptCache    = guardian.spawnNow("flinkRestEndpointCache", RestEptCache(potaConf.akka))
+  private val jobOvCache      = guardian.spawnNow("flinkJobOverviewCache", JobOverviewCache(potaConf.akka))
+  private val trackDispatcher = guardian.spawnNow("flinkTrackersDispatcher", TrackersDispatcher(potaConf.flink, jobOvCache, this))
+
+  /**
+   * Tracking flink cluster.
+   */
+  override def trackCluster(fcid: Fcid): IO[FlinkObrErr, Unit] = {
+    (trackDispatcher !> TrackersDispatcher.Track(fcid)) <*
+    retrieveRestEndpoint(fcid, directly = true).ignore
+  }.mapError(ActorInteropErr)
+
+  /**
+   * Cancel tracking flink cluster.
+   */
+  override def unTrackCluster(fcid: Fcid): IO[FlinkObrErr, Unit] = {
+    (trackDispatcher !> TrackersDispatcher.UnTrack(fcid)) <*
+    (restEptCache !> RestEptCache.Remove(fcid)) <*
+    (jobOvCache !> JobOverviewCache.RemoveRecordUnderFcid(fcid))
+  }.mapError(ActorInteropErr)
 
   /**
    * Retrieve Flink rest endpoint via kubernetes api.
@@ -77,7 +95,7 @@ class FlinkK8sObserverLive(
    * Get all job id under the flink cluster.
    */
   override def listJobIds(fcid: Fcid): IO[FlinkObrErr, Set[JobId]] = {
-    val fromCache = jobOvCache.?>(JobOverviewCache.ListJobIdByFcid(fcid, _)).mapError(CacheInteropErr)
+    val fromCache = jobOvCache.?>(JobOverviewCache.ListJobIdUnderFcid(fcid, _)).mapError(ActorInteropErr)
     val fromRestApi = retrieveRestEndpoint(fcid).flatMap { endpoint =>
       flinkRest(endpoint.clusterIpRest).listJobsStatusInfo.mapBoth(RequestFlinkApiErr, _.map(_.id).toSet)
     }

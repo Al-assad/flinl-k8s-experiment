@@ -79,6 +79,8 @@ class FlinkK8sOperatorLive(potaConf: PotaConf, k8sClient: Kubernetes, s3Operator
           _                    <- attemptBlockingInterrupt(k8sClusterDescriptor.deployApplicationCluster(clusterSpecification, appConfiguration))
         } yield ()
       }.mapError(SubmitFlinkSessionClusterErr(clusterDef.fcid, _))
+      // tracking cluster
+      _ <- flinkObserver.trackCluster(clusterDef.fcid).ignore
       _ <- logInfo(s"Deploy flink session cluster successfully.")
     } yield ()
   } @@ ZIOAspect.annotated(clusterDef.fcid.toAnno: _*)
@@ -111,6 +113,8 @@ class FlinkK8sOperatorLive(potaConf: PotaConf, k8sClient: Kubernetes, s3Operator
           _                    <- attemptBlockingInterrupt(k8sClusterDescriptor.deploySessionCluster(clusterSpecification))
         } yield ()
       }.mapError(SubmitFlinkApplicationClusterErr(clusterDef.fcid, _))
+      // tracking cluster
+      _ <- flinkObserver.trackCluster(clusterDef.fcid).ignore
       _ <- logInfo(s"Deploy flink application cluster successfully.")
     } yield ()
   } @@ ZIOAspect.annotated(clusterDef.fcid.toAnno: _*)
@@ -145,7 +149,7 @@ class FlinkK8sOperatorLive(potaConf: PotaConf, k8sClient: Kubernetes, s3Operator
         } yield jobId
       }.mapError(err => RequestFlinkRestApiErr(err))
 
-      _ <- lfs.rm(jobJarPath).ignore.fork
+      _ <- lfs.rm(jobJarPath).ignore
       _ <- logInfo(s"Submit job to flink session cluster successfully, jobId: $jobId")
     } yield jobId
   } @@ ZIOAspect.annotated(Fcid(jobDef.clusterId, jobDef.namespace).toAnno: _*)
@@ -178,6 +182,7 @@ class FlinkK8sOperatorLive(potaConf: PotaConf, k8sClient: Kubernetes, s3Operator
         case failure  => FlinkOprErr.RequestK8sApiErr(failure)
       }
       .unit <*
+    flinkObserver.unTrackCluster(fcid).ignore <*
     logInfo(s"Delete flink cluster successfully.")
   } @@ ZIOAspect.annotated(fcid.toAnno: _*)
 

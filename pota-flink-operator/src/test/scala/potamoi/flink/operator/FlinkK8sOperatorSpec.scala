@@ -1,8 +1,9 @@
 package potamoi.flink.operator
 
+import com.softwaremill.quicklens.ModifyPimp
 import potamoi.PotaLogger
 import potamoi.cluster.PotaActorSystem
-import potamoi.conf.PotaConf
+import potamoi.conf.{NodeRole, PotaConf}
 import potamoi.flink.share.CheckpointStorageType.Filesystem
 import potamoi.flink.share.StateBackendType.Rocksdb
 import potamoi.flink.share._
@@ -15,8 +16,10 @@ import potamoi.flink.observer.FlinkK8sObserver
 // todo unsafe
 class FlinkK8sOperatorSpec extends STSpec {
 
+  val conf = PotaConf.dev.modify(_.nodeRoles).setTo(Set(NodeRole.FlinkOperator))
+
   val layers = {
-    PotaConf.live >+>
+    PotaConf.layer(conf) >+>
     PotaLogger.live ++ K8sClient.live ++ PotaActorSystem.live >+>
     S3Operator.live ++ FlinkK8sObserver.live >>>
     FlinkK8sOperator.live

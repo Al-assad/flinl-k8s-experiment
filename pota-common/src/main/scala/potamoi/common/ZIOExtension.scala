@@ -1,7 +1,7 @@
 package potamoi.common
 
 import akka.actor.typed.scaladsl.ActorContext
-import zio._
+import zio.{Exit, _}
 
 /**
  * ZIO extensions for interoperability with Future and Akka.
