@@ -8,12 +8,11 @@ import potamoi.common.PathTool.{getFileName, isS3Path}
 import potamoi.common.PrettyPrintable
 import potamoi.common.ZIOExtension.usingAttempt
 import potamoi.conf.PotaConf
-import potamoi.flink.operator.FlinkOprErr.flattenErr
 import potamoi.flink.observer.FlinkK8sObserver
 import potamoi.flink.operator.FlinkConfigExtension.configurationToPF
 import potamoi.flink.operator.FlinkK8sOperator.getClusterClientFactory
 import potamoi.flink.operator.FlinkOprErr._
-import potamoi.flink.operator.FlinkRestRequest.{RunJobReq, TriggerSptReq}
+import potamoi.flink.operator.FlinkRestRequest.{RunJobReq, StopJobSptReq}
 import potamoi.flink.share.FlinkExecMode.K8sSession
 import potamoi.flink.share._
 import potamoi.fs.{lfs, S3Operator}
@@ -184,8 +183,8 @@ class FlinkK8sOperatorLive(potaConf: PotaConf, k8sClient: Kubernetes, s3Operator
   private def cancelJob(restUrl: String, jobId: String, savepoint: FlinkJobSptConf): IO[FlinkOprErr, Option[TriggerId]] = {
     if (!savepoint.enable) flinkRest(restUrl).cancelJob(jobId).as(None)
     else {
-      val req = TriggerSptReq(cancelJob = true, formatType = savepoint.formatType, targetDirectory = savepoint.savepointPath)
-      flinkRest(restUrl).triggerSavepoint(jobId, req).map(Some(_))
+      val req = StopJobSptReq(drain = savepoint.drain, formatType = savepoint.formatType, targetDirectory = savepoint.savepointPath)
+      flinkRest(restUrl).stopJobWithSavepoint(jobId, req).map(Some(_))
     }
   }.mapError(RequestFlinkRestApiErr)
 

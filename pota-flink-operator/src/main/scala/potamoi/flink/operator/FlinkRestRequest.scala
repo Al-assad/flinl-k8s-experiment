@@ -77,6 +77,20 @@ case class FlinkRestRequest(restUrl: String) {
   }
 
   /**
+   * Stops job with savepoint.
+   * see: https://nightlies.apache.org/flink/flink-docs-master/docs/ops/rest_api/#jobs-jobid-stop
+   */
+  def stopJobWithSavepoint(jobId: String, sptReq: StopJobSptReq) = usingSttp { backend =>
+    basicRequest
+      .post(uri"$restUrl/jobs/$jobId/stop")
+      .body(sptReq)
+      .send(backend)
+      .map(_.body)
+      .narrowEither
+      .flatMap(rsp => attempt(ujson.read(rsp)("request-id").str))
+  }
+
+  /**
    * Triggers a savepoint of job.
    * see: https://nightlies.apache.org/flink/flink-docs-master/docs/ops/rest_api/#jobs-jobid-savepoints
    */
@@ -164,6 +178,19 @@ object FlinkRestRequest {
       restoreMode = jobDef.savepointRestore.map(_.restoreMode.toString),
       allowNonRestoredState = jobDef.savepointRestore.map(_.allowNonRestoredState)
     )
+  }
+
+  /**
+   * see: [[FlinkRestRequest.stopJobWithSavepoint]]
+   */
+  case class StopJobSptReq(
+      drain: Boolean = false,
+      formatType: Option[SptFormatType] = None,
+      targetDirectory: Option[String],
+      triggerId: Option[String] = None)
+
+  object StopJobSptReq {
+    implicit def codec: JsonCodec[StopJobSptReq] = DeriveJsonCodec.gen[StopJobSptReq]
   }
 
   /**
