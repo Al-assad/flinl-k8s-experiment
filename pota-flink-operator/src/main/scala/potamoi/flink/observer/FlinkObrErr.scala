@@ -15,8 +15,6 @@ object FlinkObrErr {
   case class RequestK8sApiErr(k8sFailure: K8sFailure, cause: Throwable) extends FlinkObrErr with FailStackFill
   case class RequestFlinkRestApiErr(cause: Throwable)                   extends FlinkObrErr with FailStackFill
   case class ActorInteropErr(cause: ActorInteropException)              extends FlinkObrErr with FailStackFill
-
-  case object TriggerTimeout  extends FlinkObrErr
-  case object TriggerNotFound extends FlinkObrErr
+  case object TriggerTimeout                                            extends FlinkObrErr
 
 }

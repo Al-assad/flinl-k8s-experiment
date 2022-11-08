@@ -110,7 +110,7 @@ class FlinkK8sObserverLive(potaConf: PotaConf, k8sClient: Kubernetes, guardian: 
         logDebug(s"Fallback to requesting flink rest api directly due to $err") *>
         fromRestApi
       }
-  }
+  } @@ ZIOAspect.annotated(fcid.toAnno: _*)
 
   /**
    * Get current flink savepoint status by trigger-id.
@@ -120,7 +120,7 @@ class FlinkK8sObserverLive(potaConf: PotaConf, k8sClient: Kubernetes, guardian: 
       restUrl <- retrieveRestEndpoint(fjid.fcid).map(_.chooseUrl)
       rs      <- flinkRest(restUrl).getSavepointOperationStatus(fjid.jobId, triggerId).mapError(RequestFlinkRestApiErr)
     } yield rs
-  }
+  } @@ ZIOAspect.annotated(fjid.toAnno :+ "flink.triggerId" -> triggerId: _*)
 
   /**
    * Watch flink savepoint trigger until it was completed or reach timeout settings.
@@ -134,6 +134,6 @@ class FlinkK8sObserverLive(potaConf: PotaConf, k8sClient: Kubernetes, guardian: 
         .repeatUntilZIO(r => if (r.isCompleted) succeed(true) else succeed(false).delay(flinkConf.trackingSptTriggerPollInterval))
         .timeoutFail(TriggerTimeout)(timeout)
     } yield rs
-  }
+  } @@ ZIOAspect.annotated(fjid.toAnno :+ "flink.triggerId" -> triggerId: _*)
 
 }
