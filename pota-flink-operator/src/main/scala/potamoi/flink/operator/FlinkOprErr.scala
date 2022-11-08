@@ -1,7 +1,6 @@
 package potamoi.flink.operator
 
 import com.coralogix.zio.k8s.client.K8sFailure
-import potamoi.common.PotaFail.flattenPotaErr
 import potamoi.common.{ActorInteropException, FailProxy, FailStackFill, PotaFail}
 import potamoi.flink.observer.FlinkObrErr
 import potamoi.flink.share.Fcid
