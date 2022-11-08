@@ -8,7 +8,7 @@ import potamoi.cluster.ActorGuardian
 import potamoi.cluster.PotaActorSystem.ActorGuardianExtension
 import potamoi.common.ActorExtension.ActorRefWrapper
 import potamoi.conf.PotaConf
-import potamoi.flink.observer.FlinkObrErr.{ActorInteropErr, ClusterNotFound, RequestFlinkApiErr}
+import potamoi.flink.observer.FlinkObrErr.{ActorInteropErr, ClusterNotFound, RequestFlinkRestApiErr}
 import potamoi.flink.operator.flinkRest
 import potamoi.flink.share.{Fcid, FlinkRestSvcEndpoint, JobId}
 import potamoi.k8s.{liftException, stringToK8sNamespace}
@@ -27,6 +27,8 @@ class FlinkK8sObserverLive(potaConf: PotaConf, k8sClient: Kubernetes, guardian: 
   private val restEptCache    = guardian.spawnNow("flinkRestEndpointCache", RestEptCache(potaConf.akka))
   private val jobOvCache      = guardian.spawnNow("flinkJobOverviewCache", JobOverviewCache(potaConf.akka))
   private val trackDispatcher = guardian.spawnNow("flinkTrackersDispatcher", TrackersDispatcher(potaConf.flink, jobOvCache, this))
+
+  implicit private val flinkConf = potaConf.flink
 
   /**
    * Tracking flink cluster.
@@ -97,7 +99,7 @@ class FlinkK8sObserverLive(potaConf: PotaConf, k8sClient: Kubernetes, guardian: 
   override def listJobIds(fcid: Fcid): IO[FlinkObrErr, Set[JobId]] = {
     val fromCache = jobOvCache.?>(JobOverviewCache.ListJobIdUnderFcid(fcid, _)).mapError(ActorInteropErr)
     val fromRestApi = retrieveRestEndpoint(fcid).flatMap { endpoint =>
-      flinkRest(endpoint.clusterIpRest).listJobsStatusInfo.mapBoth(RequestFlinkApiErr, _.map(_.id).toSet)
+      flinkRest(endpoint.chooseUrl).listJobsStatusInfo.mapBoth(RequestFlinkRestApiErr, _.map(_.id).toSet)
     }
     fromCache.catchAll { err =>
       logDebug(s"Fallback to requesting flink rest api directly due to $err") *>

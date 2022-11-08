@@ -8,18 +8,20 @@ import potamoi.common.PathTool.{getFileName, isS3Path}
 import potamoi.common.PrettyPrintable
 import potamoi.common.ZIOExtension.usingAttempt
 import potamoi.conf.PotaConf
+import potamoi.flink.operator.FlinkOprErr.flattenErr
 import potamoi.flink.observer.FlinkK8sObserver
-import potamoi.flink.observer.FlinkObrErr.flattenFlinkOprErr
 import potamoi.flink.operator.FlinkConfigExtension.configurationToPF
 import potamoi.flink.operator.FlinkK8sOperator.getClusterClientFactory
 import potamoi.flink.operator.FlinkOprErr._
-import potamoi.flink.operator.FlinkRestRequest.RunJobReq
+import potamoi.flink.operator.FlinkRestRequest.{RunJobReq, TriggerSptReq}
 import potamoi.flink.share.FlinkExecMode.K8sSession
 import potamoi.flink.share._
 import potamoi.fs.{lfs, S3Operator}
 import potamoi.k8s.stringToK8sNamespace
-import zio.ZIO.{attempt, attemptBlockingInterrupt, logInfo, scoped, succeed}
+import zio.ZIO.{attempt, attemptBlockingInterrupt, logDebug, logInfo, scoped, succeed}
 import zio._
+
+import scala.language.implicitConversions
 
 /**
  * Default FlinkK8sOperator implementation.
@@ -31,6 +33,8 @@ class FlinkK8sOperatorLive(potaConf: PotaConf, k8sClient: Kubernetes, s3Operator
   private val podTplResolver  = PodTemplateResolver
   private val logConfResolver = LogConfigResolver
   private val flinkRest       = FlinkRestRequest
+
+  implicit val flinkConf = potaConf.flink
 
   /**
    * Local workplace directory for each Flink cluster.
@@ -125,24 +129,22 @@ class FlinkK8sOperatorLive(potaConf: PotaConf, k8sClient: Kubernetes, s3Operator
   override def submitJobToSession(jobDef: FlinkSessJobDef): IO[FlinkOprErr, JobId] = {
     for {
       // get rest api url of session cluster
-      restUrl <- flinkObserver
-        .retrieveRestEndpoint(jobDef.clusterId -> jobDef.namespace, directly = true)
-        .mapBoth(flattenFlinkOprErr, _.clusterIpRest)
-      _ <- logInfo(s"Connect flink rest service: $restUrl")
-      _ <- ZIO.fail(NotSupportJobJarPath(jobDef.jobJar)).unless(isS3Path(jobDef.jobJar))
+      restUrl <- flinkObserver.retrieveRestEndpoint(jobDef.clusterId -> jobDef.namespace, directly = true).map(_.chooseUrl)
+      _       <- logInfo(s"Connect flink rest service: $restUrl")
+      _       <- ZIO.fail(NotSupportJobJarPath(jobDef.jobJar)).unless(isS3Path(jobDef.jobJar))
 
       // download job jar
       _ <- logInfo(s"Downloading flink job jar from s3 storage: ${jobDef.jobJar}")
       jobJarPath <- s3Operator
         .download(jobDef.jobJar, s"${potaConf.flink.localTmpDir}/${jobDef.namespace}@${jobDef.clusterId}/${getFileName(jobDef.jobJar)}")
-        .mapBoth(UnableToResolveS3Resource, _.getPath)
+        .map(_.getPath)
 
       // submit job
       _ <- logInfo(s"Start to submit job to flink cluster: \n${jobDef.toPrettyString}".stripMargin)
       jobId <- {
         for {
           _ <- logInfo(s"Uploading flink job jar to flink cluster, path: $jobJarPath, flink-rest: $restUrl")
-          rest = FlinkRestRequest(restUrl)
+          rest = flinkRest(restUrl)
           jarId <- rest.uploadJar(jobJarPath)
           jobId <- rest.runJar(jarId, RunJobReq(jobDef))
           _     <- rest.deleteJar(jarId).ignore
@@ -158,18 +160,34 @@ class FlinkK8sOperatorLive(potaConf: PotaConf, k8sClient: Kubernetes, s3Operator
    * Cancel job in flink session cluster.
    */
   override def cancelSessionJob(fjid: Fjid, savepoint: FlinkJobSptConf): IO[FlinkOprErr, Option[TriggerId]] = {
-
-    ???
-  }
+    for {
+      restUrl <- flinkObserver.retrieveRestEndpoint(fjid.fcid, directly = true).map(_.chooseUrl)
+      result  <- cancelJob(restUrl, fjid.jobId, savepoint)
+    } yield result
+  } @@ ZIOAspect.annotated(fjid.toAnno: _*)
 
   /**
    * Cancel job in flink application cluster.
    */
   override def cancelApplicationJob(fcid: Fcid, savepoint: FlinkJobSptConf): IO[FlinkOprErr, Option[TriggerId]] = {
-    flinkObserver.retrieveRestEndpoint(fcid)
-//      .flatMap(restUrl => )
-    ???
-  }
+    for {
+      restUrl  <- flinkObserver.retrieveRestEndpoint(fcid, directly = true).map(_.chooseUrl)
+      jobIdOpt <- flinkObserver.listJobIds(fcid).map(_.headOption)
+      _        <- logDebug(s"Found jobId for flink application cluster: $jobIdOpt").when(jobIdOpt.isDefined)
+      result <- jobIdOpt match {
+        case None        => succeed(None)
+        case Some(jobId) => cancelJob(restUrl, jobId, savepoint)
+      }
+    } yield result
+  } @@ ZIOAspect.annotated(fcid.toAnno: _*)
+
+  private def cancelJob(restUrl: String, jobId: String, savepoint: FlinkJobSptConf): IO[FlinkOprErr, Option[TriggerId]] = {
+    if (!savepoint.enable) flinkRest(restUrl).cancelJob(jobId).as(None)
+    else {
+      val req = TriggerSptReq(cancelJob = true, formatType = savepoint.formatType, targetDirectory = savepoint.savepointPath)
+      flinkRest(restUrl).triggerSavepoint(jobId, req).map(Some(_))
+    }
+  }.mapError(RequestFlinkRestApiErr)
 
   /**
    * Terminate the flink cluster and reclaim all associated k8s resources.

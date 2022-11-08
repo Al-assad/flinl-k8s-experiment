@@ -57,7 +57,7 @@ object PotaActorSystem {
      * Sync run [[stop]] effect.
      */
     @throws[FiberFailure]
-    def stop[T](ref: ActorRef[T])(implicit sc: Scheduler, timeout: Timeout): Unit = {
+    def stopNow[T](ref: ActorRef[T])(implicit sc: Scheduler, timeout: Timeout): Unit = {
       Unsafe.unsafe { implicit u =>
         Runtime.default.unsafe.run(stop(ref)).getOrThrowFiberFailure()
       }

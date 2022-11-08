@@ -6,7 +6,7 @@ import potamoi.common.ActorExtension.ActorRefWrapper
 import potamoi.common.ziox
 import potamoi.conf.FlinkConf
 import potamoi.flink.observer.TrackersDispatcher.unMarshallFcid
-import potamoi.flink.operator.FlinkRestRequest
+import potamoi.flink.operator.flinkRest
 import potamoi.flink.share.Fjid
 import zio.Schedule.spaced
 import zio.{CancelableFuture, Duration}
@@ -33,7 +33,7 @@ object JobsTracker {
           else {
             val retrieveJobOvInfos = for {
               restUrl <- flinkObserver.retrieveRestEndpoint(fcid)
-              jobOvs  <- FlinkRestRequest(restUrl.clusterIpRest).listJobOverviewInfo
+              jobOvs  <- flinkRest(restUrl.chooseUrl(flinkConf)).listJobOverviewInfo
               _       <- jobOvs.map(ov => jobOvCache !!> JobOverviewCache.Put(Fjid(fcid, ov.jid), ov)).reduce(_ zip _)
             } yield ()
             val io = ziox.zioRunToFuture(retrieveJobOvInfos.ignore.schedule(spaced(pollInterval)).forever)

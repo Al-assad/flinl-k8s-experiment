@@ -20,6 +20,7 @@ object Fcid {
  * Unique flink job identifier under the same kubernetes cluster.
  */
 case class Fjid(clusterId: String, namespace: String, jobId: String) {
+  def fcid: Fcid                   = Fcid(clusterId, namespace)
   def isUnder(fcid: Fcid): Boolean = fcid.clusterId == clusterId && fcid.namespace == namespace
   def toAnno                       = Array("flink.clusterId" -> clusterId, "flink.namespace" -> namespace, "flink.jobId" -> jobId)
 }
