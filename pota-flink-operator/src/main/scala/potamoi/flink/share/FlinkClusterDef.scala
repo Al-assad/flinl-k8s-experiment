@@ -96,6 +96,7 @@ case class FlinkAppClusterDef(
     jobName: Option[String] = None,
     appMain: Option[String] = None,
     appArgs: List[String] = List.empty,
+    restore: Option[SavepointRestoreConf] = None,
     cpu: CpuConf = CpuConf(),
     mem: MemConf = MemConf(),
     par: ParConf = ParConf(),

@@ -6,6 +6,7 @@ import potamoi.conf.S3AccessStyle.PathStyle
 import potamoi.conf.S3Conf
 import potamoi.flink.share.CheckpointStorageType.CheckpointStorageType
 import potamoi.flink.share.FlinkRawConf.dryRawMapping
+import potamoi.flink.share.SptRestoreMode.{Claim, SptRestoreMode}
 import potamoi.flink.share.StateBackendType.StateBackendType
 import zio.json.{DeriveJsonCodec, JsonCodec}
 
@@ -25,14 +26,15 @@ sealed trait FlinkRawConf {
 }
 
 object FlinkRawConf {
-  implicit val cpuConfCodec: JsonCodec[CpuConf]               = DeriveJsonCodec.gen[CpuConf]
-  implicit val memConfCodec: JsonCodec[MemConf]               = DeriveJsonCodec.gen[MemConf]
-  implicit val parConfCodec: JsonCodec[ParConf]               = DeriveJsonCodec.gen[ParConf]
-  implicit val webUICodec: JsonCodec[WebUIConf]               = DeriveJsonCodec.gen[WebUIConf]
-  implicit val restartStgCodec: JsonCodec[RestartStgConf]     = DeriveJsonCodec.gen[RestartStgConf]
-  implicit val stateBackendCodec: JsonCodec[StateBackendConf] = DeriveJsonCodec.gen[StateBackendConf]
-  implicit val jmHaCodec: JsonCodec[JmHaConf]                 = DeriveJsonCodec.gen[JmHaConf]
-  implicit val s3AccessConf: JsonCodec[S3AccessConf]          = DeriveJsonCodec.gen[S3AccessConf]
+  implicit val cpuConfCodec: JsonCodec[CpuConf]                = DeriveJsonCodec.gen[CpuConf]
+  implicit val memConfCodec: JsonCodec[MemConf]                = DeriveJsonCodec.gen[MemConf]
+  implicit val parConfCodec: JsonCodec[ParConf]                = DeriveJsonCodec.gen[ParConf]
+  implicit val webUICodec: JsonCodec[WebUIConf]                = DeriveJsonCodec.gen[WebUIConf]
+  implicit val restartStgCodec: JsonCodec[RestartStgConf]      = DeriveJsonCodec.gen[RestartStgConf]
+  implicit val stateBackendCodec: JsonCodec[StateBackendConf]  = DeriveJsonCodec.gen[StateBackendConf]
+  implicit val jmHaCodec: JsonCodec[JmHaConf]                  = DeriveJsonCodec.gen[JmHaConf]
+  implicit val s3AccessConf: JsonCodec[S3AccessConf]           = DeriveJsonCodec.gen[S3AccessConf]
+  implicit val sptRestoreConf: JsonCodec[SavepointRestoreConf] = DeriveJsonCodec.gen[SavepointRestoreConf]
 
   /**
    * Eliminate empty configuration items.
@@ -220,4 +222,29 @@ object RestExportType extends ComplexEnum {
   val NodePort          = Value("NodePort")
   val LoadBalancer      = Value("LoadBalancer")
   val HeadlessClusterIP = Value("Headless_ClusterIP")
+}
+
+/**
+ * Savepoint restore config.
+ *
+ * @see [[org.apache.flink.runtime.jobgraph.SavepointRestoreSettings]]
+ */
+case class SavepointRestoreConf(savepointPath: String, allowNonRestoredState: Boolean = false, restoreMode: SptRestoreMode = Claim)
+    extends FlinkRawConf {
+  1
+  def rawMapping = Vector(
+    "execution.savepoint-restore-mode"           -> restoreMode.toString,
+    "execution.savepoint.path"                   -> savepointPath,
+    "execution.savepoint.ignore-unclaimed-state" -> allowNonRestoredState
+  )
+}
+
+/**
+ * @see [[org.apache.flink.runtime.jobgraph.RestoreMode]]
+ */
+object SptRestoreMode extends ComplexEnum {
+  type SptRestoreMode = Value
+  val Claim   = Value("CLAIM")
+  val NoClaim = Value("NO_CLAIM")
+  val Legacy  = Value("LEGACY")
 }

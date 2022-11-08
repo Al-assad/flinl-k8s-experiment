@@ -239,12 +239,14 @@ object AppClusterDefResolver extends ClusterDefResolver[FlinkAppClusterDef] {
       potaConf,
       { conf =>
         // when jobJar path is s3 path, replace with pvc local path.
-        val reviseJarPath =
+        val reviseJarPath = {
           if (isS3Path(clusterDef.jobJar)) s"local:///opt/flink/lib/${clusterDef.jobJar.split('/').last}"
           else clusterDef.jobJar
+        }
         conf
           .append("pipeline.jars", reviseJarPath)
           .append("pipeline.name", clusterDef.jobName)
+          .append(clusterDef.restore)
       })
   }
 }

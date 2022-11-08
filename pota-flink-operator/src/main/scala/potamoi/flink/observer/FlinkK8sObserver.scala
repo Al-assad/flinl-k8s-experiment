@@ -5,7 +5,7 @@ import com.coralogix.zio.k8s.client.kubernetes.Kubernetes
 import potamoi.cluster.ActorGuardian
 import potamoi.conf.PotaConf
 import potamoi.flink.operator.FlinkRestRequest.SptOprStatus
-import potamoi.flink.share.{FSptTriggerId, Fcid, Fjid, FlinkRestSvcEndpoint, JobId}
+import potamoi.flink.share.{Fcid, Fjid, FlinkRestSvcEndpoint, JobId}
 import zio.macros.accessible
 import zio.{IO, ZIO, ZLayer}
 
