@@ -3,6 +3,9 @@ package potamoi.flink.observer
 import com.coralogix.zio.k8s.client.K8sFailure
 import potamoi.common.{ActorInteropException, FailStackFill, PotaFail}
 import potamoi.flink.share.Fcid
+import zio.IO
+
+import scala.language.implicitConversions
 
 /**
  * Flink observer error.
@@ -17,4 +20,5 @@ object FlinkObrErr {
   case class ActorInteropErr(cause: ActorInteropException)              extends FlinkObrErr with FailStackFill
   case object TriggerTimeout                                            extends FlinkObrErr
 
+  implicit def flattenActorInteropException[A](io: IO[ActorInteropException, A]): IO[ActorInteropErr, A] = io.mapError(ActorInteropErr)
 }

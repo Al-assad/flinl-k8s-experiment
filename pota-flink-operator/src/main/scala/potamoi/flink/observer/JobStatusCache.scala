@@ -20,8 +20,16 @@ private[observer] object JobStatusCache extends LWWMapDData[Fjid, FlinkJobStatus
   val writeLevel = WriteLocal
   val readLevel  = ReadLocal
 
-  final case class ListJobIdUnderFcid(fcid: Fcid, reply: ActorRef[Set[JobId]]) extends GetCmd
-  final case class RemoveRecordUnderFcid(fcid: Fcid)                           extends UpdateCmd
+  final case class ListJobIdUnderFcid(fcid: Fcid, reply: ActorRef[Vector[JobId]])           extends GetCmd
+  final case class ListRecordUnderFcid(fcid: Fcid, reply: ActorRef[Vector[FlinkJobStatus]]) extends GetCmd
+  final case class SelectRecord(
+      filter: (Fjid, FlinkJobStatus) => Boolean,
+      drop: Option[Int] = None,
+      take: Option[Int] = None,
+      reply: ActorRef[Vector[FlinkJobStatus]])
+      extends GetCmd
+
+  final case class RemoveRecordUnderFcid(fcid: Fcid) extends UpdateCmd
 
   def apply(akkaConf: AkkaConf): Behavior[Cmd] =
     Behaviors.setup { implicit ctx =>
@@ -30,11 +38,24 @@ private[observer] object JobStatusCache extends LWWMapDData[Fjid, FlinkJobStatus
       ctx.log.info(s"Distributed data actor[$cacheId] started.")
 
       action(
-        get = { case (ListJobIdUnderFcid(fcid, reply), cache) =>
-          reply ! cache.entries.keys.filter(_.isUnder(fcid)).map(_.jobId).toSet
+        get = { (cmd, cache) =>
+          cmd match {
+            case ListJobIdUnderFcid(fcid, reply)  => reply ! cache.entries.keys.filter(_.isUnder(fcid)).map(_.jobId).toVector
+            case ListRecordUnderFcid(fcid, reply) => reply ! cache.entries.filter(kv => kv._1.isUnder(fcid)).values.toVector
+            case SelectRecord(filter, drop, take, reply) =>
+              val query = {
+                val q  = cache.entries.view.filter(kv => filter(kv._1, kv._2))
+                val q2 = if (drop.isDefined) q.drop(drop.get) else q
+                val q3 = if (take.isDefined) q2.take(take.get) else q2
+                q3
+              }
+              reply ! query.map(_._2).toVector
+          }
         },
-        notYetInit = { case ListJobIdUnderFcid(_, reply) =>
-          reply ! Set.empty
+        notYetInit = {
+          case ListJobIdUnderFcid(_, reply)  => reply ! Vector.empty
+          case ListRecordUnderFcid(_, reply) => reply ! Vector.empty
+          case SelectRecord(_, _, _, reply)  => reply ! Vector.empty
         },
         update = { case (RemoveRecordUnderFcid(fcid), cache) =>
           cache.entries.keys.filter(_.isUnder(fcid)).foreach(cache.remove(node, _))
@@ -43,4 +64,9 @@ private[observer] object JobStatusCache extends LWWMapDData[Fjid, FlinkJobStatus
       ).onFailure[Exception](restart)
     }
 
+}
+
+object test extends App {
+  val seq = Seq(1, 2, 3, 4, 5)
+  println(seq.drop(0).take(100))
 }
