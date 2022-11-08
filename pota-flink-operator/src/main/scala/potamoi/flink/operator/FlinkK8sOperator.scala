@@ -21,12 +21,12 @@ trait FlinkK8sOperator {
    * Deploy Flink Application cluster.
    * TODO support restore config.
    */
-  def deployApplicationCluster(definition: FlinkAppClusterDef): IO[FlinkOprErr, Unit]
+  def deployAppCluster(definition: FlinkAppClusterDef): IO[FlinkOprErr, Unit]
 
   /**
    * Deploy Flink session cluster.
    */
-  def deploySessionCluster(definition: FlinkSessClusterDef): IO[FlinkOprErr, Unit]
+  def deploySessCluster(definition: FlinkSessClusterDef): IO[FlinkOprErr, Unit]
 
   /**
    * Submit job to Flink session cluster.
@@ -36,12 +36,22 @@ trait FlinkK8sOperator {
   /**
    * Cancel job in flink session cluster.
    */
-  def cancelSessionJob(fjid: Fjid, savepoint: FlinkJobSptConf): IO[FlinkOprErr, Option[TriggerId]]
+  def cancelSessJob(fjid: Fjid): IO[FlinkOprErr, Unit]
 
   /**
    * Cancel job in flink application cluster.
    */
-  def cancelApplicationJob(fcid: Fcid, savepoint: FlinkJobSptConf): IO[FlinkOprErr, Option[TriggerId]]
+  def cancelAppJob(fcid: Fcid): IO[FlinkOprErr, Unit]
+
+  /**
+   * Stop job in flink session cluster with savepoint.
+   */
+  def stopSessJob(fjid: Fjid, savepoint: FlinkJobSptDef): IO[FlinkOprErr, (Fjid, TriggerId)]
+
+  /**
+   * Cancel job in flink application cluster with savepoint.
+   */
+  def stopAppJob(fcid: Fcid, savepoint: FlinkJobSptDef): IO[FlinkOprErr, (Fjid, TriggerId)]
 
   /**
    * Terminate the flink cluster and reclaim all associated k8s resources.

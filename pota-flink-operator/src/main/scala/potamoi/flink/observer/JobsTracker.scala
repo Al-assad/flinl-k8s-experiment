@@ -23,7 +23,7 @@ object JobsTracker {
   def apply(fcidStr: String, flinkConf: FlinkConf, jobOvCache: ActorRef[JobOverviewCache.Cmd], flinkObserver: FlinkK8sObserver): Behavior[Cmd] =
     Behaviors.setup[Cmd] { implicit ctx =>
       val fcid                                 = unMarshallFcid(fcidStr)
-      val pollInterval                         = Duration.fromMillis(flinkConf.jobTrackingPollInterval.toMillis)
+      val pollInterval                         = Duration.fromMillis(flinkConf.trackingJobPollInterval.toMillis)
       var proc: Option[CancelableFuture[Unit]] = None
       ctx.log.info(s"Flink JobsTracker actor initialized, fcid=$fcid")
 

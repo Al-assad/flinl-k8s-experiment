@@ -7,13 +7,17 @@ import com.coralogix.zio.k8s.client.kubernetes.Kubernetes
 import potamoi.cluster.ActorGuardian
 import potamoi.cluster.PotaActorSystem.ActorGuardianExtension
 import potamoi.common.ActorExtension.ActorRefWrapper
+import potamoi.common.ZIOExtension.scalaDurationToZIO
 import potamoi.conf.PotaConf
-import potamoi.flink.observer.FlinkObrErr.{ActorInteropErr, ClusterNotFound, RequestFlinkRestApiErr}
+import potamoi.flink.observer.FlinkObrErr.{ActorInteropErr, ClusterNotFound, RequestFlinkRestApiErr, TriggerTimeout}
+import potamoi.flink.operator.FlinkRestRequest.SptOprStatus
 import potamoi.flink.operator.flinkRest
-import potamoi.flink.share.{Fcid, FlinkRestSvcEndpoint, JobId}
+import potamoi.flink.share.{Fcid, Fjid, FlinkRestSvcEndpoint, JobId}
 import potamoi.k8s.{liftException, stringToK8sNamespace}
 import zio.ZIO.{fail, logDebug, succeed}
 import zio._
+
+import scala.concurrent.duration.Duration
 
 /**
  * Default FlinkK8sObserver implementation.
@@ -101,10 +105,26 @@ class FlinkK8sObserverLive(potaConf: PotaConf, k8sClient: Kubernetes, guardian: 
     val fromRestApi = retrieveRestEndpoint(fcid).flatMap { endpoint =>
       flinkRest(endpoint.chooseUrl).listJobsStatusInfo.mapBoth(RequestFlinkRestApiErr, _.map(_.id).toSet)
     }
-    fromCache.catchAll { err =>
-      logDebug(s"Fallback to requesting flink rest api directly due to $err") *>
-      fromRestApi
-    }
+    fromCache
+      .flatMap(r => if (r.isEmpty) fromRestApi else succeed(r))
+      .catchAll { err =>
+        logDebug(s"Fallback to requesting flink rest api directly due to $err") *>
+        fromRestApi
+      }
+  }
+
+  /**
+   * Watch flink savepoint trigger until it was completed.
+   */
+  def watchSavepointTrigger(fjid: Fjid, triggerId: String, timeout: Duration = Duration.Inf): IO[FlinkObrErr, SptOprStatus] = {
+    for {
+      restUrl <- retrieveRestEndpoint(fjid.fcid).map(_.chooseUrl)
+      rs <- flinkRest(restUrl)
+        .getSavepointOperationStatus(fjid.jobId, triggerId)
+        .mapError(RequestFlinkRestApiErr)
+        .repeatUntilZIO(r => if (r.isCompleted) succeed(true) else succeed(false).delay(flinkConf.trackingSptTriggerPollInterval))
+        .timeoutFail(TriggerTimeout)(timeout)
+    } yield rs
   }
 
 }

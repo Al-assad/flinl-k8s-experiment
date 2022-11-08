@@ -17,7 +17,7 @@ import potamoi.flink.share.FlinkExecMode.K8sSession
 import potamoi.flink.share._
 import potamoi.fs.{lfs, S3Operator}
 import potamoi.k8s.stringToK8sNamespace
-import zio.ZIO.{attempt, attemptBlockingInterrupt, logDebug, logInfo, scoped, succeed}
+import zio.ZIO.{attempt, attemptBlockingInterrupt, fail, logInfo, scoped, succeed}
 import zio._
 
 import scala.language.implicitConversions
@@ -27,11 +27,6 @@ import scala.language.implicitConversions
  */
 class FlinkK8sOperatorLive(potaConf: PotaConf, k8sClient: Kubernetes, s3Operator: S3Operator, flinkObserver: FlinkK8sObserver)
     extends FlinkK8sOperator {
-
-  private val clDefResolver   = ClusterDefResolver
-  private val podTplResolver  = PodTemplateResolver
-  private val logConfResolver = LogConfigResolver
-  private val flinkRest       = FlinkRestRequest
 
   implicit val flinkConf = potaConf.flink
 
@@ -56,7 +51,7 @@ class FlinkK8sOperatorLive(potaConf: PotaConf, k8sClient: Kubernetes, s3Operator
   /**
    * Deploy Flink Application cluster.
    */
-  override def deployApplicationCluster(clusterDef: FlinkAppClusterDef): IO[FlinkOprErr, Unit] = {
+  override def deployAppCluster(clusterDef: FlinkAppClusterDef): IO[FlinkOprErr, Unit] = {
     for {
       clusterDef <- clDefResolver.application.revise(clusterDef)
       // resolve flink pod template and log config
@@ -91,7 +86,7 @@ class FlinkK8sOperatorLive(potaConf: PotaConf, k8sClient: Kubernetes, s3Operator
   /**
    * Deploy Flink session cluster.
    */
-  override def deploySessionCluster(clusterDef: FlinkSessClusterDef): IO[FlinkOprErr, Unit] = {
+  override def deploySessCluster(clusterDef: FlinkSessClusterDef): IO[FlinkOprErr, Unit] = {
     for {
       clusterDef <- clDefResolver.session.revise(clusterDef)
       // resolve flink pod template and log config
@@ -158,35 +153,64 @@ class FlinkK8sOperatorLive(potaConf: PotaConf, k8sClient: Kubernetes, s3Operator
   /**
    * Cancel job in flink session cluster.
    */
-  override def cancelSessionJob(fjid: Fjid, savepoint: FlinkJobSptConf): IO[FlinkOprErr, Option[TriggerId]] = {
+  override def cancelSessJob(fjid: Fjid): IO[FlinkOprErr, Unit] = {
     for {
       restUrl <- flinkObserver.retrieveRestEndpoint(fjid.fcid, directly = true).map(_.chooseUrl)
-      result  <- cancelJob(restUrl, fjid.jobId, savepoint)
-    } yield result
+      _       <- cancelJob(restUrl, fjid.jobId)
+    } yield ()
   } @@ ZIOAspect.annotated(fjid.toAnno: _*)
 
   /**
    * Cancel job in flink application cluster.
    */
-  override def cancelApplicationJob(fcid: Fcid, savepoint: FlinkJobSptConf): IO[FlinkOprErr, Option[TriggerId]] = {
+  override def cancelAppJob(fcid: Fcid): IO[FlinkOprErr, Unit] = {
     for {
-      restUrl  <- flinkObserver.retrieveRestEndpoint(fcid, directly = true).map(_.chooseUrl)
-      jobIdOpt <- flinkObserver.listJobIds(fcid).map(_.headOption)
-      _        <- logDebug(s"Found jobId for flink application cluster: $jobIdOpt").when(jobIdOpt.isDefined)
-      result <- jobIdOpt match {
-        case None        => succeed(None)
-        case Some(jobId) => cancelJob(restUrl, jobId, savepoint)
-      }
-    } yield result
+      restUrl <- flinkObserver.retrieveRestEndpoint(fcid, directly = true).map(_.chooseUrl)
+      jobId   <- findJobIdFromAppCluster(fcid)
+      _       <- cancelJob(restUrl, jobId)
+    } yield ()
   } @@ ZIOAspect.annotated(fcid.toAnno: _*)
 
-  private def cancelJob(restUrl: String, jobId: String, savepoint: FlinkJobSptConf): IO[FlinkOprErr, Option[TriggerId]] = {
-    if (!savepoint.enable) flinkRest(restUrl).cancelJob(jobId).as(None)
-    else {
-      val req = StopJobSptReq(drain = savepoint.drain, formatType = savepoint.formatType, targetDirectory = savepoint.savepointPath)
-      flinkRest(restUrl).stopJobWithSavepoint(jobId, req).map(Some(_))
-    }
-  }.mapError(RequestFlinkRestApiErr)
+  private def cancelJob(restUrl: String, jobId: String) =
+    flinkRest(restUrl)
+      .cancelJob(jobId)
+      .mapError(RequestFlinkRestApiErr)
+
+  private def findJobIdFromAppCluster(fcid: Fcid): IO[FlinkOprErr, String] =
+    flinkObserver
+      .listJobIds(fcid)
+      .map(_.headOption)
+      .flatMap {
+        case None        => fail(EmptyJobInCluster(fcid))
+        case Some(jobId) => succeed(jobId)
+      }
+      .tap(jobId => logInfo(s"Found job-id in flink application cluster: $jobId "))
+
+  /**
+   * Stop job in flink session cluster with savepoint.
+   */
+  override def stopSessJob(fjid: Fjid, savepoint: FlinkJobSptDef): IO[FlinkOprErr, (Fjid, TriggerId)] = {
+    for {
+      restUrl   <- flinkObserver.retrieveRestEndpoint(fjid.fcid, directly = true).map(_.chooseUrl)
+      triggerId <- stopJob(restUrl, fjid.jobId, savepoint)
+    } yield fjid -> triggerId
+  } @@ ZIOAspect.annotated(fjid.toAnno: _*)
+
+  /**
+   * Cancel job in flink application cluster with savepoint.
+   */
+  override def stopAppJob(fcid: Fcid, savepoint: FlinkJobSptDef): IO[FlinkOprErr, (Fjid, TriggerId)] = {
+    for {
+      restUrl   <- flinkObserver.retrieveRestEndpoint(fcid, directly = true).map(_.chooseUrl)
+      jobId     <- findJobIdFromAppCluster(fcid)
+      triggerId <- stopJob(restUrl, jobId, savepoint)
+    } yield Fjid(fcid, jobId) -> triggerId
+  } @@ ZIOAspect.annotated(fcid.toAnno: _*)
+
+  private def stopJob(restUrl: String, jobId: String, savepoint: FlinkJobSptDef) =
+    flinkRest(restUrl)
+      .stopJobWithSavepoint(jobId, StopJobSptReq(savepoint))
+      .mapError(RequestFlinkRestApiErr)
 
   /**
    * Terminate the flink cluster and reclaim all associated k8s resources.

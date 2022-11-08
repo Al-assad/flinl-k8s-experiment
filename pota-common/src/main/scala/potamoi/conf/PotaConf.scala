@@ -38,8 +38,7 @@ object PotaConf {
       k8sAccount = "flink-opr",
       minioClientImage = "minio/mc:RELEASE.2022-10-12T18-12-50Z",
       localTmpDir = "tmp/flink",
-      restEndpointTypeInternal = FlkRestEndpointType.ClusterIp,
-      jobTrackingPollInterval = 500.millis
+      restEndpointTypeInternal = FlkRestEndpointType.ClusterIp
     ),
     log = LogConf(
       level = LogsLevel.INFO,
@@ -112,7 +111,8 @@ case class FlinkConf(
     minioClientImage: String,
     localTmpDir: String,
     restEndpointTypeInternal: FlkRestEndpointType,
-    jobTrackingPollInterval: FiniteDuration)
+    trackingJobPollInterval: FiniteDuration = 500.millis,
+    trackingSptTriggerPollInterval: FiniteDuration = 100.millis)
     extends ResolveConf {
   override def resolve = { root =>
     root.modify(_.flink.localTmpDir).using(dir => s"${root.localStgDir}/${rmSlashPrefix(dir)}")

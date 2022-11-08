@@ -6,7 +6,7 @@ import potamoi.common.{ComplexEnum, GenericPF}
 import potamoi.flink.operator.FlinkRestRequest.FlkQueueStatus.FlkQueueStatus
 import potamoi.flink.operator.FlinkRestRequest._
 import potamoi.flink.share.FlinkJobStatus.FlinkJobStatus
-import potamoi.flink.share.{FlinkSessJobDef, JarId, JobId, TriggerId}
+import potamoi.flink.share.{FlinkJobSptDef, FlinkSessJobDef, JarId, JobId, TriggerId}
 import potamoi.flink.share.SptFormatType.SptFormatType
 import sttp.client3._
 import sttp.client3.ziojson._
@@ -190,7 +190,8 @@ object FlinkRestRequest {
       triggerId: Option[String] = None)
 
   object StopJobSptReq {
-    implicit def codec: JsonCodec[StopJobSptReq] = DeriveJsonCodec.gen[StopJobSptReq]
+    implicit def codec: JsonCodec[StopJobSptReq]      = DeriveJsonCodec.gen[StopJobSptReq]
+    def apply(sptConf: FlinkJobSptDef): StopJobSptReq = StopJobSptReq(sptConf.drain, sptConf.formatType, sptConf.savepointPath, sptConf.triggerId)
   }
 
   /**
@@ -209,7 +210,10 @@ object FlinkRestRequest {
   /**
    * see: [[FlinkRestRequest.getSavepointOperationStatus]]
    */
-  case class SptOprStatus(status: FlkQueueStatus, failureCause: Option[String])
+  case class SptOprStatus(status: FlkQueueStatus, failureCause: Option[String]) {
+    lazy val isCompleted = status == FlkQueueStatus.Completed
+    lazy val isFailed    = failureCause.isDefined
+  }
 
   object SptOprStatus {
     implicit def codec: JsonCodec[SptOprStatus] = DeriveJsonCodec.gen[SptOprStatus]

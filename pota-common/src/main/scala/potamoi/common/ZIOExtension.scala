@@ -3,6 +3,8 @@ package potamoi.common
 import akka.actor.typed.scaladsl.ActorContext
 import zio.{Exit, _}
 
+import scala.language.implicitConversions
+
 /**
  * ZIO extensions for interoperability with Future and Akka.
  */
@@ -72,6 +74,14 @@ trait ZIOExtension {
    * Alias for [[ZIO.succeed]]
    */
   def pure[A](a: => A)(implicit trace: Trace): ZIO[Any, Nothing, A] = ZIO.succeed(a)
+
+  implicit def scalaDurationToZIO(scalaDuration: scala.concurrent.duration.Duration): zio.Duration = {
+    scalaDuration match {
+      case scala.concurrent.duration.Duration.Inf  => zio.Duration.Infinity
+      case scala.concurrent.duration.Duration.Zero => zio.Duration.Zero
+      case d                                       => zio.Duration.fromMillis(d.toMillis)
+    }
+  }
 
 }
 
