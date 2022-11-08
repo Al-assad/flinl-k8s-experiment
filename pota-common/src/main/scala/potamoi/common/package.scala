@@ -34,4 +34,6 @@ package object common {
     def toPrettyString: String = common.toPrettyString(value)
   }
 
+  def curTs: Long = System.currentTimeMillis
+
 }

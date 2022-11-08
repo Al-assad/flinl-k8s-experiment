@@ -4,8 +4,7 @@ import akka.actor.typed.ActorSystem
 import com.coralogix.zio.k8s.client.kubernetes.Kubernetes
 import potamoi.cluster.ActorGuardian
 import potamoi.conf.PotaConf
-import potamoi.flink.operator.FlinkRestRequest.SptOprStatus
-import potamoi.flink.share.{Fcid, Fjid, FlinkRestSvcEndpoint, FlinkSptTriggerStatus, JobId}
+import potamoi.flink.share._
 import zio.macros.accessible
 import zio.{IO, ZIO, ZLayer}
 

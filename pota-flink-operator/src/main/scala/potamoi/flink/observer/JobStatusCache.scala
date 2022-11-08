@@ -9,15 +9,14 @@ import akka.util.Timeout
 import potamoi.cluster.LWWMapDData
 import potamoi.common.ActorExtension.BehaviorWrapper
 import potamoi.conf.AkkaConf
-import potamoi.flink.operator.FlinkRestRequest.JobOverviewInfo
-import potamoi.flink.share.{Fcid, Fjid, JobId}
+import potamoi.flink.share.{Fcid, Fjid, FlinkJobStatus, JobId}
 
 /**
  * Flink job overview info distributed data storage base on LWWMap.
  */
-private[observer] object JobOverviewCache extends LWWMapDData[Fjid, JobOverviewInfo] {
+private[observer] object JobStatusCache extends LWWMapDData[Fjid, FlinkJobStatus] {
 
-  val cacheId    = "flink-job-overview"
+  val cacheId    = "flink-job-status"
   val writeLevel = WriteLocal
   val readLevel  = ReadLocal
 

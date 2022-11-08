@@ -28,7 +28,7 @@ class FlinkK8sObserverLive(potaConf: PotaConf, k8sClient: Kubernetes, guardian: 
 
   // initialize actors unsafely
   private val restEptCache    = guardian.spawnNow("flinkRestEndpointCache", RestEptCache(potaConf.akka))
-  private val jobOvCache      = guardian.spawnNow("flinkJobOverviewCache", JobOverviewCache(potaConf.akka))
+  private val jobOvCache      = guardian.spawnNow("flinkJobOverviewCache", JobStatusCache(potaConf.akka))
   private val trackDispatcher = guardian.spawnNow("flinkTrackersDispatcher", TrackersDispatcher(potaConf.flink, jobOvCache, this))
 
   implicit private val flinkConf = potaConf.flink
@@ -47,7 +47,7 @@ class FlinkK8sObserverLive(potaConf: PotaConf, k8sClient: Kubernetes, guardian: 
   override def unTrackCluster(fcid: Fcid): IO[FlinkObrErr, Unit] = {
     (trackDispatcher !> TrackersDispatcher.UnTrack(fcid)) <*
     (restEptCache !> RestEptCache.Remove(fcid)) <*
-    (jobOvCache !> JobOverviewCache.RemoveRecordUnderFcid(fcid))
+    (jobOvCache !> JobStatusCache.RemoveRecordUnderFcid(fcid))
   }.mapError(ActorInteropErr)
 
   /**
@@ -100,7 +100,7 @@ class FlinkK8sObserverLive(potaConf: PotaConf, k8sClient: Kubernetes, guardian: 
    * Get all job id under the flink cluster.
    */
   override def listJobIds(fcid: Fcid): IO[FlinkObrErr, Set[JobId]] = {
-    val fromCache = jobOvCache.?>(JobOverviewCache.ListJobIdUnderFcid(fcid, _)).mapError(ActorInteropErr)
+    val fromCache = jobOvCache.?>(JobStatusCache.ListJobIdUnderFcid(fcid, _)).mapError(ActorInteropErr)
     val fromRestApi = retrieveRestEndpoint(fcid).flatMap { endpoint =>
       flinkRest(endpoint.chooseUrl).listJobsStatusInfo.mapBoth(RequestFlinkRestApiErr, _.map(_.id).toSet)
     }

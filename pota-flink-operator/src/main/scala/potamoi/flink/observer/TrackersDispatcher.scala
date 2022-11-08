@@ -20,7 +20,7 @@ object TrackersDispatcher {
 
   val JobsTrackerEntityKey = EntityTypeKey[JobsTracker.Cmd]("flink-job-tracker")
 
-  def apply(flinkConf: FlinkConf, jobOvCache: ActorRef[JobOverviewCache.Cmd], flinkObserver: FlinkK8sObserver): Behavior[Cmd] =
+  def apply(flinkConf: FlinkConf, jobOvCache: ActorRef[JobStatusCache.Cmd], flinkObserver: FlinkK8sObserver): Behavior[Cmd] =
     Behaviors.setup { implicit ctx =>
       val sharding = ClusterSharding(ctx.system)
 

@@ -25,7 +25,9 @@ trait LWWMapDData[Key, Value] {
   case class Size(reply: ActorRef[Int])                    extends GetCmd
 
   case class Put(key: Key, value: Value) extends UpdateCmd
+  case class PutAll(kv: Map[Key, Value]) extends UpdateCmd
   case class Remove(key: Key)            extends UpdateCmd
+  case class RemoveAll(keys: Set[Key])   extends UpdateCmd
 
   sealed trait InternalCmd                                                             extends Cmd
   final private case class InternalUpdate(rsp: UpdateResponse[LWWMap[Key, Value]])     extends InternalCmd
@@ -94,7 +96,9 @@ trait LWWMapDData[Key, Value] {
         case cmd: UpdateCmd =>
           cmd match {
             case Put(key, value) => modifyShape(_.put(node, key, value))
+            case PutAll(kv)      => modifyShape(cache => kv.foldLeft(cache)((ac, c) => ac.put(node, c._1, c._2)))
             case Remove(key)     => modifyShape(_.remove(node, key))
+            case RemoveAll(keys) => modifyShape(cache => keys.foldLeft(cache)((ac, c) => ac.remove(node, c)))
             case c               => modifyShape(update(c, _))
           }
 

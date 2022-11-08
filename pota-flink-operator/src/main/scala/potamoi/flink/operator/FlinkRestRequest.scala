@@ -1,18 +1,16 @@
 package potamoi.flink.operator
 
+import potamoi.common.GenericPF
 import potamoi.common.PathTool.getFileName
 import potamoi.common.SttpExtension.{usingSttp, RequestBodyIOWrapper, RequestDeserializationBodyIOWrapper}
-import potamoi.common.{ComplexEnum, GenericPF}
-import potamoi.flink.operator.FlinkRestRequest.FlkQueueStatus.FlkQueueStatus
 import potamoi.flink.operator.FlinkRestRequest._
-import potamoi.flink.share.FlinkJobStatus.FlinkJobStatus
-import potamoi.flink.share.{FlinkJobSptDef, FlinkSessJobDef, FlinkSptTriggerStatus, JarId, JobId, OprState, TriggerId}
+import potamoi.flink.share.JobState.JobState
 import potamoi.flink.share.SptFormatType.SptFormatType
+import potamoi.flink.share._
 import sttp.client3._
 import sttp.client3.ziojson._
-import sttp.model.StatusCode
-import zio.{IO, ZIO}
-import zio.ZIO.{attempt, fail}
+import zio.IO
+import zio.ZIO.attempt
 import zio.json.{jsonField, DeriveJsonCodec, JsonCodec}
 
 import java.io.File
@@ -224,12 +222,22 @@ object FlinkRestRequest {
   case class JobOverviewInfo(
       @jsonField("jid") jid: String,
       name: String,
-      state: FlinkJobStatus,
+      state: JobState,
       @jsonField("start-time") startTime: Long,
       @jsonField("end-time") endTime: Long,
       duration: Long,
       @jsonField("last-modification") lastModifyTime: Long,
-      tasks: TaskStats)
+      tasks: TaskStats) {
+
+    def toFlinkJobStatus: FlinkJobStatus = FlinkJobStatus(
+      jobId = jid,
+      name = name,
+      state = state,
+      startTs = startTime,
+      endTs = endTime,
+      tasks = tasks
+    )
+  }
 
   case class TaskStats(
       total: Int,
