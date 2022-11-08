@@ -54,6 +54,16 @@ trait FlinkK8sOperator {
   def stopAppJob(fcid: Fcid, savepoint: FlinkJobSptDef): IO[FlinkOprErr, (Fjid, TriggerId)]
 
   /**
+   * Triggers a savepoint of flink session job.
+   */
+  def triggerSessJobSavepoint(fjid: Fjid, savepoint: FlinkJobSptDef): IO[FlinkOprErr, (Fjid, TriggerId)]
+
+  /**
+   * Triggers a savepoint of flink application job.
+   */
+  def triggerAppJobSavepoint(fcid: Fcid, savepoint: FlinkJobSptDef): IO[FlinkOprErr, (Fjid, TriggerId)]
+
+  /**
    * Terminate the flink cluster and reclaim all associated k8s resources.
    */
   def killCluster(fcid: Fcid): IO[FlinkOprErr, Unit]

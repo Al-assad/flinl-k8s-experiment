@@ -5,7 +5,7 @@ import com.coralogix.zio.k8s.client.kubernetes.Kubernetes
 import potamoi.cluster.ActorGuardian
 import potamoi.conf.PotaConf
 import potamoi.flink.operator.FlinkRestRequest.SptOprStatus
-import potamoi.flink.share.{Fcid, Fjid, FlinkRestSvcEndpoint, JobId}
+import potamoi.flink.share.{Fcid, Fjid, FlinkRestSvcEndpoint, FlinkSptTriggerStatus, JobId}
 import zio.macros.accessible
 import zio.{IO, ZIO, ZLayer}
 
@@ -41,9 +41,14 @@ trait FlinkK8sObserver {
   def listJobIds(fcid: Fcid): IO[FlinkObrErr, Set[JobId]]
 
   /**
+   * Get current savepoint trigger status of the flink job.
+   */
+  def getSavepointTrigger(fjid: Fjid, triggerId: String): IO[FlinkObrErr, FlinkSptTriggerStatus]
+
+  /**
    * Watch flink savepoint trigger until it was completed.
    */
-  def watchSavepointTrigger(fjid: Fjid, triggerId: String, timeout: Duration = Duration.Inf): IO[FlinkObrErr, SptOprStatus]
+  def watchSavepointTrigger(fjid: Fjid, triggerId: String, timeout: Duration = Duration.Inf): IO[FlinkObrErr, FlinkSptTriggerStatus]
 
 }
 

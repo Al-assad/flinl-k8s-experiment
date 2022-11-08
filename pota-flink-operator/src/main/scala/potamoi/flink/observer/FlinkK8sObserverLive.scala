@@ -10,9 +10,8 @@ import potamoi.common.ActorExtension.ActorRefWrapper
 import potamoi.common.ZIOExtension.scalaDurationToZIO
 import potamoi.conf.PotaConf
 import potamoi.flink.observer.FlinkObrErr.{ActorInteropErr, ClusterNotFound, RequestFlinkRestApiErr, TriggerTimeout}
-import potamoi.flink.operator.FlinkRestRequest.SptOprStatus
 import potamoi.flink.operator.flinkRest
-import potamoi.flink.share.{Fcid, Fjid, FlinkRestSvcEndpoint, JobId}
+import potamoi.flink.share._
 import potamoi.k8s.{liftException, stringToK8sNamespace}
 import zio.ZIO.{fail, logDebug, succeed}
 import zio._
@@ -114,9 +113,19 @@ class FlinkK8sObserverLive(potaConf: PotaConf, k8sClient: Kubernetes, guardian: 
   }
 
   /**
-   * Watch flink savepoint trigger until it was completed.
+   * Get current flink savepoint status by trigger-id.
    */
-  def watchSavepointTrigger(fjid: Fjid, triggerId: String, timeout: Duration = Duration.Inf): IO[FlinkObrErr, SptOprStatus] = {
+  override def getSavepointTrigger(fjid: Fjid, triggerId: JobId): IO[FlinkObrErr, FlinkSptTriggerStatus] = {
+    for {
+      restUrl <- retrieveRestEndpoint(fjid.fcid).map(_.chooseUrl)
+      rs      <- flinkRest(restUrl).getSavepointOperationStatus(fjid.jobId, triggerId).mapError(RequestFlinkRestApiErr)
+    } yield rs
+  }
+
+  /**
+   * Watch flink savepoint trigger until it was completed or reach timeout settings.
+   */
+  override def watchSavepointTrigger(fjid: Fjid, triggerId: String, timeout: Duration = Duration.Inf): IO[FlinkObrErr, FlinkSptTriggerStatus] = {
     for {
       restUrl <- retrieveRestEndpoint(fjid.fcid).map(_.chooseUrl)
       rs <- flinkRest(restUrl)

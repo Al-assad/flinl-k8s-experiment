@@ -6,12 +6,13 @@ import potamoi.common.{ComplexEnum, GenericPF}
 import potamoi.flink.operator.FlinkRestRequest.FlkQueueStatus.FlkQueueStatus
 import potamoi.flink.operator.FlinkRestRequest._
 import potamoi.flink.share.FlinkJobStatus.FlinkJobStatus
-import potamoi.flink.share.{FlinkJobSptDef, FlinkSessJobDef, JarId, JobId, TriggerId}
+import potamoi.flink.share.{FlinkJobSptDef, FlinkSessJobDef, FlinkSptTriggerStatus, JarId, JobId, OprState, TriggerId}
 import potamoi.flink.share.SptFormatType.SptFormatType
 import sttp.client3._
 import sttp.client3.ziojson._
-import zio.IO
-import zio.ZIO.attempt
+import sttp.model.StatusCode
+import zio.{IO, ZIO}
+import zio.ZIO.{attempt, fail}
 import zio.json.{jsonField, DeriveJsonCodec, JsonCodec}
 
 import java.io.File
@@ -108,7 +109,7 @@ case class FlinkRestRequest(restUrl: String) {
    * Get status of savepoint operation.
    * see: https://nightlies.apache.org/flink/flink-docs-master/docs/ops/rest_api/#jobs-jobid-savepoints-triggerid
    */
-  def getSavepointOperationStatus(jobId: String, triggerId: String): IO[Throwable, SptOprStatus] = usingSttp { backend =>
+  def getSavepointOperationStatus(jobId: String, triggerId: String): IO[Throwable, FlinkSptTriggerStatus] = usingSttp { backend =>
     basicRequest
       .get(uri"$restUrl/jobs/$jobId/savepoints/$triggerId")
       .send(backend)
@@ -117,9 +118,9 @@ case class FlinkRestRequest(restUrl: String) {
       .flatMap { rsp =>
         attempt {
           val rspJson      = ujson.read(rsp)
-          val status       = rspJson("status")("id").str.contra(FlkQueueStatus.withName)
+          val status       = rspJson("status")("id").str.contra(OprState.withName)
           val failureCause = rspJson("operation").objOpt.map(_("failure-cause")("stack-trace").str)
-          SptOprStatus(status, failureCause)
+          FlinkSptTriggerStatus(status, failureCause)
         }
       }
   }
@@ -204,25 +205,8 @@ object FlinkRestRequest {
       triggerId: Option[String] = None)
 
   object TriggerSptReq {
-    implicit def codec: JsonCodec[TriggerSptReq] = DeriveJsonCodec.gen[TriggerSptReq]
-  }
-
-  /**
-   * see: [[FlinkRestRequest.getSavepointOperationStatus]]
-   */
-  case class SptOprStatus(status: FlkQueueStatus, failureCause: Option[String]) {
-    lazy val isCompleted = status == FlkQueueStatus.Completed
-    lazy val isFailed    = failureCause.isDefined
-  }
-
-  object SptOprStatus {
-    implicit def codec: JsonCodec[SptOprStatus] = DeriveJsonCodec.gen[SptOprStatus]
-  }
-
-  object FlkQueueStatus extends ComplexEnum {
-    type FlkQueueStatus = Value
-    val Completed  = Value("COMPLETED")
-    val InProgress = Value("IN_PROGRESS")
+    implicit def codec: JsonCodec[TriggerSptReq]      = DeriveJsonCodec.gen[TriggerSptReq]
+    def apply(sptConf: FlinkJobSptDef): TriggerSptReq = TriggerSptReq(cancelJob = false, sptConf.formatType, sptConf.savepointPath, sptConf.triggerId)
   }
 
   /**

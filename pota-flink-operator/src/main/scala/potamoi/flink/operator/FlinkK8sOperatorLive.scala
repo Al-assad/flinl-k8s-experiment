@@ -12,7 +12,7 @@ import potamoi.flink.observer.FlinkK8sObserver
 import potamoi.flink.operator.FlinkConfigExtension.configurationToPF
 import potamoi.flink.operator.FlinkK8sOperator.getClusterClientFactory
 import potamoi.flink.operator.FlinkOprErr._
-import potamoi.flink.operator.FlinkRestRequest.{RunJobReq, StopJobSptReq}
+import potamoi.flink.operator.FlinkRestRequest.{RunJobReq, StopJobSptReq, TriggerSptReq}
 import potamoi.flink.share.FlinkExecMode.K8sSession
 import potamoi.flink.share._
 import potamoi.fs.{lfs, S3Operator}
@@ -156,7 +156,7 @@ class FlinkK8sOperatorLive(potaConf: PotaConf, k8sClient: Kubernetes, s3Operator
   override def cancelSessJob(fjid: Fjid): IO[FlinkOprErr, Unit] = {
     for {
       restUrl <- flinkObserver.retrieveRestEndpoint(fjid.fcid, directly = true).map(_.chooseUrl)
-      _       <- cancelJob(restUrl, fjid.jobId)
+      _       <- flinkRest(restUrl).cancelJob(fjid.jobId).mapError(RequestFlinkRestApiErr)
     } yield ()
   } @@ ZIOAspect.annotated(fjid.toAnno: _*)
 
@@ -167,14 +167,9 @@ class FlinkK8sOperatorLive(potaConf: PotaConf, k8sClient: Kubernetes, s3Operator
     for {
       restUrl <- flinkObserver.retrieveRestEndpoint(fcid, directly = true).map(_.chooseUrl)
       jobId   <- findJobIdFromAppCluster(fcid)
-      _       <- cancelJob(restUrl, jobId)
+      _       <- flinkRest(restUrl).cancelJob(jobId).mapError(RequestFlinkRestApiErr)
     } yield ()
   } @@ ZIOAspect.annotated(fcid.toAnno: _*)
-
-  private def cancelJob(restUrl: String, jobId: String) =
-    flinkRest(restUrl)
-      .cancelJob(jobId)
-      .mapError(RequestFlinkRestApiErr)
 
   private def findJobIdFromAppCluster(fcid: Fcid): IO[FlinkOprErr, String] =
     flinkObserver
@@ -192,7 +187,7 @@ class FlinkK8sOperatorLive(potaConf: PotaConf, k8sClient: Kubernetes, s3Operator
   override def stopSessJob(fjid: Fjid, savepoint: FlinkJobSptDef): IO[FlinkOprErr, (Fjid, TriggerId)] = {
     for {
       restUrl   <- flinkObserver.retrieveRestEndpoint(fjid.fcid, directly = true).map(_.chooseUrl)
-      triggerId <- stopJob(restUrl, fjid.jobId, savepoint)
+      triggerId <- flinkRest(restUrl).stopJobWithSavepoint(fjid.jobId, StopJobSptReq(savepoint)).mapError(RequestFlinkRestApiErr)
     } yield fjid -> triggerId
   } @@ ZIOAspect.annotated(fjid.toAnno: _*)
 
@@ -203,14 +198,30 @@ class FlinkK8sOperatorLive(potaConf: PotaConf, k8sClient: Kubernetes, s3Operator
     for {
       restUrl   <- flinkObserver.retrieveRestEndpoint(fcid, directly = true).map(_.chooseUrl)
       jobId     <- findJobIdFromAppCluster(fcid)
-      triggerId <- stopJob(restUrl, jobId, savepoint)
+      triggerId <- flinkRest(restUrl).stopJobWithSavepoint(jobId, StopJobSptReq(savepoint)).mapError(RequestFlinkRestApiErr)
     } yield Fjid(fcid, jobId) -> triggerId
   } @@ ZIOAspect.annotated(fcid.toAnno: _*)
 
-  private def stopJob(restUrl: String, jobId: String, savepoint: FlinkJobSptDef) =
-    flinkRest(restUrl)
-      .stopJobWithSavepoint(jobId, StopJobSptReq(savepoint))
-      .mapError(RequestFlinkRestApiErr)
+  /**
+   * Triggers a savepoint of flink session job.
+   */
+  override def triggerSessJobSavepoint(fjid: Fjid, savepoint: FlinkJobSptDef): IO[FlinkOprErr, (Fjid, TriggerId)] = {
+    for {
+      restUrl   <- flinkObserver.retrieveRestEndpoint(fjid.fcid, directly = true).map(_.chooseUrl)
+      triggerId <- flinkRest(restUrl).triggerSavepoint(fjid.jobId, TriggerSptReq(savepoint)).mapError(RequestFlinkRestApiErr)
+    } yield fjid -> triggerId
+  } @@ ZIOAspect.annotated(fjid.toAnno: _*)
+
+  /**
+   * Triggers a savepoint of flink application job.
+   */
+  override def triggerAppJobSavepoint(fcid: Fcid, savepoint: FlinkJobSptDef): IO[FlinkOprErr, (Fjid, TriggerId)] = {
+    for {
+      restUrl   <- flinkObserver.retrieveRestEndpoint(fcid, directly = true).map(_.chooseUrl)
+      jobId     <- findJobIdFromAppCluster(fcid)
+      triggerId <- flinkRest(restUrl).triggerSavepoint(jobId, TriggerSptReq(savepoint)).mapError(RequestFlinkRestApiErr)
+    } yield Fjid(fcid, jobId) -> triggerId
+  } @@ ZIOAspect.annotated(fcid.toAnno: _*)
 
   /**
    * Terminate the flink cluster and reclaim all associated k8s resources.
