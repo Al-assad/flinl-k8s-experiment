@@ -12,6 +12,7 @@ import scala.concurrent.duration.DurationInt
 class LWWMapDDataSpec extends STActorClusterSpec {
 
   "LWWMapDData" should {
+    implicit val askTimeout: Timeout = 5.seconds
 
     "default implementation" in {
       import SimpleLWWMapActor._

@@ -27,5 +27,4 @@ object TimeExtension {
     case ZioDuration.Zero     => ScalaDuration.Zero
     case d                    => ScalaDuration.fromNanos(d.toNanos)
   }
-
 }

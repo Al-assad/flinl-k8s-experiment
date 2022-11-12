@@ -7,6 +7,8 @@ import potamoi.PotaLogger
 import potamoi.common.{PotaFailExtension, ZIOExtension}
 import zio._
 
+import scala.language.implicitConversions
+
 /**
  * Standard test specification.
  */
@@ -28,5 +30,4 @@ trait STSpec extends AnyWordSpecLike with Matchers with BeforeAndAfterAll with Z
   implicit class SpecZIORunner[E, A](zio: IO[E, A]) {
     def runSpec: A = zioRunInSpec(if (enableLog) zio.provideLayer(PotaLogger.layer()) else zio)
   }
-
 }

@@ -253,8 +253,8 @@ object FlinkRestRequest {
       initializing: Int)
 
   object JobOverviewInfo {
-    implicit val codec: JsonCodec[JobOverviewInfo]    = DeriveJsonCodec.gen[JobOverviewInfo]
     implicit val taskStatsCodec: JsonCodec[TaskStats] = DeriveJsonCodec.gen[TaskStats]
+    implicit val codec: JsonCodec[JobOverviewInfo]    = DeriveJsonCodec.gen[JobOverviewInfo]
   }
 
 }

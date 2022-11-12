@@ -1,12 +1,8 @@
 package potamoi.flink.observer
 
-import akka.actor.typed.ActorSystem
-import com.coralogix.zio.k8s.client.kubernetes.Kubernetes
-import potamoi.cluster.ActorGuardian
-import potamoi.conf.PotaConf
 import potamoi.flink.share._
+import zio.IO
 import zio.macros.accessible
-import zio.{IO, ZIO, ZLayer}
 
 import scala.concurrent.duration.Duration
 
@@ -66,17 +62,5 @@ trait FlinkK8sObserver {
    * Watch flink savepoint trigger until it was completed.
    */
   def watchSavepointTrigger(fjid: Fjid, triggerId: String, timeout: Duration = Duration.Inf): IO[FlinkObrErr, FlinkSptTriggerStatus]
-
-}
-
-object FlinkK8sObserver {
-
-  val live = ZLayer {
-    for {
-      potaConf  <- ZIO.service[PotaConf]
-      k8sClient <- ZIO.service[Kubernetes]
-      guardian  <- ZIO.service[ActorSystem[ActorGuardian.Cmd]]
-    } yield new FlinkK8sObserverLive(potaConf, k8sClient, guardian)
-  }
 
 }

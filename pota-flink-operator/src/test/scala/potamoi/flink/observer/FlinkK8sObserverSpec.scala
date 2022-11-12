@@ -22,7 +22,7 @@ class FlinkK8sObserverSpec extends STSpec {
     PotaConf.layer(conf) >+>
     PotaLogger.live ++
     PotaActorSystem.live ++ K8sClient.live >+>
-    FlinkK8sObserver.live
+    FlinkK8sObserverImpl.live
   }
 
   "FlinkK8sObserver" should {

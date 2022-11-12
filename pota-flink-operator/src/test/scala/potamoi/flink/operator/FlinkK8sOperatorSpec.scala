@@ -4,14 +4,14 @@ import com.softwaremill.quicklens.ModifyPimp
 import potamoi.PotaLogger
 import potamoi.cluster.PotaActorSystem
 import potamoi.conf.{NodeRole, PotaConf}
+import potamoi.flink.observer.FlinkK8sObserverImpl
 import potamoi.flink.share.CheckpointStorageType.Filesystem
 import potamoi.flink.share.StateBackendType.Rocksdb
 import potamoi.flink.share._
 import potamoi.fs.S3Operator
 import potamoi.k8s.K8sClient
-import potamoi.testkit.{STSpec, UnsafeEnv}
 import potamoi.syntax.valueToSome
-import potamoi.flink.observer.FlinkK8sObserver
+import potamoi.testkit.{STSpec, UnsafeEnv}
 
 // todo unsafe
 class FlinkK8sOperatorSpec extends STSpec {
@@ -21,14 +21,14 @@ class FlinkK8sOperatorSpec extends STSpec {
   val layers = {
     PotaConf.layer(conf) >+>
     PotaLogger.live ++ K8sClient.live ++ PotaActorSystem.live >+>
-    S3Operator.live ++ FlinkK8sObserver.live >>>
-    FlinkK8sOperator.live
+    S3Operator.live ++ FlinkK8sObserverImpl.live >>>
+    FlinkK8sOperatorImpl.live
   }
 
   "deploy session cluster" should {
     "normal" taggedAs UnsafeEnv in {
       FlinkK8sOperator
-        .deploySessionCluster(
+        .deploySessCluster(
           FlinkSessClusterDef(
             flinkVer = FlinkVer("1.15.2"),
             clusterId = "session-t1",
@@ -41,7 +41,7 @@ class FlinkK8sOperatorSpec extends STSpec {
     }
     "with state backend" taggedAs UnsafeEnv in {
       FlinkK8sOperator
-        .deploySessionCluster(
+        .deploySessCluster(
           FlinkSessClusterDef(
             flinkVer = FlinkVer("1.15.2"),
             clusterId = "session-t2",
@@ -61,7 +61,7 @@ class FlinkK8sOperatorSpec extends STSpec {
     }
     "with state backend and extra dependencies" taggedAs UnsafeEnv in {
       FlinkK8sOperator
-        .deploySessionCluster(
+        .deploySessCluster(
           FlinkSessClusterDef(
             flinkVer = FlinkVer("1.15.2"),
             clusterId = "session-t3",
@@ -88,7 +88,7 @@ class FlinkK8sOperatorSpec extends STSpec {
   "deploy application cluster" should {
     "normal" taggedAs UnsafeEnv in {
       FlinkK8sOperator
-        .deployApplicationCluster(
+        .deployAppCluster(
           FlinkAppClusterDef(
             flinkVer = FlinkVer("1.15.2"),
             clusterId = "app-t1",
@@ -102,7 +102,7 @@ class FlinkK8sOperatorSpec extends STSpec {
     }
     "with user jar on s3" taggedAs UnsafeEnv in {
       FlinkK8sOperator
-        .deployApplicationCluster(
+        .deployAppCluster(
           FlinkAppClusterDef(
             flinkVer = FlinkVer("1.15.2"),
             clusterId = "app-t2",
@@ -116,7 +116,7 @@ class FlinkK8sOperatorSpec extends STSpec {
     }
     "with state backend" taggedAs UnsafeEnv in {
       FlinkK8sOperator
-        .deployApplicationCluster(
+        .deployAppCluster(
           FlinkAppClusterDef(
             flinkVer = FlinkVer("1.15.2"),
             clusterId = "app-t3",

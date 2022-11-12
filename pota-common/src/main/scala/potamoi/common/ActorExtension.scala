@@ -6,11 +6,11 @@ import akka.actor.typed.scaladsl.AskPattern.Askable
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import akka.util.Timeout
 import potamoi.common.CollectionExtension.IterableWrapper
-import zio.{IO, Schedule, UIO, ZIO}
 import potamoi.timex._
+import zio.{IO, Schedule, UIO, ZIO}
 
 import scala.concurrent.Future
-import scala.concurrent.duration.{DurationInt, FiniteDuration}
+import scala.concurrent.duration.DurationInt
 import scala.language.implicitConversions
 import scala.reflect.ClassTag
 
@@ -24,12 +24,10 @@ trait ActorExtension {
       ctx.pipeToSelf(future)(rs => mapResult(rs.toEither))
   }
 
-  val defaultAskTimeout: FiniteDuration = 5.seconds
-
   /**
    * Find ActorRef from ActorSystem via ServiceKey.
    */
-  def findActor[T](serviceKey: ServiceKey[T], askTimeout: Timeout = defaultAskTimeout): ZIO[ActorSystem[_], Throwable, ActorRef[T]] =
+  def findActor[T](serviceKey: ServiceKey[T], askTimeout: Timeout): ZIO[ActorSystem[_], Throwable, ActorRef[T]] =
     for {
       system <- ZIO.service[ActorSystem[_]]
       actor <- ZIO
@@ -55,7 +53,7 @@ trait ActorExtension {
     /**
      * Wrap [[Askable.ask]] into ZIO.
      */
-    def askZIO[Res](replyTo: ActorRef[Res] => T)(implicit sc: Scheduler, askTimeout: Timeout = defaultAskTimeout): IO[ActorInteropException, Res] = {
+    def askZIO[Res](replyTo: ActorRef[Res] => T)(implicit sc: Scheduler, askTimeout: Timeout): IO[ActorInteropException, Res] = {
       ZIO.fromFuture(implicit ec => actor.ask(replyTo)(askTimeout, sc)).mapError(ActorInteropException)
     }
 
@@ -72,7 +70,7 @@ trait ActorExtension {
     /**
      * Alias for [[askZIO]]
      */
-    def ?>[Res](replyTo: ActorRef[Res] => T)(implicit sc: Scheduler, askTimeout: Timeout = defaultAskTimeout): IO[ActorInteropException, Res] =
+    def ?>[Res](replyTo: ActorRef[Res] => T)(implicit sc: Scheduler, askTimeout: Timeout): IO[ActorInteropException, Res] =
       ZIO.fromFuture(implicit ec => actor.ask(replyTo)(askTimeout, sc)).mapError(ActorInteropException)
   }
 

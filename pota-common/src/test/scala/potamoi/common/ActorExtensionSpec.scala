@@ -3,13 +3,16 @@ package potamoi.common
 import akka.actor.typed.receptionist.{Receptionist, ServiceKey}
 import akka.actor.typed.scaladsl.Behaviors
 import akka.actor.typed.{ActorRef, Behavior}
+import akka.util.Timeout
+import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
 import potamoi.testkit.STActorSpec
+import potamoi.timex._
 import zio.ZIO.attempt
 
 class ActorExtensionSpec extends STActorSpec {
 
   "ActorExtension" should {
-
+    implicit val timeout: Timeout = 10.seconds
     "ActorRefWrapper ZIO interop behavior" in {
       val actor = actorKit.spawn(TestActor())
       val ef1   = actor !> TestActor.Touch
@@ -22,7 +25,7 @@ class ActorExtensionSpec extends STActorSpec {
       val key = ServiceKey[TestActor.Cmd]("actorService")
       val ef = for {
         _     <- attempt(actorKit.system.receptionist ! Receptionist.Register(key, actorKit.spawn(TestActor())))
-        actor <- findActor(key)
+        actor <- findActor(key, Timeout(5.seconds))
         count <- actor ?> (TestActor.CountLen("hello world", _))
       } yield count
       ef.runActorSpec shouldBe 11

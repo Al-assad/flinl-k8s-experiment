@@ -65,8 +65,3 @@ private[observer] object JobStatusCache extends LWWMapDData[Fjid, FlinkJobStatus
     }
 
 }
-
-object test extends App {
-  val seq = Seq(1, 2, 3, 4, 5)
-  println(seq.drop(0).take(100))
-}

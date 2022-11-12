@@ -232,7 +232,6 @@ object RestExportType extends ComplexEnum {
  */
 case class SavepointRestoreConf(savepointPath: String, allowNonRestoredState: Boolean = false, restoreMode: SptRestoreMode = Claim)
     extends FlinkRawConf {
-  1
   def rawMapping = Vector(
     "execution.savepoint-restore-mode"           -> restoreMode.toString,
     "execution.savepoint.path"                   -> savepointPath,

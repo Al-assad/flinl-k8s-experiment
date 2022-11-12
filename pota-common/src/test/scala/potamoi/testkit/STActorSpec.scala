@@ -2,10 +2,15 @@ package potamoi.testkit
 
 import akka.actor.testkit.typed.scaladsl.ActorTestKit
 import akka.actor.typed.{ActorRef, ActorSystem, Behavior, Props, Scheduler}
+import akka.util.Timeout
 import com.typesafe.config.ConfigFactory
+import org.scalatest.time.Span
+import org.scalatest.time.Span.convertSpanToDuration
 import potamoi.PotaLogger
 import potamoi.common.ActorExtension
 import zio.{Task, ZIO, ZLayer}
+
+import scala.language.implicitConversions
 
 /**
  * Standard test specification for Akka Actor.
@@ -43,6 +48,8 @@ trait STActorSpec extends STSpec with ActorExtension {
    * Stop an actor with ZIO effect.
    */
   def stop[T](ref: ActorRef[T]): Task[Unit] = ZIO.attempt(actorKit.stop(ref))
+
+  implicit def spanToTimeout(span: Span): Timeout = Timeout(convertSpanToDuration(span))
 }
 
 /**

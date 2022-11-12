@@ -1,18 +1,17 @@
 package potamoi.flink.observer
 
-import akka.actor.typed.ActorSystem
+import akka.actor.typed.{ActorRef, Scheduler}
 import akka.util.Timeout
 import com.coralogix.zio.k8s.client.NotFound
 import com.coralogix.zio.k8s.client.kubernetes.Kubernetes
-import potamoi.cluster.ActorGuardian
-import potamoi.cluster.PotaActorSystem.ActorGuardianExtension
+import potamoi.cluster.PotaActorSystem.{ActorGuardian, ActorGuardianExtension}
 import potamoi.common.ActorExtension.ActorRefWrapper
 import potamoi.conf.PotaConf
-import potamoi.timex._
 import potamoi.flink.observer.FlinkObrErr.{ActorInteropErr, ClusterNotFound, RequestFlinkRestApiErr, TriggerTimeout}
 import potamoi.flink.operator.flinkRest
 import potamoi.flink.share._
 import potamoi.k8s.{liftException, stringToK8sNamespace}
+import potamoi.timex._
 import zio.ZIO.{fail, logDebug, succeed}
 import zio._
 
@@ -21,17 +20,32 @@ import scala.concurrent.duration.Duration
 /**
  * Default FlinkK8sObserver implementation.
  */
-class FlinkK8sObserverLive(potaConf: PotaConf, k8sClient: Kubernetes, guardian: ActorSystem[ActorGuardian.Cmd]) extends FlinkK8sObserver {
+object FlinkK8sObserverImpl {
+  val live = ZLayer {
+    for {
+      potaConf        <- ZIO.service[PotaConf]
+      k8sClient       <- ZIO.service[Kubernetes]
+      guardian        <- ZIO.service[ActorGuardian]
+      restEptCache    <- guardian.spawn(RestEptCache(potaConf.akka), "flinkRestEndpointCache")
+      jobStatusCache  <- guardian.spawn(JobStatusCache(potaConf.akka), "flinkJobStatusCache")
+      observer        <- ZIO.succeed(new FlinkK8sObserverImpl(potaConf, k8sClient, restEptCache, jobStatusCache)(guardian.scheduler))
+      trackDispatcher <- guardian.spawn(TrackersDispatcher(potaConf.flink, jobStatusCache, observer), "flinkTrackersDispatcher")
+      _               <- ZIO.succeed(observer.bindTrackDispatcher(trackDispatcher))
+    } yield observer
+  }
+}
 
-  implicit private val actorSc             = guardian.scheduler
-  implicit private val askTimeout: Timeout = Timeout(potaConf.akka.defaultAskTimeout)
+class FlinkK8sObserverImpl(
+    potaConf: PotaConf,
+    k8sClient: Kubernetes,
+    restEptCache: ActorRef[RestEptCache.Cmd],
+    jobStatusCache: ActorRef[JobStatusCache.Cmd])(implicit sc: Scheduler)
+    extends FlinkK8sObserver {
 
-  // initialize actors unsafely
-  private val restEptCache    = guardian.spawnNow("flinkRestEndpointCache", RestEptCache(potaConf.akka))
-  private val jobStatusCache  = guardian.spawnNow("flinkJobStatusCache", JobStatusCache(potaConf.akka))
-  private val trackDispatcher = guardian.spawnNow("flinkTrackersDispatcher", TrackersDispatcher(potaConf.flink, jobStatusCache, this))
-
-  implicit private val flinkConf = potaConf.flink
+  private var trackDispatcher: ActorRef[TrackersDispatcher.Cmd]                      = _
+  private def bindTrackDispatcher(trackDispatcher: ActorRef[TrackersDispatcher.Cmd]) = this.trackDispatcher = trackDispatcher
+  implicit private val flinkConf                                                     = potaConf.flink
+  implicit private val askTimeout: Timeout                                           = potaConf.akka.defaultAskTimeout
 
   /**
    * Tracking flink cluster.

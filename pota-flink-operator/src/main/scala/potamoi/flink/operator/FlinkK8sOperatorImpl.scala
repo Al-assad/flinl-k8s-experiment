@@ -4,19 +4,19 @@ import com.coralogix.zio.k8s.client.NotFound
 import com.coralogix.zio.k8s.client.kubernetes.Kubernetes
 import com.coralogix.zio.k8s.model.pkg.apis.meta.v1.DeleteOptions
 import org.apache.flink.client.deployment.application.ApplicationConfiguration
+import org.apache.flink.client.deployment.{ClusterClientFactory, DefaultClusterClientServiceLoader}
 import potamoi.common.PathTool.{getFileName, isS3Path}
-import potamoi.syntax._
 import potamoi.common.ZIOExtension.usingAttempt
 import potamoi.conf.PotaConf
 import potamoi.flink.observer.FlinkK8sObserver
-import potamoi.flink.operator.FlinkConfigExtension.configurationToPF
-import potamoi.flink.operator.FlinkK8sOperator.getClusterClientFactory
+import potamoi.flink.operator.FlinkConfigExtension.{configurationToPF, EmptyConfiguration}
 import potamoi.flink.operator.FlinkOprErr._
 import potamoi.flink.operator.FlinkRestRequest.{RunJobReq, StopJobSptReq, TriggerSptReq}
-import potamoi.flink.share.FlinkExecMode.K8sSession
+import potamoi.flink.share.FlinkExecMode.{FlinkExecMode, K8sSession}
 import potamoi.flink.share._
 import potamoi.fs.{lfs, S3Operator}
 import potamoi.k8s.stringToK8sNamespace
+import potamoi.syntax._
 import zio.ZIO.{attempt, attemptBlockingInterrupt, fail, logInfo, scoped, succeed}
 import zio._
 
@@ -25,10 +25,22 @@ import scala.language.implicitConversions
 /**
  * Default FlinkK8sOperator implementation.
  */
-class FlinkK8sOperatorLive(potaConf: PotaConf, k8sClient: Kubernetes, s3Operator: S3Operator, flinkObserver: FlinkK8sObserver)
+object FlinkK8sOperatorImpl {
+  val live = ZLayer {
+    for {
+      potaConf <- ZIO.service[PotaConf]
+      k8sClient <- ZIO.service[Kubernetes]
+      s3Operator <- ZIO.service[S3Operator]
+      flinkObserver <- ZIO.service[FlinkK8sObserver]
+    } yield new FlinkK8sOperatorImpl(potaConf, k8sClient, s3Operator, flinkObserver)
+  }
+}
+
+class FlinkK8sOperatorImpl(potaConf: PotaConf, k8sClient: Kubernetes, s3Operator: S3Operator, flinkObserver: FlinkK8sObserver)
     extends FlinkK8sOperator {
 
-  implicit val flinkConf = potaConf.flink
+  implicit val flinkConf               = potaConf.flink
+  private val flinkClusterClientLoader = new DefaultClusterClientServiceLoader()
 
   /**
    * Local workplace directory for each Flink cluster.
@@ -47,6 +59,14 @@ class FlinkK8sOperatorLive(potaConf: PotaConf, k8sClient: Kubernetes, s3Operator
    */
   private def logConfFileOutputPath(clusterDef: FlinkClusterDef[_]): UIO[String] =
     clusterLocalWp(clusterDef.clusterId, clusterDef.namespace).map(wp => s"$wp/log-conf")
+
+  /**
+   * Get Flink ClusterClientFactory by execution mode.
+   */
+  private def getFlinkClusterClientFactory(execMode: FlinkExecMode): Task[ClusterClientFactory[String]] = ZIO.attempt {
+    val conf = EmptyConfiguration().append("execution.target", execMode.toString).value
+    flinkClusterClientLoader.getClusterClientFactory(conf)
+  }
 
   /**
    * Deploy Flink Application cluster.
@@ -70,7 +90,7 @@ class FlinkK8sOperatorLive(potaConf: PotaConf, k8sClient: Kubernetes, s3Operator
       // deploy app cluster
       _ <- scoped {
         for {
-          clusterClientFactory <- getClusterClientFactory(K8sSession)
+          clusterClientFactory <- getFlinkClusterClientFactory(K8sSession)
           clusterSpecification <- attempt(clusterClientFactory.getClusterSpecification(rawConfig))
           appConfiguration     <- attempt(new ApplicationConfiguration(clusterDef.appArgs.toArray, clusterDef.appMain.orNull))
           k8sClusterDescriptor <- usingAttempt(clusterClientFactory.createClusterDescriptor(rawConfig))
@@ -105,7 +125,7 @@ class FlinkK8sOperatorLive(potaConf: PotaConf, k8sClient: Kubernetes, s3Operator
       // deploy cluster
       _ <- scoped {
         for {
-          clusterClientFactory <- getClusterClientFactory(K8sSession)
+          clusterClientFactory <- getFlinkClusterClientFactory(K8sSession)
           clusterSpecification <- attempt(clusterClientFactory.getClusterSpecification(rawConfig))
           k8sClusterDescriptor <- usingAttempt(clusterClientFactory.createClusterDescriptor(rawConfig))
           _                    <- attemptBlockingInterrupt(k8sClusterDescriptor.deploySessionCluster(clusterSpecification))

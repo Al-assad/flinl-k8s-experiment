@@ -5,9 +5,10 @@ import akka.actor.typed._
 import potamoi.common.ActorExtension.BehaviorWrapper
 
 /**
- * Potamoi actor system guardian behavior.
+ * Potamoi actor system guardian behavior using to provides
+ * spawning/stopping of actor instances from [[ActorSystem]].
  */
-object ActorGuardian {
+object ActorCradle {
 
   sealed trait Cmd
   final case class SpawnActor[T](behavior: Behavior[T], name: String, reply: ActorRef[ActorRef[T]], props: Props = Props.empty) extends Cmd
