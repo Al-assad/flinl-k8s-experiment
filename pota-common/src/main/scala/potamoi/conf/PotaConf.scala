@@ -4,12 +4,13 @@ import com.softwaremill.quicklens._
 import com.typesafe.config.{Config, ConfigFactory}
 import potamoi.LogsLevel.LogsLevel
 import potamoi.LogsStyle.LogsStyle
+import potamoi.common.ComplexEnum
 import potamoi.common.PathTool.rmSlashPrefix
-import potamoi.common.{ComplexEnum, GenericPF}
+import potamoi.common.Syntax.GenericPF
 import potamoi.conf.FlkRestEndpointType.FlkRestEndpointType
 import potamoi.conf.NodeRole.NodeRole
 import potamoi.conf.S3AccessStyle.{PathStyle, S3AccessStyle, VirtualHostedStyle}
-import potamoi.{common, LogsLevel, LogsStyle}
+import potamoi.{LogsLevel, LogsStyle}
 import zio.{ULayer, ZIO, ZLayer}
 
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
@@ -18,8 +19,7 @@ import scala.concurrent.duration.{DurationInt, FiniteDuration}
  * Potamoi root configuration.
  */
 case class PotaConf(nodeRoles: Set[NodeRole], localStgDir: String, k8s: K8sConf, s3: S3Conf, flink: FlinkConf, log: LogConf, akka: AkkaConf) {
-  def resolve: PotaConf      = Vector(log, k8s, s3, flink).foldLeft(this)((a, c) => c.resolve(a))
-  def toPrettyString: String = common.toPrettyString(this)
+  def resolve: PotaConf = Vector(log, k8s, s3, flink).foldLeft(this)((a, c) => c.resolve(a))
 }
 
 object PotaConf {

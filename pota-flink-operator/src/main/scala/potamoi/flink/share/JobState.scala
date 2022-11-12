@@ -1,6 +1,7 @@
 package potamoi.flink.share
 
-import potamoi.common.{curTs, ComplexEnum}
+import potamoi.common.ComplexEnum
+import potamoi.curTs
 import potamoi.flink.operator.FlinkRestRequest.TaskStats
 import potamoi.flink.share.JobState.JobState
 import zio.json.{DeriveJsonCodec, JsonCodec}
@@ -13,7 +14,7 @@ case class FlinkJobStatus(jobId: String, name: String, state: JobState, startTs:
 }
 
 object FlinkJobStatus {
-  implicit def codec: JsonCodec[FlinkJobStatus]     = DeriveJsonCodec.gen[FlinkJobStatus]
+  implicit def codec: JsonCodec[FlinkJobStatus] = DeriveJsonCodec.gen[FlinkJobStatus]
   implicit def tasksCodec: JsonCodec[TaskStats] = DeriveJsonCodec.gen[TaskStats]
 }
 

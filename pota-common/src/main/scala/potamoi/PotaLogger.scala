@@ -2,7 +2,8 @@ package potamoi
 
 import potamoi.LogsLevel.{toZIOLogLevel, LogsLevel}
 import potamoi.LogsStyle.LogsStyle
-import potamoi.common.{ComplexEnum, GenericPF}
+import potamoi.common.ComplexEnum
+import potamoi.syntax._
 import potamoi.conf.PotaConf
 import potamoi.slf4j.Slf4jBridge
 import zio.logging.LogFormat._

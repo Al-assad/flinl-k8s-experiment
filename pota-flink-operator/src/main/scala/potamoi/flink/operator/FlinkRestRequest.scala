@@ -1,6 +1,6 @@
 package potamoi.flink.operator
 
-import potamoi.common.GenericPF
+import potamoi.syntax._
 import potamoi.common.PathTool.getFileName
 import potamoi.common.SttpExtension.{usingSttp, RequestBodyIOWrapper, RequestDeserializationBodyIOWrapper}
 import potamoi.flink.operator.FlinkRestRequest._

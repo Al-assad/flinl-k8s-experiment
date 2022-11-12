@@ -10,7 +10,7 @@ import potamoi.flink.share._
 import potamoi.fs.S3Operator
 import potamoi.k8s.K8sClient
 import potamoi.testkit.{STSpec, UnsafeEnv}
-import potamoi.common.valueToSome
+import potamoi.syntax.valueToSome
 import potamoi.flink.observer.FlinkK8sObserver
 
 // todo unsafe

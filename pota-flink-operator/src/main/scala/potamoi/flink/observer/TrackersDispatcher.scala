@@ -6,7 +6,7 @@ import akka.actor.typed.{ActorRef, Behavior}
 import akka.cluster.sharding.typed.scaladsl.{ClusterSharding, Entity, EntityTypeKey}
 import akka.cluster.sharding.typed.{ClusterShardingSettings, ShardingEnvelope}
 import potamoi.common.ActorExtension.BehaviorWrapper
-import potamoi.common.GenericPF
+import potamoi.syntax.GenericPF
 import potamoi.conf.{FlinkConf, NodeRole}
 import potamoi.flink.share.Fcid
 

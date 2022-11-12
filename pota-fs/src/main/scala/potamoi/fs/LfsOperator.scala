@@ -1,6 +1,7 @@
 package potamoi.fs
 
-import potamoi.common.{FailStackFill, GenericPF, PotaFail}
+import potamoi.common.{FailStackFill, PotaFail}
+import potamoi.syntax.GenericPF
 import zio.{IO, ZIO}
 
 import java.io.File

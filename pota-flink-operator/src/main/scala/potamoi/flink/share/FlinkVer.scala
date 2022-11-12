@@ -1,6 +1,6 @@
 package potamoi.flink.share
 
-import potamoi.common.GenericPF
+import potamoi.syntax.GenericPF
 import potamoi.common.ScalaVer.{Scala212, ScalaVer}
 import potamoi.flink.share.FlinkVer.extractMajorVer
 import zio.json.{DeriveJsonCodec, JsonCodec}

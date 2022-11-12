@@ -1,7 +1,8 @@
 package potamoi.flink.share
 
 import potamoi.common.NumExtension.{DoubleWrapper, IntWrapper}
-import potamoi.common.{ComplexEnum, GenericPF}
+import potamoi.common.ComplexEnum
+import potamoi.syntax.GenericPF
 import potamoi.conf.S3AccessStyle.PathStyle
 import potamoi.conf.S3Conf
 import potamoi.flink.share.CheckpointStorageType.CheckpointStorageType

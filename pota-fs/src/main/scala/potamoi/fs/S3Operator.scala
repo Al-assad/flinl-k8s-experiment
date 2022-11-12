@@ -2,7 +2,7 @@ package potamoi.fs
 
 import io.minio._
 import io.minio.errors.ErrorResponseException
-import potamoi.common.GenericPF
+import potamoi.syntax.GenericPF
 import potamoi.common.PathTool.purePath
 import potamoi.conf.S3AccessStyle.PathStyle
 import potamoi.conf.PotaConf

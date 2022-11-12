@@ -1,5 +1,6 @@
 package potamoi.common
 
+import potamoi.common.Syntax.toPrettyString
 import zio.ZIO.succeed
 import zio._
 

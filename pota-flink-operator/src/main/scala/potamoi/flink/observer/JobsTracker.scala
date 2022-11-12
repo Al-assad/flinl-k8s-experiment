@@ -2,7 +2,7 @@ package potamoi.flink.observer
 
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior}
-import potamoi.common.ziox
+import potamoi.common.ZIOExtension.zioRunToFuture
 import potamoi.conf.FlinkConf
 import potamoi.flink.observer.TrackersDispatcher.unMarshallFcid
 import potamoi.flink.operator.flinkRest
@@ -40,7 +40,7 @@ private class JobsTracker(fcid: Fcid, flinkConf: FlinkConf, jobOvCache: ActorRef
     case Start =>
       if (proc.isDefined) Behaviors.same
       else {
-        proc = Some(ziox.zioRunToFuture(pollingJobOverviewInfo))
+        proc = Some(zioRunToFuture(pollingJobOverviewInfo))
         ctx.log.info(s"Flink JobsTracker actor started, fcid=$fcid")
         Behaviors.same
       }

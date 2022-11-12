@@ -4,7 +4,7 @@ import cats.Eval
 import org.apache.flink.configuration.Configuration
 import potamoi.common.CollectionExtension.StringIterableWrapper
 import potamoi.common.PathTool.{isS3Path, reviseToS3pSchema}
-import potamoi.common.safeTrim
+import potamoi.syntax.safeTrim
 import potamoi.conf.PotaConf
 import potamoi.flink.operator.ClusterDefResolver.notAllowCustomRawConfKeys
 import potamoi.flink.operator.FlinkConfigExtension.{configurationToPF, ConfigurationPF, EmptyConfiguration}

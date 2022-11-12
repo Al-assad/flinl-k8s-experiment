@@ -1,5 +1,7 @@
 package potamoi.common
 
+import potamoi.common.Syntax.GenericPF
+
 /**
  * Tools for handling paths.
  */

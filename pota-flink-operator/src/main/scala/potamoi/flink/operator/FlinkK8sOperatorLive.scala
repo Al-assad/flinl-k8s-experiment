@@ -5,7 +5,7 @@ import com.coralogix.zio.k8s.client.kubernetes.Kubernetes
 import com.coralogix.zio.k8s.model.pkg.apis.meta.v1.DeleteOptions
 import org.apache.flink.client.deployment.application.ApplicationConfiguration
 import potamoi.common.PathTool.{getFileName, isS3Path}
-import potamoi.common.PrettyPrintable
+import potamoi.syntax._
 import potamoi.common.ZIOExtension.usingAttempt
 import potamoi.conf.PotaConf
 import potamoi.flink.observer.FlinkK8sObserver

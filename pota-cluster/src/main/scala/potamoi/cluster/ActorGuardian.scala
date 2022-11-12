@@ -10,7 +10,8 @@ import potamoi.common.ActorExtension.BehaviorWrapper
 object ActorGuardian {
 
   sealed trait Cmd
-  final case class SpawnActor[T](name: String, behavior: Behavior[T], reply: ActorRef[ActorRef[T]], props: Props = Props.empty) extends Cmd
+  final case class SpawnActor[T](behavior: Behavior[T], name: String, reply: ActorRef[ActorRef[T]], props: Props = Props.empty) extends Cmd
+  final case class SpawnAnonymousActor[T](behavior: Behavior[T], reply: ActorRef[ActorRef[T]], props: Props = Props.empty)      extends Cmd
   final case class StopActor[T](ref: ActorRef[T], reply: ActorRef[Ack.type])                                                    extends Cmd
   final private case class ActorStopped(reply: ActorRef[Ack.type])                                                              extends Cmd
 
@@ -21,8 +22,12 @@ object ActorGuardian {
 
     Behaviors
       .receiveMessage[Cmd] {
-        case SpawnActor(name, behavior, reply, props) =>
+        case SpawnActor(behavior, name, reply, props) =>
           reply ! ctx.spawn(behavior, name, props)
+          Behaviors.same
+
+        case SpawnAnonymousActor(behavior, reply, props) =>
+          reply ! ctx.spawnAnonymous(behavior, props)
           Behaviors.same
 
         case StopActor(ref, reply) =>
@@ -38,7 +43,6 @@ object ActorGuardian {
         case (_, PreRestart) =>
           ctx.log.info("Potamoi ActorGuardian restarting...")
           Behaviors.same
-
         case (_, PostStop) =>
           ctx.log.info("Potamoi ActorGuardian stopped.")
           Behaviors.same

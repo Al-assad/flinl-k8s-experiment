@@ -1,16 +1,17 @@
 package potamoi.common
 
+import akka.actor.typed._
 import akka.actor.typed.receptionist.{Receptionist, ServiceKey}
 import akka.actor.typed.scaladsl.AskPattern.Askable
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
-import akka.actor.typed._
 import akka.util.Timeout
 import potamoi.common.CollectionExtension.IterableWrapper
-import potamoi.common.TimeExtension.FiniteDurationWrapper
 import zio.{IO, Schedule, UIO, ZIO}
+import potamoi.timex._
 
 import scala.concurrent.Future
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
+import scala.language.implicitConversions
 import scala.reflect.ClassTag
 
 /**
@@ -38,7 +39,7 @@ trait ActorExtension {
           case Some(actor) => ZIO.succeed(actor)
           case None        => ZIO.fail(ActorNotFoundException(serviceKey))
         }
-        .retry(Schedule.recurs(3) && Schedule.spaced(50.millis.asJava))
+        .retry(Schedule.recurs(3) && Schedule.spaced(50.millis))
     } yield actor
 
   /**
