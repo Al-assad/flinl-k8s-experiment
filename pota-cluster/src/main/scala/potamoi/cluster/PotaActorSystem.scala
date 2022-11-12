@@ -2,7 +2,7 @@ package potamoi.cluster
 
 import akka.actor.typed.{ActorRef, ActorSystem, Behavior}
 import akka.util.Timeout
-import potamoi.cluster.ActorCradle.{Ack, SpawnActor, SpawnAnonymousActor}
+import ActorCradle.{Ack, SpawnActor, SpawnAnonymousActor}
 import potamoi.common.ActorExtension.ActorRefWrapper
 import potamoi.common.ActorInteropException
 import potamoi.conf.PotaConf

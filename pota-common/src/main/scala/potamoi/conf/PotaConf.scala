@@ -155,9 +155,18 @@ case class AkkaConf(
   // TODO Redesign the actor configuration loading mechanism.
   lazy val rawActorConfig: Config = {
     ConfigFactory
-      .parseString(s"""akka.actor.provider = cluster
-                      |akka.cluster.roles = [${nodeRoles.mkString(",")}]
+      .parseString(s"""akka.cluster.roles = [${nodeRoles.mkString(",")}]
                       |akka.cluster.sharding.remember-entities-store = ddata
+                      |akka.cluster.downing-provider-class = "akka.cluster.sbr.SplitBrainResolverProvider"
+                      |akka.actor.provider = cluster
+                      |akka.actor.serializers {
+                      |   jackson-cbor = "akka.serialization.jackson.JacksonCborSerializer"
+                      |   jackson-json = "akka.serialization.jackson.JacksonJsonSerializer"
+                      |}
+                      |akka.actor.serialization-bindings {
+                      |   "potamoi.cluster.CborSerializable" = jackson-cbor
+                      |   "potamoi.cluster.JsonSerializable" = jackson-json
+                      |}
                       |""".stripMargin)
       .withFallback(ConfigFactory.load())
   }
