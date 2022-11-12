@@ -4,7 +4,7 @@ import potamoi.LogsLevel.{toZIOLogLevel, LogsLevel}
 import potamoi.LogsStyle.LogsStyle
 import potamoi.common.ComplexEnum
 import potamoi.syntax._
-import potamoi.conf.PotaConf
+import potamoi.conf.{LogConf, PotaConf}
 import potamoi.slf4j.Slf4jBridge
 import zio.logging.LogFormat._
 import zio.logging.{console, consoleJson, LogColor, LogFormat}
@@ -51,15 +51,12 @@ object PotaLogger {
     zio.Runtime.removeDefaultLoggers >>> logLayer >+> Slf4jBridge.initialize(logLevel, (defaultAcceptedSlf4jMdc ++ allowedMdc).toVector)
   }
 
+  def layer(logConf: LogConf): ULayer[Unit] = layer(logConf.level, logConf.style, logConf.colored, logConf.inOneLine)
+
   /**
    * Living ZIO layer.
    */
-  val live: ZLayer[PotaConf, Nothing, Unit] = {
-    ZLayer.service[PotaConf].flatMap { confLayer =>
-      val conf = confLayer.get
-      layer(conf.log.level, conf.log.style, conf.log.colored, conf.log.inOneLine)
-    }
-  }
+  val live: ZLayer[PotaConf, Nothing, Unit] = ZLayer.service[PotaConf].flatMap(confLayer => layer(confLayer.get.log))
 
   /**
    * Standard log format for Potamoi.

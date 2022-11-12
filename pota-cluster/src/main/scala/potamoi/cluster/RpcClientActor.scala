@@ -8,7 +8,6 @@ import akka.actor.typed.scaladsl.Behaviors
 import akka.util.Timeout
 import potamoi.cluster.PotaActorSystem.{ActorGuardian, ActorGuardianExtension}
 import potamoi.cluster.Rpc.{MayBe, RpcServerNotFound}
-import potamoi.cluster.RpcClientActor.RpcServiceNotFound
 import potamoi.common.ActorExtension._
 import potamoi.common.ActorInteropException
 import potamoi.common.CollectionExtension.IterableWrapper
@@ -93,7 +92,7 @@ abstract class RpcClientActor[Proto <: Product: ClassTag] {
         case MayBe(Left(e)) =>
           e match {
             case err: RpcServerNotFound => fail(actorErrAdapter(ActorInteropException(err)))
-            case err                     => fail(err)
+            case err                    => fail(err)
           }
         case MayBe(Right(a)) => succeed(a)
       }

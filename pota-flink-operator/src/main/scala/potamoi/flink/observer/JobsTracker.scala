@@ -2,7 +2,7 @@ package potamoi.flink.observer
 
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior}
-import potamoi.common.ZIOExtension.zioRunToFuture
+import potamoi.ziox._
 import potamoi.conf.FlinkConf
 import potamoi.flink.observer.TrackersDispatcher.unMarshallFcid
 import potamoi.flink.operator.flinkRest
@@ -40,7 +40,7 @@ private class JobsTracker(fcid: Fcid, flinkConf: FlinkConf, jobOvCache: ActorRef
     case Start =>
       if (proc.isDefined) Behaviors.same
       else {
-        proc = Some(zioRunToFuture(pollingJobOverviewInfo))
+        proc = Some(pollingJobOverviewInfo.runToFuture)
         ctx.log.info(s"Flink JobsTracker actor started, fcid=$fcid")
         Behaviors.same
       }
@@ -63,7 +63,7 @@ private class JobsTracker(fcid: Fcid, flinkConf: FlinkConf, jobOvCache: ActorRef
       }
       _ <- attempt {
         jobOvCache ! JobStatusCache.PutAll(puts.map(e => Fjid(fcid, e.jobId) -> e).toMap)
-        jobOvCache ! JobStatusCache.RemoveAll(puts.map(e => Fjid(fcid, e.jobId)).toSet)
+        jobOvCache ! JobStatusCache.RemoveAll(removes.map(e => Fjid(fcid, e.jobId)).toSet)
       }
       _ <- state.set(curCollect)
     } yield ()

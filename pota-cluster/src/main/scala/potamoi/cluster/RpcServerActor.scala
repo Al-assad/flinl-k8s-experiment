@@ -5,9 +5,11 @@ import akka.actor.typed.receptionist.{Receptionist, ServiceKey}
 import akka.actor.typed.scaladsl.Behaviors
 import akka.actor.typed.{ActorRef, Behavior, PostStop, PreRestart}
 import potamoi.cluster.PotaActorSystem.{ActorGuardian, ActorGuardianExtension}
+import potamoi.cluster.Rpc.MayBe
 import potamoi.common.ActorExtension._
 import potamoi.common.ActorInteropException
-import zio.{IO, Runtime, Unsafe, ZIO}
+import potamoi.common.ZIOExtension._
+import zio.{IO, ZIO}
 
 import scala.reflect.ClassTag
 
@@ -52,11 +54,7 @@ abstract class RpcServerActor[Proto: ClassTag] {
    * Binding actor receiving message behavior and ZIO behavior.
    */
   protected def bind[E, A](reply: ActorRef[MayBe[E, A]], f: => IO[E, A]): Behavior[Proto] = {
-    Unsafe.unsafe { implicit u =>
-      Runtime.default.unsafe.runToFuture {
-        f.either.map(reply ! MayBe(_))
-      }
-    }
+    f.either.map(reply ! MayBe(_)).runToFuture
     Behaviors.same
   }
 }
