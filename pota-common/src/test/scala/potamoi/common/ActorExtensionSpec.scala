@@ -1,13 +1,11 @@
 package potamoi.common
 
-import akka.actor.typed.receptionist.{Receptionist, ServiceKey}
 import akka.actor.typed.scaladsl.Behaviors
 import akka.actor.typed.{ActorRef, Behavior}
 import akka.util.Timeout
 import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
 import potamoi.testkit.STActorSpec
 import potamoi.timex._
-import zio.ZIO.attempt
 
 class ActorExtensionSpec extends STActorSpec {
 
@@ -19,16 +17,6 @@ class ActorExtensionSpec extends STActorSpec {
       val ef2   = actor ?> (TestActor.CountLen("hello world", _))
       ef1.runActorSpec shouldBe ()
       ef2.runActorSpec shouldBe 11
-    }
-
-    "findActor from Receptionist" in {
-      val key = ServiceKey[TestActor.Cmd]("actorService")
-      val ef = for {
-        _     <- attempt(actorKit.system.receptionist ! Receptionist.Register(key, actorKit.spawn(TestActor())))
-        actor <- findActor(key, Timeout(5.seconds))
-        count <- actor ?> (TestActor.CountLen("hello world", _))
-      } yield count
-      ef.runActorSpec shouldBe 11
     }
   }
 

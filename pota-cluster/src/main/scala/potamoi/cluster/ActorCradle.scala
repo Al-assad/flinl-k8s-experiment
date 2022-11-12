@@ -1,7 +1,7 @@
 package potamoi.cluster
 
-import akka.actor.typed.scaladsl.Behaviors
 import akka.actor.typed._
+import akka.actor.typed.scaladsl.Behaviors
 import potamoi.common.ActorExtension.BehaviorWrapper
 
 /**

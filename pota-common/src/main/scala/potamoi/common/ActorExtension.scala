@@ -1,16 +1,13 @@
 package potamoi.common
 
 import akka.actor.typed._
-import akka.actor.typed.receptionist.{Receptionist, ServiceKey}
 import akka.actor.typed.scaladsl.AskPattern.Askable
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import akka.util.Timeout
-import potamoi.common.CollectionExtension.IterableWrapper
 import potamoi.timex._
-import zio.{IO, Schedule, UIO, ZIO}
+import zio.{IO, UIO, ZIO}
 
 import scala.concurrent.Future
-import scala.concurrent.duration.DurationInt
 import scala.language.implicitConversions
 import scala.reflect.ClassTag
 
@@ -23,22 +20,6 @@ trait ActorExtension {
     @inline def pipeTo[T](ctx: ActorContext[T])(mapResult: Either[Throwable, Value] => T): Unit =
       ctx.pipeToSelf(future)(rs => mapResult(rs.toEither))
   }
-
-  /**
-   * Find ActorRef from ActorSystem via ServiceKey.
-   */
-  def findActor[T](serviceKey: ServiceKey[T], askTimeout: Timeout): ZIO[ActorSystem[_], Throwable, ActorRef[T]] =
-    for {
-      system <- ZIO.service[ActorSystem[_]]
-      actor <- ZIO
-        .fromFuture(implicit ec => system.receptionist.ask(Receptionist.Find(serviceKey))(askTimeout, system.scheduler))
-        .map(_.serviceInstances(serviceKey).randomEle)
-        .flatMap {
-          case Some(actor) => ZIO.succeed(actor)
-          case None        => ZIO.fail(ActorNotFoundException(serviceKey))
-        }
-        .retry(Schedule.recurs(3) && Schedule.spaced(50.millis))
-    } yield actor
 
   /**
    * ZIO wrapper for Akka actor interoperation.
@@ -102,12 +83,3 @@ object ActorExtension extends ActorExtension
  * Actor interoperation error.
  */
 case class ActorInteropException(cause: Throwable) extends Exception(cause)
-
-/**
- * The ActorRef with the specified ServiceKey is not found in Akka Receptionist.
- */
-class ActorNotFoundException(message: String) extends Exception(message)
-
-object ActorNotFoundException {
-  def apply(serviceKey: ServiceKey[_]): ActorNotFoundException = new ActorNotFoundException(s"ActorRef not found: ${serviceKey.id}")
-}
