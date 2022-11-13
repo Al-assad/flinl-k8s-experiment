@@ -2,6 +2,7 @@ package org.slf4j.impl
 
 import org.slf4j.MDC
 import org.slf4j.helpers.{MarkerIgnoringBase, MessageFormatter}
+import potamoi.slf4j.Slf4jBridge
 import zio.{Cause, LogLevel, UIO, ZIO, ZIOAspect}
 
 import scala.collection.JavaConverters._
@@ -15,8 +16,8 @@ class ZIOLogger(name: String, factory: ZIOLoggerFactory) extends MarkerIgnoringB
   private val shouldLogError   = factory.getLogLevel >= LogLevel.Error
 
   private val mdcKeys                              = factory.getFilterMdc
-  private val loggerNameAnnoKv                     = "@loggerName" -> name
-  private def threadNameAnnoKv(threadName: String) = "@threadName" -> threadName
+  private val loggerNameAnnoKv                     = Slf4jBridge.loggerNameAnno -> name
+  private def threadNameAnnoKv(threadName: String) = Slf4jBridge.threadNameAnno -> threadName
 
   private def run(f: (String, ZIO[Any, Nothing, Unit])): Unit = {
     factory.run(ZIO.logSpan(name) {

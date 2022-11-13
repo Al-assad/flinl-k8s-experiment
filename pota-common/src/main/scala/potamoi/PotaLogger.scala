@@ -22,8 +22,10 @@ object PotaLogger {
   /**
    * MDC keys that allowed to be received from non-zio Slf4j pipeline.
    */
-  private val defaultAcceptedSlf4jMdc = Set("@loggerName", "@threadName", "akkaSource")
-  private val excludeAnnoKeys         = Set("@loggerName", "@threadName")
+  private val defaultAcceptedSlf4jMdc = Set(Slf4jBridge.loggerNameAnno, Slf4jBridge.threadNameAnno, akkaSourceAnno)
+  private val excludeAnnoKeys         = Set(Slf4jBridge.loggerNameAnno, Slf4jBridge.threadNameAnno)
+
+  lazy val akkaSourceAnno = "akkaSource"
 
   /**
    * Generate Potamoi ZIO logger layer.

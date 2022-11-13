@@ -15,4 +15,7 @@ object Slf4jBridge {
       }
     }
 
+  val loggerNameAnno = "@loggerName"
+  val threadNameAnno = "@threadName"
+
 }
