@@ -9,7 +9,8 @@ lazy val ScalaTestVer    = "3.2.14"
 lazy val AkkaVer         = "2.6.20"
 lazy val CatsVer         = "2.8.0"
 lazy val ZIOVer          = "2.0.2"
-lazy val ZIOLoggingVer   = "2.1.2"
+lazy val ZIOLoggingVer   = "2.1.3"
+lazy val ZIOConfig       = "3.0.2"
 lazy val ZIOJsonVer      = "0.3.0"
 lazy val ZIOHttpVer      = "2.0.0-RC10"
 lazy val ZIOK8sVer       = "2.0.1"
@@ -51,7 +52,7 @@ lazy val root = (project in file("."))
   .settings(name := "potamoi")
   .aggregate(
     Seq(
-      potaSlf4jBridge,
+      potaTestKit,
       potaCommon,
       potaFs,
       potaK8s,
@@ -66,20 +67,22 @@ lazy val root = (project in file("."))
 
 lazy val testkitDeps = Seq(
   "org.scalatest"     %% "scalatest"                % ScalaTestVer % Test,
-  "com.typesafe.akka" %% "akka-actor-testkit-typed" % AkkaVer      % Test
+  "com.typesafe.akka" %% "akka-actor-testkit-typed" % AkkaVer      % Test,
 )
 
 /**
- * ZIO Slf4j bridge with MDC support.
+ * Testkit module.
  */
-lazy val potaSlf4jBridge = (projectMatrix in file("pota-slf4j-bridge"))
+lazy val potaTestKit = (projectMatrix in file("pota-testkit"))
   .settings(commonSettings)
   .settings(
-    name := "potamoi-slf4j",
+    name := "potamoi-testkit",
     libraryDependencies ++= Seq(
-      "org.slf4j" % "slf4j-api"   % Slf4jVer,
-      "dev.zio"  %% "zio"         % ZIOVer        % Provided,
-      "dev.zio"  %% "zio-logging" % ZIOLoggingVer % Provided
+      "org.scalatest"     %% "scalatest"                % ScalaTestVer,
+      "dev.zio"           %% "zio"                      % ZIOVer,
+      "dev.zio"           %% "zio-test"                 % ZIOVer,
+      "com.typesafe.akka" %% "akka-actor-typed"         % AkkaVer,
+      "com.typesafe.akka" %% "akka-actor-testkit-typed" % AkkaVer
     )
   )
   .jvmPlatform(scalaVersions = Seq(Scala213, Scala212))
@@ -91,28 +94,32 @@ lazy val potaCommon = (projectMatrix in file("pota-common"))
   .settings(commonSettings)
   .settings(
     name := "potamoi-common",
-    libraryDependencies ++= testkitDeps ++ Seq(
-      "com.typesafe"                   % "config"            % HoconVer,
-      "com.typesafe.akka"             %% "akka-actor-typed"  % AkkaVer,
-      "dev.zio"                       %% "zio"               % ZIOVer,
-      "dev.zio"                       %% "zio-logging"       % ZIOLoggingVer,
-      "dev.zio"                       %% "zio-logging-slf4j" % ZIOLoggingVer,
-      "dev.zio"                       %% "zio-concurrent"    % ZIOVer,
-      "dev.zio"                       %% "zio-macros"        % ZIOVer,
-      "dev.zio"                       %% "zio-json"          % ZIOJsonVer,
-      "org.typelevel"                 %% "cats-core"         % CatsVer,
-      "com.softwaremill.quicklens"    %% "quicklens"         % QuicklensVer,
-      "com.lihaoyi"                   %% "upickle"           % UpickleVer,
-      "com.lihaoyi"                   %% "pprint"            % PPrintVer,
-      "com.lihaoyi"                   %% "os-lib"            % OsLibVer,
-      "com.softwaremill.sttp.client3" %% "core"              % SttpVer,
-      "com.softwaremill.sttp.client3" %% "zio"               % SttpVer,
-      "com.softwaremill.sttp.client3" %% "zio-json"          % SttpVer,
-      "com.softwaremill.sttp.client3" %% "slf4j-backend"     % SttpVer
+    libraryDependencies ++= Seq(
+      "com.typesafe.akka"             %% "akka-actor-typed"    % AkkaVer,
+      "dev.zio"                       %% "zio"                 % ZIOVer,
+      "dev.zio"                       %% "zio-macros"          % ZIOVer,
+      "dev.zio"                       %% "zio-logging"         % ZIOLoggingVer,
+      "dev.zio"                       %% "zio-logging-slf4j"   % ZIOLoggingVer,
+      "org.slf4j"                      % "slf4j-api"           % Slf4jVer,
+      "dev.zio"                       %% "zio-config"          % ZIOConfig,
+      "dev.zio"                       %% "zio-config-magnolia" % ZIOConfig,
+      "dev.zio"                       %% "zio-config-typesafe" % ZIOConfig,
+      "com.typesafe"                   % "config"              % HoconVer,
+      "dev.zio"                       %% "zio-concurrent"      % ZIOVer,
+      "dev.zio"                       %% "zio-json"            % ZIOJsonVer,
+      "org.typelevel"                 %% "cats-core"           % CatsVer,
+      "com.lihaoyi"                   %% "upickle"             % UpickleVer,
+      "com.lihaoyi"                   %% "pprint"              % PPrintVer,
+      "com.lihaoyi"                   %% "os-lib"              % OsLibVer,
+      "com.softwaremill.quicklens"    %% "quicklens"           % QuicklensVer,
+      "com.softwaremill.sttp.client3" %% "core"                % SttpVer,
+      "com.softwaremill.sttp.client3" %% "zio"                 % SttpVer,
+      "com.softwaremill.sttp.client3" %% "zio-json"            % SttpVer,
+      "com.softwaremill.sttp.client3" %% "slf4j-backend"       % SttpVer
     )
   )
   .jvmPlatform(scalaVersions = Seq(Scala213, Scala212))
-  .dependsOn(potaSlf4jBridge)
+  .dependsOn(potaTestKit % Test)
 
 /**
  * Potamoi Cluster management module.
@@ -129,7 +136,7 @@ lazy val potaCluster = (projectMatrix in file("pota-cluster"))
     )
   )
   .jvmPlatform(scalaVersions = Seq(Scala213, Scala212))
-  .dependsOn(potaCommon)
+  .dependsOn(potaCommon, potaTestKit % Test)
 
 /**
  * File system handling module, such as s3 storage, local fs.
@@ -138,12 +145,12 @@ lazy val potaFs = (projectMatrix in file("pota-fs"))
   .settings(commonSettings)
   .settings(
     name := "potamoi-fs",
-    libraryDependencies ++= testkitDeps ++ Seq(
+    libraryDependencies ++= Seq(
       "io.minio" % "minio" % MinioVer excludeAll (ExclusionRule(organization = "com.fasterxml.jackson.core"))
     )
   )
   .jvmPlatform(scalaVersions = Seq(Scala213, Scala212))
-  .dependsOn(potaCommon)
+  .dependsOn(potaCommon, potaTestKit % Test)
 
 /**
  * kubernetes system interaction module.
@@ -152,12 +159,12 @@ lazy val potaK8s = (projectMatrix in file("pota-k8s"))
   .settings(commonSettings)
   .settings(
     name := "potamoi-k8s",
-    libraryDependencies ++= testkitDeps ++ Seq(
+    libraryDependencies ++= Seq(
       "com.coralogix" %% "zio-k8s-client" % ZIOK8sVer
     )
   )
   .jvmPlatform(scalaVersions = Seq(Scala213, Scala212))
-  .dependsOn(potaCommon)
+  .dependsOn(potaCommon, potaTestKit % Test)
 
 /**
  * Potamoi server module as an entry point for external interactions.
@@ -166,12 +173,12 @@ lazy val potaServer = (projectMatrix in file("pota-server"))
   .settings(commonSettings)
   .settings(
     name := "potamoi-server",
-    libraryDependencies ++= testkitDeps ++ Seq(
+    libraryDependencies ++= Seq(
       "io.d11" %% "zhttp" % ZIOHttpVer
     )
   )
   .jvmPlatform(scalaVersions = Seq(Scala213))
-  .dependsOn(potaCommon, potaFs, potaK8s, potaCluster)
+  .dependsOn(potaCommon, potaFs, potaK8s, potaCluster, potaTestKit % Test)
 
 /**
  * Flink operator module.
@@ -180,13 +187,13 @@ lazy val potaFlinkOperator = (projectMatrix in file("pota-flink-operator"))
   .settings(commonSettings)
   .settings(
     name := "potamoi-flink-operator",
-    libraryDependencies ++= testkitDeps ++ Seq(
+    libraryDependencies ++= Seq(
       "org.apache.flink" % "flink-clients"    % FlinkDefaultVer,
       "org.apache.flink" % "flink-kubernetes" % FlinkDefaultVer
     )
   )
   .jvmPlatform(scalaVersions = Seq(Scala213))
-  .dependsOn(potaCommon, potaFs, potaK8s, potaCluster)
+  .dependsOn(potaCommon, potaFs, potaK8s, potaCluster, potaTestKit % Test)
 
 /**
  * Basic implementation of the standalone flink sql interactive query service module.
@@ -195,13 +202,13 @@ lazy val potaFlinkSqlQueryBase = (projectMatrix in file("pota-flink-sql-query/fl
   .settings(commonSettings)
   .settings(
     name := "potamoi-flink-sql-query-base",
-    libraryDependencies ++= testkitDeps ++ Seq(
+    libraryDependencies ++= Seq(
       "org.apache.flink"  % "flink-clients"       % FlinkDefaultVer % Provided,
       "org.apache.flink" %% "flink-table-planner" % FlinkDefaultVer % Provided
     )
   )
   .jvmPlatform(scalaVersions = Seq(Scala212))
-  .dependsOn(potaCommon, potaCluster)
+  .dependsOn(potaCommon, potaCluster, potaTestKit % Test)
 
 def flinkSqlQueryDeps(flinkVer: String) = {
   val shortVer = flinkVer.split('.').slice(0, 2).mkString("").toInt
@@ -230,10 +237,10 @@ lazy val potaFlinkSqlQuery116 = (projectMatrix in file(s"pota-flink-sql-query/fl
   .settings(commonSettings)
   .settings(
     name := s"potamoi-flink-sql-query-116",
-    libraryDependencies ++= testkitDeps ++ flinkSqlQueryDeps(Flink116Ver)
+    libraryDependencies ++= flinkSqlQueryDeps(Flink116Ver)
   )
   .jvmPlatform(scalaVersions = Seq(Scala212))
-  .dependsOn(potaFlinkSqlQueryBase)
+  .dependsOn(potaFlinkSqlQueryBase, potaTestKit % Test)
 
 /**
  * Flink-1.15 implementation of flink-sql-query
@@ -242,10 +249,10 @@ lazy val potaFlinkSqlQuery115 = (projectMatrix in file(s"pota-flink-sql-query/fl
   .settings(commonSettings)
   .settings(
     name := s"potamoi-flink-sql-query-115",
-    libraryDependencies ++= testkitDeps ++ flinkSqlQueryDeps(Flink115Ver)
+    libraryDependencies ++= flinkSqlQueryDeps(Flink115Ver)
   )
   .jvmPlatform(scalaVersions = Seq(Scala212))
-  .dependsOn(potaFlinkSqlQueryBase)
+  .dependsOn(potaFlinkSqlQueryBase, potaTestKit % Test)
 
 /**
  * Flink-1.14 implementation of flink-sql-query
@@ -254,10 +261,10 @@ lazy val potaFlinkSqlQuery114 = (projectMatrix in file(s"pota-flink-sql-query/fl
   .settings(commonSettings)
   .settings(
     name := s"potamoi-flink-sql-query-114",
-    libraryDependencies ++= testkitDeps ++ flinkSqlQueryDeps(Flink114Ver)
+    libraryDependencies ++= flinkSqlQueryDeps(Flink114Ver)
   )
   .jvmPlatform(scalaVersions = Seq(Scala212))
-  .dependsOn(potaFlinkSqlQueryBase)
+  .dependsOn(potaFlinkSqlQueryBase, potaTestKit % Test)
 
 /**
  * Flink-1.13 implementation of flink-sql-query
@@ -266,7 +273,7 @@ lazy val potaFlinkSqlQuery113 = (projectMatrix in file(s"pota-flink-sql-query/fl
   .settings(commonSettings)
   .settings(
     name := s"potamoi-flink-sql-query-113",
-    libraryDependencies ++= testkitDeps ++ flinkSqlQueryDeps(Flink113Ver)
+    libraryDependencies ++= flinkSqlQueryDeps(Flink113Ver)
   )
   .jvmPlatform(scalaVersions = Seq(Scala212))
-  .dependsOn(potaFlinkSqlQueryBase)
+  .dependsOn(potaFlinkSqlQueryBase, potaTestKit % Test)
