@@ -68,19 +68,6 @@ object PotaConf {
    */
   def genMdDoc: String = generateDocs(descriptor[PotaConf]).toTable.toGithubFlavouredMarkdown
 
-  // TODO remove later
-  val dev = layer(
-    PotaConf(
-      nodeRoles = Set(NodeRole.Server, NodeRole.FlinkOperator, NodeRole.FlinkSqlInteractor),
-      s3 = S3Conf(
-        endpoint = "http://10.144.74.197:30255",
-        bucket = "flink-dev",
-        accessKey = "minio",
-        secretKey = "minio123",
-        accessStyle = S3AccessStyle.PathStyle
-      )
-    ))
-
 }
 
 private[conf] trait Resolvable {

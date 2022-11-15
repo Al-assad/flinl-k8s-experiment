@@ -9,6 +9,7 @@ import potamoi.fs.S3Err._
 import potamoi.syntax.GenericPF
 import zio.ZIO.succeed
 import zio._
+import zio.config.syntax.ZIOConfigNarrowOps
 import zio.macros.accessible
 
 import java.io.File
@@ -43,8 +44,8 @@ trait S3Operator {
 
 object S3Operator {
 
-  val live  = ZLayer(ZIO.service[PotaConf].map(conf => new Live(conf.s3)))
-  val live2 = ZLayer(ZIO.service[S3Conf].map(new Live(_)))
+  val live: ZLayer[PotaConf, Nothing, Live] = ZLayer.service[PotaConf].narrow(_.s3) >>> clive
+  val clive: ZLayer[S3Conf, Nothing, Live]  = ZLayer(ZIO.service[S3Conf].map(new Live(_)))
 
   class Live(s3Conf: S3Conf) extends S3Operator {
 

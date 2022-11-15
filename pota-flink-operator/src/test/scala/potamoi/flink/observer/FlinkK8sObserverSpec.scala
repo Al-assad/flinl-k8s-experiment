@@ -1,10 +1,9 @@
 package potamoi.flink.observer
 
 import potamoi.cluster.PotaActorSystem
-import potamoi.conf.PotaConf
 import potamoi.k8s.K8sClient
 import potamoi.logger.PotaLogger
-import potamoi.testkit.{STSpec, UnsafeEnv}
+import potamoi.testkit.{PotaDev, STSpec, UnsafeEnv}
 
 // TODO unsafe
 class FlinkK8sObserverSpec extends STSpec {
@@ -12,7 +11,7 @@ class FlinkK8sObserverSpec extends STSpec {
   import FlinkK8sObserver._
 
   val layers = {
-    PotaConf.dev >+>
+    PotaDev.confLayer >+>
     PotaLogger.live ++
     PotaActorSystem.live ++
     K8sClient.live >+>

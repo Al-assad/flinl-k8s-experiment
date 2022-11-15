@@ -1,13 +1,12 @@
 package potamoi.fs
 
 import potamoi.common.MimeType
-import potamoi.conf.PotaConf
-import potamoi.testkit.STSpec
-import zio.config.syntax.ZIOConfigNarrowOps
+import potamoi.testkit.{PotaDev, STSpec}
+import zio.ZLayer
 
 class S3OperatorSpec extends STSpec {
 
-  val layer = PotaConf.dev.narrow(_.s3) >>> S3Operator.live
+  val layer = ZLayer.succeed(PotaDev.conf.s3) >>> S3Operator.clive
 
   // TODO unsafe
   "s3 operator" should {
