@@ -68,6 +68,10 @@ object PotaConf {
    */
   def genMdDoc: String = generateDocs(descriptor[PotaConf]).toTable.toGithubFlavouredMarkdown
 
+  implicit class PotaConfLayerProjection[R, E](layer: ZLayer[R, E, PotaConf]) {
+    def change(f: PotaConf => PotaConf): ZLayer[R, E, PotaConf] = layer.project(f(_).resolve)
+  }
+
 }
 
 private[config] trait Resolvable {

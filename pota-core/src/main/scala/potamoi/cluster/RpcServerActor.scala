@@ -9,7 +9,7 @@ import potamoi.cluster.Rpc.MayBe
 import potamoi.common.ActorExtension._
 import potamoi.common.ActorInteropException
 import potamoi.common.ZIOExtension._
-import zio.{IO, ZIO}
+import zio.{IO, ULayer, ZIO}
 
 import scala.reflect.ClassTag
 
@@ -52,10 +52,9 @@ abstract class RpcServerActor[Proto: ClassTag] {
 
   /**
    * Binding actor receiving message behavior and ZIO behavior.
-   * TODO resolve logger layers
    */
-  protected def bind[E, A](reply: ActorRef[MayBe[E, A]], f: => IO[E, A]): Behavior[Proto] = {
-    f.either.map(reply ! MayBe(_)).runToFuture
+  protected def bind[E, A](logLayer: ULayer[Unit])(reply: ActorRef[MayBe[E, A]], f: => IO[E, A]): Behavior[Proto] = {
+    f.either.map(reply ! MayBe(_)).provideLayer(logLayer).runToFuture
     Behaviors.same
   }
 }

@@ -6,7 +6,7 @@ import zio.ZLayer
 
 class S3OperatorSpec extends STSpec {
 
-  val layer = ZLayer.succeed(PotaDev.conf.s3) >>> S3Operator.clive
+  val layer = ZLayer.succeed(PotaDev.rawConf.s3) >>> S3Operator.clive
 
   // TODO unsafe
   "s3 operator" should {

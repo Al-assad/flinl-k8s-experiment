@@ -11,7 +11,7 @@ class FlinkK8sObserverSpec extends STSpec {
   import FlinkK8sObserver._
 
   val layers = {
-    PotaDev.confLayer >+>
+    PotaDev.conf >+>
     PotaLogger.live ++
     PotaActorSystem.live ++
     K8sClient.live >+>

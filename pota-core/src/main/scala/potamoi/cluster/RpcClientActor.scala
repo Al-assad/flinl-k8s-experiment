@@ -48,23 +48,21 @@ abstract class RpcClientActor[Proto <: Product: ClassTag] {
     ctx.system.receptionist ! Receptionist.Subscribe(svcKey, ctx.messageAdapter[Listing](RefreshSvcList))
 
     Behaviors
-      .receiveMessage[Request] { msg =>
-        println("@yulin" + msg.getClass.getName)
-        msg match {
-          case RefreshSvcList(list) =>
-            svcList = list.serviceInstances(svcKey)
-            ctx.log.info(s"Discover remote rpc service for [$svcId], address=[${svcList.map(_.path.toString).mkString(", ")}]")
-            Behaviors.same
-          case CallRemote(cmd) =>
-            svcList.randomEle match {
-              case Some(actor) => actor ! cmd
-              case None        =>
-                // type unsafe, huh
-                val reply = cmd.productElement(cmd.productArity - 1).asInstanceOf[ActorRef[Any]]
-                reply ! MayBe(Left(RpcServerNotFound(svcId)))
-            }
-            Behaviors.same
-        }
+      .receiveMessage[Request] {
+        case RefreshSvcList(list) =>
+          svcList = list.serviceInstances(svcKey)
+          ctx.log.info(s"Discover remote rpc service for [$svcId], address=[${svcList.map(_.path.toString).mkString(", ")}]")
+          Behaviors.same
+
+        case CallRemote(cmd) =>
+          svcList.randomEle match {
+            case Some(actor) => actor ! cmd
+            case None        =>
+              // type unsafe, huh
+              val reply = cmd.productElement(cmd.productArity - 1).asInstanceOf[ActorRef[Any]]
+              reply ! MayBe(Left(RpcServerNotFound(svcId)))
+          }
+          Behaviors.same
       }
       .receiveSignal {
         case (ctx, PostStop) =>

@@ -15,7 +15,7 @@ import potamoi.testkit.{PotaDev, STSpec, UnsafeEnv}
 class FlinkK8sOperatorSpec extends STSpec {
 
   val layers = {
-    PotaDev.confLayer >+>
+    PotaDev.conf >+>
     PotaLogger.live ++ K8sClient.live ++ PotaActorSystem.live >+>
     S3Operator.live ++ FlinkK8sObserverImpl.live >>>
     FlinkK8sOperatorImpl.live

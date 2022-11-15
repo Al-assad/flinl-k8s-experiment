@@ -5,10 +5,11 @@ import akka.util.Timeout
 import potamoi.cluster.ActorCradle.{Ack, SpawnActor, SpawnAnonymousActor}
 import potamoi.common.ActorExtension.ActorRefWrapper
 import potamoi.common.ActorInteropException
-import potamoi.config.PotaConf
+import potamoi.config.{AkkaConf, PotaConf}
 import potamoi.timex._
 import zio.ZIO.attempt
 import zio._
+import zio.config.syntax.ZIOConfigNarrowOps
 
 /**
  * Potamoi ActorSystem layer.
@@ -17,19 +18,21 @@ object PotaActorSystem {
 
   type ActorGuardian = ActorSystem[ActorCradle.Cmd]
 
-  val live: ZLayer[PotaConf, Throwable, ActorGuardian] =
+  val clive: ZLayer[AkkaConf, Throwable, ActorGuardian] =
     ZLayer.scoped {
       for {
-        potaConf   <- ZIO.service[PotaConf]
-        akkaConfig <- potaConf.akka.toAkkaRawConfig
+        akkaConf    <- ZIO.service[AkkaConf]
+        rawAkkaConf <- akkaConf.toAkkaRawConfig
         system <-
           ZIO.acquireRelease {
-            attempt(ActorSystem(ActorCradle(), potaConf.akka.systemName, akkaConfig))
+            attempt(ActorSystem(ActorCradle(), akkaConf.systemName, rawAkkaConf))
           } { system =>
             attempt(system.terminate()).ignore
           }
       } yield system
     }
+
+  val live: ZLayer[PotaConf, Throwable, ActorGuardian] = ZLayer.service[PotaConf].narrow(_.akka) >>> clive
 
   implicit class ActorGuardianExtension(system: ActorGuardian) {
 

@@ -12,13 +12,13 @@ import zio.config.syntax.ZIOConfigNarrowOps
  */
 object K8sClient {
 
-  val live: ZLayer[PotaConf, Throwable, Kubernetes] = ZLayer.service[PotaConf].narrow(_.k8s) >>> clive
-
   val clive: ZLayer[K8sConf, Throwable, Kubernetes] = ZLayer.service[K8sConf].flatMap { conf =>
     val configChain = defaultConfigChain.update { chain =>
       chain.modify(_.client.debug).setTo(conf.get.debug)
     }
     (configChain >>> (k8sCluster ++ httpclient.k8sSttpClient)) >>> Kubernetes.live
   }
+
+  val live: ZLayer[PotaConf, Throwable, Kubernetes] = ZLayer.service[PotaConf].narrow(_.k8s) >>> clive
 
 }

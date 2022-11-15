@@ -2,13 +2,13 @@ package potamoi.cluster.rpc
 
 import akka.actor.typed.{ActorRef, Scheduler}
 import akka.util.Timeout
-import potamoi.cluster.{CborSerializable, RpcClientActor, RpcServerActor}
 import potamoi.cluster.Rpc.{ProtoReply, ProtoReq}
-import potamoi.cluster.rpc.BotErr.Err
+import potamoi.cluster.{CborSerializable, RpcClientActor, RpcServerActor}
 import potamoi.common.ActorInteropException
-import zio.Console.printLine
+import potamoi.config.PotaConf
+import potamoi.logger.PotaLogger
+import zio.ZIO.{logInfo, succeed}
 import zio.{IO, ZIO, ZLayer}
-import zio.ZIO.succeed
 
 import scala.concurrent.duration.DurationInt
 import scala.language.implicitConversions
@@ -47,8 +47,8 @@ object BotProto {
  * Server effect implementation.
  */
 class BotImpl extends Bot {
-  override def touch(): IO[BotErr, Unit]              = printLine("Bot has been touched!").mapError(e => Err(e.getMessage))
-  override def greet(msg: String): IO[BotErr, String] = succeed(s"Reply from Bot : Hello, $msg")
+  override def touch(): IO[BotErr, Unit]              = logInfo("Bot has been touched!")
+  override def greet(msg: String): IO[BotErr, String] = logInfo("Bot has been greeted!") *> succeed(s"Reply from Bot : Hello, $msg")
 }
 
 object BotImpl {
@@ -61,12 +61,14 @@ object BotImpl {
 object BotRpcServer extends RpcServerActor[BotProto.Req] {
   import BotProto._
 
-  val init = ZIO.service[Bot].flatMap { impl =>
-    provideActor(SvcId) {
-      case Touch(reply)      => bind(reply, impl.touch())
-      case Greet(msg, reply) => bind(reply, impl.greet(msg))
+  val init = for {
+    impl <- ZIO.service[Bot]
+    log  <- ZIO.service[PotaConf].map(_.log).map(PotaLogger.layer)
+    actor <- provideActor(SvcId) {
+      case Touch(reply)      => bind(log)(reply, impl.touch())
+      case Greet(msg, reply) => bind(log)(reply, impl.greet(msg))
     }
-  }
+  } yield actor
 }
 
 /**

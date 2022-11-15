@@ -44,8 +44,8 @@ trait S3Operator {
 
 object S3Operator {
 
-  val live: ZLayer[PotaConf, Nothing, Live] = ZLayer.service[PotaConf].narrow(_.s3) >>> clive
   val clive: ZLayer[S3Conf, Nothing, Live]  = ZLayer(ZIO.service[S3Conf].map(new Live(_)))
+  val live: ZLayer[PotaConf, Nothing, Live] = ZLayer.service[PotaConf].narrow(_.s3) >>> clive
 
   class Live(s3Conf: S3Conf) extends S3Operator {
 

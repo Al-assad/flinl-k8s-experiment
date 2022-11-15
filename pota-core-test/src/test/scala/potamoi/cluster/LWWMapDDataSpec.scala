@@ -77,7 +77,7 @@ class LWWMapDDataSpec extends STActorClusterSpec {
     def apply(): Behavior[Cmd] = Behaviors.setup { implicit ctx =>
       implicit val node             = DistributedData(ctx.system).selfUniqueAddress
       implicit val timeout: Timeout = 2.seconds
-      action(DDataConf())
+      action(DDataConf())()
     }
   }
 

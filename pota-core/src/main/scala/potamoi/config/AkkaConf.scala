@@ -17,7 +17,9 @@ import scala.concurrent.duration.{Duration, DurationInt}
  */
 case class AkkaConf(
     @name("sys-name") systemName: String = "potamoi",
-    @name("port") arteryPort: Int = 3300,
+    @name("host") host: Option[String] = None,
+    @name("port") port: Int = 3300,
+    @name("seeds-address") seedsAddress: Set[String] = Set.empty,
     @name("default-ask-timeout") defaultAskTimeout: Duration = 5.seconds,
     @name("loglevel") logLevel: String = "INFO",
     @name("over-node-roles") overNodeRoles: Set[String] = Set.empty,
@@ -35,25 +37,34 @@ case class AkkaConf(
   }
 
   def toAkkaRawConfig: IO[Throwable, Config] = ZIO.attempt {
-    val conf = ConfigFactory.parseString(
-      s"""akka.loglevel = $logLevel
-         |akka.actor.provider = cluster
-         |akka.actor.serializers {
-         |   jackson-cbor = "akka.serialization.jackson.JacksonCborSerializer"
-         |   jackson-json = "akka.serialization.jackson.JacksonJsonSerializer"
-         |}
-         |akka.actor.serialization-bindings {
-         |   "$cborSerializableClzPath" = jackson-cbor
-         |   "$jsonSerializableClzPath" = jackson-json
-         |}
-         |akka.remote.artery.canonical = $arteryPort
-         |akka.cluster.roles = [${overNodeRoles.mkString(",")}]
-         |akka.cluster.downing-provider-class = "akka.cluster.sbr.SplitBrainResolverProvider"
-         |akka.cluster.sharding.remember-entities-store = ddata
-         |akka.cluster.shutdown-after-unsuccessful-join-seed-nodes = $seedsJoinTolerance
-         |coordinated-shutdown.exit-jvm = on
-         |""".stripMargin
-    )
+    val seedNodeConfs = seedsAddress.map(a => s""""akka://$systemName@$a"""").mkString(",")
+    val conf = ConfigFactory
+      .parseString(s"""
+                      |akka.loglevel = $logLevel
+                      |akka.actor {
+                      | provider = cluster
+                      | serializers {
+                      |   jackson-cbor = "akka.serialization.jackson.JacksonCborSerializer"
+                      |   jackson-json = "akka.serialization.jackson.JacksonJsonSerializer"
+                      | }
+                      | serialization-bindings {
+                      |   "$cborSerializableClzPath" = jackson-cbor
+                      |   "$jsonSerializableClzPath" = jackson-json
+                      | }
+                      |}
+                      |akka.remote.artery.canonical {
+                      |  port = $port
+                      |  ${if (host.isDefined) s"hostname = ${host.get}"}
+                      |}
+                      |akka.cluster {
+                      |  roles = [${overNodeRoles.mkString(",")}]
+                      |  ${if (seedNodeConfs.nonEmpty) s"seed-nodes = [$seedNodeConfs]"}
+                      |  downing-provider-class = "akka.cluster.sbr.SplitBrainResolverProvider"
+                      |  shutdown-after-unsuccessful-join-seed-nodes = $seedsJoinTolerance
+                      |}
+                      |akka.cluster.sharding.remember-entities-store = ddata
+                      |coordinated-shutdown.exit-jvm = on
+                      |""".stripMargin)
     extRawAkkaConfig match {
       case None      => conf
       case Some(ext) => ConfigFactory.parseString(ext).withFallback(conf)
