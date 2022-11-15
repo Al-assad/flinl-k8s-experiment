@@ -1,6 +1,6 @@
 package potamoi.flink.share
 
-import potamoi.conf.{FlinkConf, FlkRestEndpointType}
+import potamoi.config.{FlinkConf, FlkRestEndpointType}
 
 /**
  * K8s svc endpoint of flink rest-service.

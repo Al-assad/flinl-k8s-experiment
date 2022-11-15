@@ -1,11 +1,11 @@
-package potamoi.conf
+package potamoi.config
 
 import com.softwaremill.quicklens.ModifyPimp
 import com.typesafe.config.{Config, ConfigFactory}
 import potamoi.common
-import potamoi.conf.AkkaConf.{cborSerializableClzPath, jsonSerializableClzPath}
-import potamoi.conf.DDataReadLevel.ReadLocal
-import potamoi.conf.DDataWriteLevel.WriteLocal
+import potamoi.config.AkkaConf.{cborSerializableClzPath, jsonSerializableClzPath}
+import potamoi.config.DDataReadLevel.ReadLocal
+import potamoi.config.DDataWriteLevel.WriteLocal
 import zio.config.magnolia.name
 import zio.json.{DeriveJsonCodec, JsonCodec}
 import zio.{IO, ZIO}

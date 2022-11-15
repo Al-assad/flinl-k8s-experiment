@@ -3,7 +3,7 @@ package potamoi.k8s
 import com.coralogix.zio.k8s.client.config.{defaultConfigChain, httpclient, k8sCluster}
 import com.coralogix.zio.k8s.client.kubernetes.Kubernetes
 import com.softwaremill.quicklens.ModifyPimp
-import potamoi.conf.{K8sConf, PotaConf}
+import potamoi.config.{K8sConf, PotaConf}
 import zio.ZLayer
 import zio.config.syntax.ZIOConfigNarrowOps
 

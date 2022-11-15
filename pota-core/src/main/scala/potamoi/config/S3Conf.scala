@@ -1,8 +1,8 @@
-package potamoi.conf
+package potamoi.config
 
 import potamoi.common.ComplexEnum
 import potamoi.common.Syntax.GenericPF
-import potamoi.conf.S3AccessStyle.{PathStyle, S3AccessStyle, VirtualHostedStyle}
+import potamoi.config.S3AccessStyle.{PathStyle, S3AccessStyle, VirtualHostedStyle}
 import zio.config.magnolia.name
 import zio.json.{DeriveJsonCodec, JsonCodec}
 

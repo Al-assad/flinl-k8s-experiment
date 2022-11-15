@@ -3,7 +3,7 @@ package potamoi.flink.observer
 import akka.actor.typed.Behavior
 import akka.cluster.ddata.typed.scaladsl.Replicator.{ReadLocal, WriteLocal}
 import potamoi.cluster.LWWMapDData
-import potamoi.conf.AkkaConf
+import potamoi.config.AkkaConf
 import potamoi.flink.share.{Fcid, FlinkRestSvcEndpoint}
 import potamoi.timex._
 

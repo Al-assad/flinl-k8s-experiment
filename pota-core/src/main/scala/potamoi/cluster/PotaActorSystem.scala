@@ -5,7 +5,7 @@ import akka.util.Timeout
 import potamoi.cluster.ActorCradle.{Ack, SpawnActor, SpawnAnonymousActor}
 import potamoi.common.ActorExtension.ActorRefWrapper
 import potamoi.common.ActorInteropException
-import potamoi.conf.PotaConf
+import potamoi.config.PotaConf
 import potamoi.timex._
 import zio.ZIO.attempt
 import zio._

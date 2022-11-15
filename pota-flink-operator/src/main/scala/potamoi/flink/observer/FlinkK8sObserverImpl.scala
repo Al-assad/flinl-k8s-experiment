@@ -6,7 +6,7 @@ import com.coralogix.zio.k8s.client.NotFound
 import com.coralogix.zio.k8s.client.kubernetes.Kubernetes
 import potamoi.cluster.PotaActorSystem.{ActorGuardian, ActorGuardianExtension}
 import potamoi.common.ActorExtension.ActorRefWrapper
-import potamoi.conf.PotaConf
+import potamoi.config.PotaConf
 import potamoi.flink.observer.FlinkObrErr.{ActorInteropErr, ClusterNotFound, RequestFlinkRestApiErr, TriggerTimeout}
 import potamoi.flink.operator.flinkRest
 import potamoi.flink.share._

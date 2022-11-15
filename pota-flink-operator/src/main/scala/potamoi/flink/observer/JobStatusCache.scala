@@ -8,7 +8,7 @@ import akka.cluster.ddata.typed.scaladsl.Replicator.{ReadLocal, WriteLocal}
 import akka.util.Timeout
 import potamoi.cluster.LWWMapDData
 import potamoi.common.ActorExtension.BehaviorWrapper
-import potamoi.conf.AkkaConf
+import potamoi.config.AkkaConf
 import potamoi.flink.share.{Fcid, Fjid, FlinkJobStatus, JobId}
 import potamoi.timex._
 

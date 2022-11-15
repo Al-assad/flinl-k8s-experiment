@@ -1,4 +1,4 @@
-package potamoi.conf
+package potamoi.config
 
 import zio.json.{DeriveJsonCodec, JsonCodec}
 

@@ -2,7 +2,7 @@ package potamoi.flink.observer
 
 import akka.util.Timeout
 import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
-import potamoi.conf.AkkaConf
+import potamoi.config.AkkaConf
 import potamoi.flink.observer.RestEptCache._
 import potamoi.flink.share.FlinkRestSvcEndpoint
 import potamoi.testkit.STActorClusterSpec

@@ -1,8 +1,8 @@
 package potamoi.fs
 
 import potamoi.common.{FailStackFill, PotaFail}
-import potamoi.conf.S3AccessStyle.S3AccessStyle
-import potamoi.conf.S3Conf
+import potamoi.config.S3AccessStyle.S3AccessStyle
+import potamoi.config.S3Conf
 
 /**
  * S3 operation failure.

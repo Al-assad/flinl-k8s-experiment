@@ -7,7 +7,7 @@ import org.apache.flink.client.deployment.application.ApplicationConfiguration
 import org.apache.flink.client.deployment.{ClusterClientFactory, DefaultClusterClientServiceLoader}
 import potamoi.common.PathTool.{getFileName, isS3Path}
 import potamoi.common.ZIOExtension.usingAttempt
-import potamoi.conf.PotaConf
+import potamoi.config.PotaConf
 import potamoi.flink.observer.FlinkK8sObserver
 import potamoi.flink.operator.FlinkConfigExtension.{configurationToPF, EmptyConfiguration}
 import potamoi.flink.operator.FlinkOprErr._

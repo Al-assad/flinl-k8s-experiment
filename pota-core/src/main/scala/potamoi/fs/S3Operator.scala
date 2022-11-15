@@ -3,8 +3,8 @@ package potamoi.fs
 import io.minio._
 import io.minio.errors.ErrorResponseException
 import potamoi.common.PathTool.purePath
-import potamoi.conf.S3AccessStyle.PathStyle
-import potamoi.conf.{PotaConf, S3Conf}
+import potamoi.config.S3AccessStyle.PathStyle
+import potamoi.config.{PotaConf, S3Conf}
 import potamoi.fs.S3Err._
 import potamoi.syntax.GenericPF
 import zio.ZIO.succeed

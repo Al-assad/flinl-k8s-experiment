@@ -1,4 +1,4 @@
-package potamoi.conf
+package potamoi.config
 
 import org.slf4j.LoggerFactory
 import potamoi.common.TestActor

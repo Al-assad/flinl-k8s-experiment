@@ -1,8 +1,8 @@
-package potamoi.conf
+package potamoi.config
 
 import com.softwaremill.quicklens.ModifyPimp
 import potamoi.common.ComplexEnum
-import potamoi.conf.FlkRestEndpointType.FlkRestEndpointType
+import potamoi.config.FlkRestEndpointType.FlkRestEndpointType
 import potamoi.{common, pathx}
 import zio.config.magnolia.name
 import zio.json.{DeriveJsonCodec, JsonCodec}

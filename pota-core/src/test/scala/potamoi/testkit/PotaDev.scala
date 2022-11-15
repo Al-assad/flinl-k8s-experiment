@@ -1,6 +1,6 @@
 package potamoi.testkit
 
-import potamoi.conf.{NodeRole, PotaConf, S3AccessStyle, S3Conf}
+import potamoi.config.{NodeRole, PotaConf, S3AccessStyle, S3Conf}
 import zio.ZLayer
 
 object PotaDev {

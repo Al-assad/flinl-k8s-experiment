@@ -2,7 +2,7 @@ package potamoi.flink.observer
 
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior}
-import potamoi.conf.FlinkConf
+import potamoi.config.FlinkConf
 import potamoi.flink.observer.TrackersDispatcher.unMarshallFcid
 import potamoi.flink.operator.flinkRest
 import potamoi.flink.share.{Fcid, Fjid, FlinkJobStatus}

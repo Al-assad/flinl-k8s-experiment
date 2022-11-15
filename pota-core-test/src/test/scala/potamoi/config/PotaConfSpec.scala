@@ -1,4 +1,4 @@
-package potamoi.conf
+package potamoi.config
 
 import S3AccessStyle.{PathStyle, VirtualHostedStyle}
 import potamoi.testkit.STSpec

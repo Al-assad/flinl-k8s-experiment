@@ -1,7 +1,7 @@
 package potamoi.logger
 
 import potamoi.common.ComplexEnum
-import potamoi.conf.{LogConf, PotaConf}
+import potamoi.config.{LogConf, PotaConf}
 import potamoi.logger.LogsLevel.{toZIOLogLevel, LogsLevel}
 import potamoi.logger.LogsStyle.LogsStyle
 import potamoi.syntax._

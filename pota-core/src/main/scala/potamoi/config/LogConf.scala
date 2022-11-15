@@ -1,4 +1,4 @@
-package potamoi.conf
+package potamoi.config
 
 import com.softwaremill.quicklens.ModifyPimp
 import potamoi.logger.LogsLevel.LogsLevel

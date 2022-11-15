@@ -6,7 +6,7 @@ import io.circe.syntax._
 import io.circe.yaml.parser.{parse => parseYaml}
 import io.circe.yaml.syntax._
 import potamoi.common.PathTool.{isS3Path, purePath}
-import potamoi.conf.PotaConf
+import potamoi.config.PotaConf
 import potamoi.flink.operator.FlinkOprErr.{DecodePodTemplateYamlErr, EncodePodTemplateYamlErr, GenPodTemplateErr, IOErr}
 import potamoi.flink.share.{FlinkAppClusterDef, FlinkClusterDef}
 import potamoi.fs.lfs

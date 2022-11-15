@@ -1,7 +1,7 @@
-package potamoi.conf
+package potamoi.config
 
 import com.typesafe.config.{Config, ConfigFactory}
-import potamoi.conf.NodeRole.NodeRole
+import potamoi.config.NodeRole.NodeRole
 import potamoi.syntax._
 import zio.ZIO.{attempt, logInfo}
 import zio.config.magnolia.{descriptor, name}
@@ -70,6 +70,6 @@ object PotaConf {
 
 }
 
-private[conf] trait Resolvable {
+private[config] trait Resolvable {
   def resolve: PotaConf => PotaConf = identity
 }
