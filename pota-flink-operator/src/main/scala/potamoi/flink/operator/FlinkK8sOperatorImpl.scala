@@ -26,11 +26,11 @@ import scala.language.implicitConversions
  * Default FlinkK8sOperator implementation.
  */
 object FlinkK8sOperatorImpl {
-  val live = ZLayer {
+  val live: ZLayer[FlinkK8sObserver with S3Operator with Kubernetes with PotaConf, Nothing, FlinkK8sOperator] = ZLayer {
     for {
-      potaConf <- ZIO.service[PotaConf]
-      k8sClient <- ZIO.service[Kubernetes]
-      s3Operator <- ZIO.service[S3Operator]
+      potaConf      <- ZIO.service[PotaConf]
+      k8sClient     <- ZIO.service[Kubernetes]
+      s3Operator    <- ZIO.service[S3Operator]
       flinkObserver <- ZIO.service[FlinkK8sObserver]
     } yield new FlinkK8sOperatorImpl(potaConf, k8sClient, s3Operator, flinkObserver)
   }

@@ -75,7 +75,11 @@ object AkkaConf {
 case class DDataConfs(
     @name("default") default: DDataConf = DDataConf(),
     @name("flink-job-status") flinkJobStatus: Option[DDataConf] = None,
-    @name("flink-rest-endpoint") flinkRestEndpoint: Option[DDataConf] = None)
+    @name("flink-rest-endpoint") flinkRestEndpoint: Option[DDataConf] = None) {
+
+  def getFlinkJobStatus: DDataConf    = flinkJobStatus.getOrElse(default)
+  def getFlinkRestEndpoint: DDataConf = flinkRestEndpoint.getOrElse(default)
+}
 
 object DDataConfs {
   implicit val codec: JsonCodec[DDataConfs] = DeriveJsonCodec.gen[DDataConfs]

@@ -3,8 +3,8 @@ package potamoi.cluster
 import akka.actor.typed.scaladsl.Behaviors
 import akka.actor.typed.{ActorRef, Behavior}
 import akka.cluster.ddata.typed.scaladsl.DistributedData
-import akka.cluster.ddata.typed.scaladsl.Replicator.{ReadLocal, WriteLocal}
 import akka.util.Timeout
+import potamoi.config.DDataConf
 import potamoi.testkit.STActorClusterSpec
 
 import scala.concurrent.duration.DurationInt
@@ -72,14 +72,12 @@ class LWWMapDDataSpec extends STActorClusterSpec {
 
   object SimpleLWWMapActor extends LWWMapDData[String, String] {
 
-    val cacheId    = "simple"
-    val writeLevel = WriteLocal
-    val readLevel  = ReadLocal
+    val cacheId = "simple"
 
     def apply(): Behavior[Cmd] = Behaviors.setup { implicit ctx =>
       implicit val node             = DistributedData(ctx.system).selfUniqueAddress
       implicit val timeout: Timeout = 2.seconds
-      action()
+      action(DDataConf())
     }
   }
 
@@ -89,14 +87,11 @@ class LWWMapDDataSpec extends STActorClusterSpec {
     final case class LessThan(n: Int, reply: ActorRef[Set[String]])   extends GetCmd
     final case class Incr(key: String, inc: Int)                      extends UpdateCmd
 
-    val cacheId    = "ext"
-    val writeLevel = WriteLocal
-    val readLevel  = ReadLocal
+    val cacheId = "ext"
 
     def apply(): Behavior[Cmd] = Behaviors.setup { implicit ctx =>
-      implicit val node             = DistributedData(ctx.system).selfUniqueAddress
-      implicit val timeout: Timeout = 2.seconds
-      action(
+      implicit val node = DistributedData(ctx.system).selfUniqueAddress
+      action(DDataConf())(
         get = {
           case (BiggerThan(n, reply), map) => reply ! map.entries.filter(_._2 > n).keySet
           case (LessThan(n, reply), map)   => reply ! map.entries.filter(_._2 < n).keySet

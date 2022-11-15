@@ -4,11 +4,9 @@ import akka.actor.typed.SupervisorStrategy.restart
 import akka.actor.typed.scaladsl.Behaviors
 import akka.actor.typed.{ActorRef, Behavior}
 import akka.cluster.ddata.typed.scaladsl.DistributedData
-import akka.cluster.ddata.typed.scaladsl.Replicator.{ReadLocal, WriteLocal}
-import akka.util.Timeout
 import potamoi.cluster.LWWMapDData
 import potamoi.common.ActorExtension.BehaviorWrapper
-import potamoi.config.AkkaConf
+import potamoi.config.DDataConf
 import potamoi.flink.share.{Fcid, Fjid, FlinkJobStatus, JobId}
 import potamoi.timex._
 
@@ -17,9 +15,7 @@ import potamoi.timex._
  */
 private[observer] object JobStatusCache extends LWWMapDData[Fjid, FlinkJobStatus] {
 
-  val cacheId    = "flink-job-status"
-  val writeLevel = WriteLocal
-  val readLevel  = ReadLocal
+  val cacheId = "flink-job-status"
 
   final case class ListJobIdUnderFcid(fcid: Fcid, reply: ActorRef[Vector[JobId]])           extends GetCmd
   final case class ListRecordUnderFcid(fcid: Fcid, reply: ActorRef[Vector[FlinkJobStatus]]) extends GetCmd
@@ -32,13 +28,12 @@ private[observer] object JobStatusCache extends LWWMapDData[Fjid, FlinkJobStatus
 
   final case class RemoveRecordUnderFcid(fcid: Fcid) extends UpdateCmd
 
-  def apply(akkaConf: AkkaConf): Behavior[Cmd] =
+  def apply(conf: DDataConf): Behavior[Cmd] =
     Behaviors.setup { implicit ctx =>
-      implicit val node             = DistributedData(ctx.system).selfUniqueAddress
-      implicit val timeout: Timeout = akkaConf.defaultAskTimeout
+      implicit val node = DistributedData(ctx.system).selfUniqueAddress
       ctx.log.info(s"Distributed data actor[$cacheId] started.")
 
-      action(
+      action(conf)(
         get = { (cmd, cache) =>
           cmd match {
             case ListJobIdUnderFcid(fcid, reply)  => reply ! cache.entries.keys.filter(_.isUnder(fcid)).map(_.jobId).toVector

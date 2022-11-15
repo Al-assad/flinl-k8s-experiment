@@ -21,13 +21,13 @@ import scala.concurrent.duration.Duration
  * Default FlinkK8sObserver implementation.
  */
 object FlinkK8sObserverImpl {
-  val live = ZLayer {
+  val live: ZLayer[ActorGuardian with Kubernetes with PotaConf, Throwable, FlinkK8sObserver] = ZLayer {
     for {
       potaConf        <- ZIO.service[PotaConf]
       k8sClient       <- ZIO.service[Kubernetes]
       guardian        <- ZIO.service[ActorGuardian]
-      restEptCache    <- guardian.spawn(RestEptCache(potaConf.akka), "flinkRestEndpointCache")
-      jobStatusCache  <- guardian.spawn(JobStatusCache(potaConf.akka), "flinkJobStatusCache")
+      restEptCache    <- guardian.spawn(RestEptCache(potaConf.akka.ddata.getFlinkRestEndpoint), "flinkRestEndpointCache")
+      jobStatusCache  <- guardian.spawn(JobStatusCache(potaConf.akka.ddata.getFlinkJobStatus), "flinkJobStatusCache")
       observer        <- ZIO.succeed(new FlinkK8sObserverImpl(potaConf, k8sClient, restEptCache, jobStatusCache)(guardian.scheduler))
       trackDispatcher <- guardian.spawn(TrackersDispatcher(potaConf.flink, jobStatusCache, observer), "flinkTrackersDispatcher")
       _               <- ZIO.succeed(observer.bindTrackDispatcher(trackDispatcher))
