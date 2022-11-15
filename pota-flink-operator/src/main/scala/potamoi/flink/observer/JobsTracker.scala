@@ -2,14 +2,15 @@ package potamoi.flink.observer
 
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior}
-import potamoi.ziox._
 import potamoi.conf.FlinkConf
 import potamoi.flink.observer.TrackersDispatcher.unMarshallFcid
 import potamoi.flink.operator.flinkRest
 import potamoi.flink.share.{Fcid, Fjid, FlinkJobStatus}
+import potamoi.timex._
+import potamoi.ziox._
 import zio.Schedule.spaced
 import zio.ZIO.attempt
-import zio.{CancelableFuture, Duration, Ref}
+import zio.{CancelableFuture, Ref}
 
 /**
  * Job overview info tracker for single flink cluster.
@@ -33,7 +34,6 @@ import potamoi.flink.observer.JobsTracker._
 private class JobsTracker(fcid: Fcid, flinkConf: FlinkConf, jobOvCache: ActorRef[JobStatusCache.Cmd], flinkObserver: FlinkK8sObserver)(
     implicit ctx: ActorContext[JobsTracker.Cmd]) {
 
-  private val pollInterval                         = Duration.fromMillis(flinkConf.trackingJobPollInterval.toMillis)
   private var proc: Option[CancelableFuture[Unit]] = None
 
   def action: Behavior[Cmd] = Behaviors.receiveMessage {
@@ -70,7 +70,7 @@ private class JobsTracker(fcid: Fcid, flinkConf: FlinkConf, jobOvCache: ActorRef
 
     for {
       state <- Ref.make(Vector.empty[FlinkJobStatus])
-      _     <- touchApi(state).ignore.schedule(spaced(pollInterval)).forever
+      _     <- touchApi(state).ignore.schedule(spaced(flinkConf.tracking.jobPolling)).forever
     } yield ()
   }
 

@@ -169,7 +169,7 @@ class FlinkK8sObserverImpl(
       rs <- flinkRest(restUrl)
         .getSavepointOperationStatus(fjid.jobId, triggerId)
         .mapError(RequestFlinkRestApiErr)
-        .repeatUntilZIO(r => if (r.isCompleted) succeed(true) else succeed(false).delay(flinkConf.trackingSptTriggerPollInterval))
+        .repeatUntilZIO(r => if (r.isCompleted) succeed(true) else succeed(false).delay(flinkConf.tracking.savepointTriggerPolling))
         .timeoutFail(TriggerTimeout)(timeout)
     } yield rs
   } @@ ZIOAspect.annotated(fjid.toAnno :+ "flink.triggerId" -> triggerId: _*)
