@@ -1,14 +1,12 @@
 package potamoi
 
-import com.coralogix.zio.k8s.client.{CodingFailure, DeserializationFailure, K8sFailure, RequestFailure}
 import com.coralogix.zio.k8s.client.model.K8sNamespace
+import com.coralogix.zio.k8s.client.{CodingFailure, DeserializationFailure, K8sFailure, RequestFailure}
 import io.circe.Errors
 
 import scala.language.implicitConversions
 
 package object k8s {
-
-  implicit def stringToK8sNamespace(namespace: String): K8sNamespace = K8sNamespace(namespace)
 
   /**
    * Find direct Java Throwable from [[K8sFailure]].
@@ -21,4 +19,7 @@ package object k8s {
       case _                                 => None
     }
   }
+
+  implicit def stringToK8sNamespace(namespace: String): K8sNamespace = K8sNamespace(namespace)
+
 }

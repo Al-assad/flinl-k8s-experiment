@@ -53,7 +53,7 @@ private class JobsTracker(fcid: Fcid, flinkConf: FlinkConf, jobOvCache: ActorRef
   private def pollingJobOverviewInfo = {
     def touchApi(state: Ref[Vector[FlinkJobStatus]]) = for {
       restUrl    <- flinkObserver.retrieveRestEndpoint(fcid)
-      curCollect <- flinkRest(restUrl.chooseUrl(flinkConf)).listJobOverviewInfo.map(_.map(_.toFlinkJobStatus))
+      curCollect <- flinkRest(restUrl.chooseUrl(flinkConf)).listJobOverviewInfo.map(_.map(_.toFlinkJobStatus(fcid)))
       preCollect <- state.get
       (puts, removes) = {
         val intersect = curCollect intersect preCollect

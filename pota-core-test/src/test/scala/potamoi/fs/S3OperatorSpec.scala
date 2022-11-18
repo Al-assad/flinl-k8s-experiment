@@ -4,11 +4,12 @@ import potamoi.common.MimeType
 import potamoi.testkit.{PotaDev, STSpec}
 import zio.ZLayer
 
+
+// TODO unsafe
 class S3OperatorSpec extends STSpec {
 
   val layer = ZLayer.succeed(PotaDev.rawConf.s3) >>> S3Operator.clive
 
-  // TODO unsafe
   "s3 operator" should {
     "download" in {
       S3Operator

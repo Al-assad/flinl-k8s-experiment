@@ -94,7 +94,7 @@ class FlinkK8sOperatorSpec extends STSpec {
           ))
         .provide(layers)
         .debug
-        .run
+        .runSpec
     }
     "with user jar on s3" taggedAs UnsafeEnv in {
       FlinkK8sOperator

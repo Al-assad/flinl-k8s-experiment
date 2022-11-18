@@ -12,12 +12,14 @@ lazy val ZIOConfig     = "3.0.2"
 lazy val ZIOJsonVer    = "0.3.0"
 lazy val ZIOHttpVer    = "2.0.0-RC10"
 lazy val ZIOK8sVer     = "2.0.1"
+lazy val Fabric8Ver    = "6.2.0"
 lazy val SttpVer       = "3.8.3"
 lazy val UpickleVer    = "2.0.0"
 lazy val PPrintVer     = "0.8.0"
 lazy val OsLibVer      = "0.8.1"
 lazy val QuicklensVer  = "1.9.0"
 lazy val HoconVer      = "1.4.2"
+lazy val JodaTimeVer   = "2.12.1"
 lazy val MinioVer      = "8.4.5"
 lazy val Slf4jVer      = "1.7.36"
 
@@ -93,6 +95,7 @@ lazy val potaCore = (projectMatrix in file("pota-core"))
       "com.softwaremill.sttp.client3" %% "core"                        % SttpVer,
       "com.softwaremill.sttp.client3" %% "zio"                         % SttpVer,
       "com.softwaremill.sttp.client3" %% "zio-json"                    % SttpVer,
+      "joda-time"                      % "joda-time"                   % JodaTimeVer,
       "com.softwaremill.sttp.client3" %% "slf4j-backend"               % SttpVer,
       "com.typesafe.akka"             %% "akka-actor-typed"            % AkkaVer,
       "com.typesafe.akka"             %% "akka-actor-typed"            % AkkaVer,
@@ -100,7 +103,8 @@ lazy val potaCore = (projectMatrix in file("pota-core"))
       "com.typesafe.akka"             %% "akka-cluster-sharding-typed" % AkkaVer,
       "com.typesafe.akka"             %% "akka-serialization-jackson"  % AkkaVer,
       "com.coralogix"                 %% "zio-k8s-client"              % ZIOK8sVer,
-      "io.minio" % "minio" % MinioVer excludeAll ExclusionRule(organization = "com.fasterxml.jackson.core")
+      "io.minio"                       % "minio"                       % MinioVer
+        excludeAll ExclusionRule(organization = "com.fasterxml.jackson.core")
     )
   )
 

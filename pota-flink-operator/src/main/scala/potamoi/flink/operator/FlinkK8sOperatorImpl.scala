@@ -1,7 +1,6 @@
 package potamoi.flink.operator
 
 import com.coralogix.zio.k8s.client.NotFound
-import com.coralogix.zio.k8s.client.kubernetes.Kubernetes
 import com.coralogix.zio.k8s.model.pkg.apis.meta.v1.DeleteOptions
 import org.apache.flink.client.deployment.application.ApplicationConfiguration
 import org.apache.flink.client.deployment.{ClusterClientFactory, DefaultClusterClientServiceLoader}
@@ -15,7 +14,8 @@ import potamoi.flink.operator.FlinkRestRequest.{RunJobReq, StopJobSptReq, Trigge
 import potamoi.flink.share.FlinkExecMode.{FlinkExecMode, K8sSession}
 import potamoi.flink.share._
 import potamoi.fs.{lfs, S3Operator}
-import potamoi.k8s.stringToK8sNamespace
+import potamoi.k8s._
+import potamoi.k8s.K8sClient
 import potamoi.syntax._
 import zio.ZIO.{attempt, attemptBlockingInterrupt, fail, logInfo, scoped, succeed}
 import zio._
@@ -26,17 +26,17 @@ import scala.language.implicitConversions
  * Default FlinkK8sOperator implementation.
  */
 object FlinkK8sOperatorImpl {
-  val live: ZLayer[FlinkK8sObserver with S3Operator with Kubernetes with PotaConf, Nothing, FlinkK8sOperator] = ZLayer {
+  val live: ZLayer[FlinkK8sObserver with S3Operator with K8sClient with PotaConf, Nothing, FlinkK8sOperator] = ZLayer {
     for {
       potaConf      <- ZIO.service[PotaConf]
-      k8sClient     <- ZIO.service[Kubernetes]
+      k8sClient     <- ZIO.service[K8sClient]
       s3Operator    <- ZIO.service[S3Operator]
       flinkObserver <- ZIO.service[FlinkK8sObserver]
     } yield new FlinkK8sOperatorImpl(potaConf, k8sClient, s3Operator, flinkObserver)
   }
 }
 
-class FlinkK8sOperatorImpl(potaConf: PotaConf, k8sClient: Kubernetes, s3Operator: S3Operator, flinkObserver: FlinkK8sObserver)
+class FlinkK8sOperatorImpl(potaConf: PotaConf, k8sClient: K8sClient, s3Operator: S3Operator, flinkObserver: FlinkK8sObserver)
     extends FlinkK8sOperator {
 
   implicit val flinkConf               = potaConf.flink
@@ -247,7 +247,7 @@ class FlinkK8sOperatorImpl(potaConf: PotaConf, k8sClient: Kubernetes, s3Operator
    * Terminate the flink cluster and reclaim all associated k8s resources.
    */
   override def killCluster(fcid: Fcid): IO[FlinkOprErr, Unit] = {
-    k8sClient.apps.v1.deployments
+    k8sClient.api.apps.v1.deployments
       .delete(name = fcid.clusterId, namespace = fcid.namespace, deleteOptions = DeleteOptions())
       .mapError {
         case NotFound => ClusterNotFound(fcid)

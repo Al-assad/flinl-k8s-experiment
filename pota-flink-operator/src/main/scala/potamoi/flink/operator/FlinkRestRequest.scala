@@ -229,7 +229,9 @@ object FlinkRestRequest {
       @jsonField("last-modification") lastModifyTime: Long,
       tasks: TaskStats) {
 
-    def toFlinkJobStatus: FlinkJobStatus = FlinkJobStatus(
+    def toFlinkJobStatus(fcid: Fcid): FlinkJobStatus = FlinkJobStatus(
+      clusterId = fcid.clusterId,
+      namespace = fcid.namespace,
       jobId = jid,
       name = name,
       state = state,

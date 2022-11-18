@@ -7,4 +7,5 @@ object FlinkExecMode extends ComplexEnum {
 
   val K8sApp     = Value("kubernetes-application")
   val K8sSession = Value("kubernetes-session")
+  val Unknown    = Value("Unknown")
 }

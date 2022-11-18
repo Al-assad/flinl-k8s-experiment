@@ -3,14 +3,13 @@ package potamoi.flink.observer
 import akka.actor.typed.{ActorRef, Scheduler}
 import akka.util.Timeout
 import com.coralogix.zio.k8s.client.NotFound
-import com.coralogix.zio.k8s.client.kubernetes.Kubernetes
 import potamoi.cluster.PotaActorSystem.{ActorGuardian, ActorGuardianExtension}
 import potamoi.common.ActorExtension.ActorRefWrapper
 import potamoi.config.PotaConf
 import potamoi.flink.observer.FlinkObrErr.{ActorInteropErr, ClusterNotFound, RequestFlinkRestApiErr, TriggerTimeout}
 import potamoi.flink.operator.flinkRest
 import potamoi.flink.share._
-import potamoi.k8s.{liftException, stringToK8sNamespace}
+import potamoi.k8s._
 import potamoi.timex._
 import zio.ZIO.{fail, logDebug, succeed}
 import zio._
@@ -21,10 +20,10 @@ import scala.concurrent.duration.Duration
  * Default FlinkK8sObserver implementation.
  */
 object FlinkK8sObserverImpl {
-  val live: ZLayer[ActorGuardian with Kubernetes with PotaConf, Throwable, FlinkK8sObserver] = ZLayer {
+  val live: ZLayer[ActorGuardian with K8sClient with PotaConf, Throwable, FlinkK8sObserver] = ZLayer {
     for {
       potaConf        <- ZIO.service[PotaConf]
-      k8sClient       <- ZIO.service[Kubernetes]
+      k8sClient       <- ZIO.service[K8sClient]
       guardian        <- ZIO.service[ActorGuardian]
       restEptCache    <- guardian.spawn(RestEptCache(potaConf.akka.ddata.getFlinkRestEndpoint), "flinkRestEndpointCache")
       jobStatusCache  <- guardian.spawn(JobStatusCache(potaConf.akka.ddata.getFlinkJobStatus), "flinkJobStatusCache")
@@ -37,7 +36,7 @@ object FlinkK8sObserverImpl {
 
 class FlinkK8sObserverImpl(
     potaConf: PotaConf,
-    k8sClient: Kubernetes,
+    k8sClient: K8sClient,
     restEptCache: ActorRef[RestEptCache.Cmd],
     jobStatusCache: ActorRef[JobStatusCache.Cmd])(implicit sc: Scheduler)
     extends FlinkK8sObserver {
@@ -85,7 +84,7 @@ class FlinkK8sObserverImpl(
   private case object NotFoundRecordFromCache
 
   private def retrieveRestEndpointViaK8s(fcid: Fcid): IO[FlinkObrErr, FlinkRestSvcEndpoint] = {
-    k8sClient.v1.services
+    k8sClient.api.v1.services
       .get(s"${fcid.clusterId}-rest", fcid.namespace)
       .flatMap { svc =>
         for {

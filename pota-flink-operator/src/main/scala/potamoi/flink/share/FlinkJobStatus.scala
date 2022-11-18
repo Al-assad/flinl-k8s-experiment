@@ -9,7 +9,15 @@ import zio.json.{DeriveJsonCodec, JsonCodec}
 /**
  * Flink job status overview.
  */
-case class FlinkJobStatus(jobId: String, name: String, state: JobState, startTs: Long, endTs: Long, tasks: TaskStats) {
+case class FlinkJobStatus(
+    clusterId: String,
+    namespace: String,
+    jobId: String,
+    name: String,
+    state: JobState,
+    startTs: Long,
+    endTs: Long,
+    tasks: TaskStats) {
   def durationTs: Long = curTs - startTs
 }
 
