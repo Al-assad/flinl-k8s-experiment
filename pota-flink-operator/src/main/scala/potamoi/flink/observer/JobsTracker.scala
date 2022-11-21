@@ -1,15 +1,15 @@
 package potamoi.flink.observer
 
+import akka.actor.typed.Behavior
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
-import akka.actor.typed.{ActorRef, Behavior}
 import potamoi.config.FlinkConf
 import potamoi.flink.observer.TrackersDispatcher.unMarshallFcid
 import potamoi.flink.operator.flinkRest
-import potamoi.flink.share.{Fcid, Fjid, FlinkJobStatus}
+import potamoi.flink.share.repo.FlinkJobOverviewRepo
+import potamoi.flink.share.{Fcid, FlinkJobOverview}
 import potamoi.timex._
 import potamoi.ziox._
 import zio.Schedule.spaced
-import zio.ZIO.attempt
 import zio.{CancelableFuture, Ref}
 
 /**
@@ -21,17 +21,17 @@ object JobsTracker {
   final case object Start extends Cmd
   final case object Stop  extends Cmd
 
-  def apply(fcidStr: String, flinkConf: FlinkConf, jobOvCache: ActorRef[JobStatusCache.Cmd], flinkObserver: FlinkK8sObserver): Behavior[Cmd] =
+  def apply(fcidStr: String, flinkConf: FlinkConf, flinkObserver: FlinkK8sObserver, flkJobOvRepo: FlinkJobOverviewRepo): Behavior[Cmd] =
     Behaviors.setup[Cmd] { implicit ctx =>
       val fcid = unMarshallFcid(fcidStr)
       ctx.log.info(s"Flink JobsTracker actor initialized, fcid=$fcid")
-      new JobsTracker(fcid, flinkConf, jobOvCache, flinkObserver).action
+      new JobsTracker(fcid, flinkConf, flinkObserver, flkJobOvRepo).action
     }
 }
 
 import potamoi.flink.observer.JobsTracker._
 
-private class JobsTracker(fcid: Fcid, flinkConf: FlinkConf, jobOvCache: ActorRef[JobStatusCache.Cmd], flinkObserver: FlinkK8sObserver)(
+private class JobsTracker(fcid: Fcid, flinkConf: FlinkConf, flinkObserver: FlinkK8sObserver, flkJobOvRepo: FlinkJobOverviewRepo)(
     implicit ctx: ActorContext[JobsTracker.Cmd]) {
 
   private var proc: Option[CancelableFuture[Unit]] = None
@@ -51,9 +51,9 @@ private class JobsTracker(fcid: Fcid, flinkConf: FlinkConf, jobOvCache: ActorRef
   }
 
   private def pollingJobOverviewInfo = {
-    def touchApi(state: Ref[Vector[FlinkJobStatus]]) = for {
+    def touchApi(state: Ref[Vector[FlinkJobOverview]]) = for {
       restUrl    <- flinkObserver.retrieveRestEndpoint(fcid)
-      curCollect <- flinkRest(restUrl.chooseUrl(flinkConf)).listJobOverviewInfo.map(_.map(_.toFlinkJobStatus(fcid)))
+      curCollect <- flinkRest(restUrl.chooseUrl(flinkConf)).listJobOverviewInfo.map(_.map(_.toFlinkJobOverview(fcid)))
       preCollect <- state.get
       (puts, removes) = {
         val intersect = curCollect intersect preCollect
@@ -61,15 +61,13 @@ private class JobsTracker(fcid: Fcid, flinkConf: FlinkConf, jobOvCache: ActorRef
         val removes   = preCollect diff intersect
         puts -> removes
       }
-      _ <- attempt {
-        jobOvCache ! JobStatusCache.PutAll(puts.map(e => Fjid(fcid, e.jobId) -> e).toMap)
-        jobOvCache ! JobStatusCache.RemoveAll(removes.map(e => Fjid(fcid, e.jobId)).toSet)
-      }
+      _ <- flkJobOvRepo.collect(puts).when(puts.nonEmpty) *>
+        flkJobOvRepo.cur.removeAll(removes.map(e => e.fjid)).when(removes.nonEmpty)
       _ <- state.set(curCollect)
     } yield ()
 
     for {
-      state <- Ref.make(Vector.empty[FlinkJobStatus])
+      state <- Ref.make(Vector.empty[FlinkJobOverview])
       _     <- touchApi(state).ignore.schedule(spaced(flinkConf.tracking.jobPolling)).forever
     } yield ()
   }

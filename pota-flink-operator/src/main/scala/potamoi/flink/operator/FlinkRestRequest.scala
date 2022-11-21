@@ -1,15 +1,16 @@
 package potamoi.flink.operator
 
-import potamoi.syntax._
 import potamoi.common.PathTool.getFileName
 import potamoi.common.SttpExtension.{usingSttp, RequestBodyIOWrapper, RequestDeserializationBodyIOWrapper}
+import potamoi.curTs
 import potamoi.flink.operator.FlinkRestRequest._
 import potamoi.flink.share.JobState.JobState
 import potamoi.flink.share.SptFormatType.SptFormatType
 import potamoi.flink.share._
+import potamoi.syntax._
 import sttp.client3._
 import sttp.client3.ziojson._
-import zio.IO
+import zio.{IO, ZIO}
 import zio.ZIO.attempt
 import zio.json.{jsonField, DeriveJsonCodec, JsonCodec}
 
@@ -149,6 +150,100 @@ case class FlinkRestRequest(restUrl: String) {
       .narrowEither
   }
 
+  /**
+   * Get cluster overview
+   * see: https://nightlies.apache.org/flink/flink-docs-master/docs/ops/rest_api/#overview-1
+   */
+  def getClusterOverview: IO[Throwable, ClusterOverview] = usingSttp { backend =>
+    basicRequest
+      .get(uri"$restUrl/overview")
+      .response(asJson[ClusterOverview])
+      .send(backend)
+      .map(_.body)
+      .narrowEither
+  }
+
+  /**
+   * Get cluster configuration.
+   * see: https://nightlies.apache.org/flink/flink-docs-master/docs/ops/rest_api/#config
+   */
+  def getClusterConfig: IO[Throwable, Map[String, String]] = usingSttp { backend =>
+    basicRequest
+      .get(uri"$restUrl/config")
+      .send(backend)
+      .map(_.body)
+      .narrowEither
+      .flatMap { rsp =>
+        attempt {
+          ujson.read(rsp).arr.map(item => item("key").str -> item("value").str).toMap
+        }
+      }
+  }
+
+  /**
+   * Get job manager metrics.
+   * see: https://nightlies.apache.org/flink/flink-docs-master/docs/ops/rest_api/#jobmanager-metrics
+   */
+  def getJmMetrics(metricsKeys: Set[String]): IO[Throwable, Map[String, String]] = usingSttp { backend =>
+    basicRequest
+      .get(uri"$restUrl/jobmanager/metrics?get=${metricsKeys.mkString(",")}")
+      .send(backend)
+      .map(_.body)
+      .narrowEither
+      .flatMap { rsp =>
+        attempt {
+          ujson.read(rsp).arr.map(item => item("id").str -> item("value").str).toMap
+        }
+      }
+  }
+
+  /**
+   * List all task manager ids on cluster
+   * see: https://nightlies.apache.org/flink/flink-docs-master/docs/ops/rest_api/#taskmanagers
+   */
+  def listTaskManagerIds: IO[Throwable, Vector[String]] = usingSttp { backend =>
+    basicRequest
+      .get(uri"$restUrl/taskmanagers")
+      .send(backend)
+      .map(_.body)
+      .narrowEither
+      .flatMap { rsp =>
+        attempt {
+          ujson.read(rsp)("taskmanagers").arr.map(_("id").str).toVector
+        }
+      }
+  }
+
+  /**
+   * Get task manager detail.
+   * see: https://nightlies.apache.org/flink/flink-docs-master/docs/ops/rest_api/#taskmanagers-taskmanagerid
+   */
+  def getTaskManagerDetails(tmId: String): IO[Throwable, TaskManagerDetail] = usingSttp { backend =>
+    basicRequest
+      .get(uri"$restUrl/taskmanagers/$tmId")
+      .response(asJson[TaskManagerDetail])
+      .send(backend)
+      .map(_.body)
+      .narrowEither
+  }
+
+  /**
+   * Get task manager metrics.
+   * see: https://nightlies.apache.org/flink/flink-docs-master/docs/ops/rest_api/#taskmanagers-taskmanagerid-metrics
+   */
+  def getTmMetrics(metricsKeys: Set[String]): IO[Throwable, Map[String, String]] = usingSttp { backend =>
+    basicRequest
+      .get(uri"$restUrl/taskmanagers/metrics?get=${metricsKeys.mkString(",")}")
+      .send(backend)
+      .map(_.body)
+      .narrowEither
+      .flatMap { rsp =>
+        ZIO.attempt {
+          ujson.read(rsp).arr.map(item => item("id").str -> item("value").str).toMap
+        }
+      }
+  }
+
 }
 
 object FlinkRestRequest {
@@ -210,7 +305,7 @@ object FlinkRestRequest {
   /**
    * see: [[FlinkRestRequest.listJobsStatusInfo]]
    */
-  case class JobStatusInfo(id: String, status: FlinkJobStatus)
+  case class JobStatusInfo(id: String, status: FlinkJobOverview)
 
   object JobStatusInfo {
     implicit val codec: JsonCodec[JobStatusInfo] = DeriveJsonCodec.gen[JobStatusInfo]
@@ -229,34 +324,71 @@ object FlinkRestRequest {
       @jsonField("last-modification") lastModifyTime: Long,
       tasks: TaskStats) {
 
-    def toFlinkJobStatus(fcid: Fcid): FlinkJobStatus = FlinkJobStatus(
+    def toFlinkJobOverview(fcid: Fcid): FlinkJobOverview = FlinkJobOverview(
       clusterId = fcid.clusterId,
       namespace = fcid.namespace,
       jobId = jid,
-      name = name,
+      jobName = name,
       state = state,
       startTs = startTime,
       endTs = endTime,
-      tasks = tasks
+      tasks = tasks,
+      ts = curTs
     )
   }
-
-  case class TaskStats(
-      total: Int,
-      created: Int,
-      scheduled: Int,
-      deploying: Int,
-      running: Int,
-      finished: Int,
-      canceling: Int,
-      canceled: Int,
-      failed: Int,
-      reconciling: Int,
-      initializing: Int)
 
   object JobOverviewInfo {
     implicit val taskStatsCodec: JsonCodec[TaskStats] = DeriveJsonCodec.gen[TaskStats]
     implicit val codec: JsonCodec[JobOverviewInfo]    = DeriveJsonCodec.gen[JobOverviewInfo]
+  }
+
+  case class ClusterOverview(
+      @jsonField("flink-version") flinkVersion: String,
+      @jsonField("taskmanagers") taskManagers: Int,
+      @jsonField("slots-total") slotsTotal: Int,
+      @jsonField("slots-available") slotsAvailable: Int,
+      @jsonField("jobs-running") jobsRunning: Int,
+      @jsonField("jobs-finished") jobsFinished: Int,
+      @jsonField("jobs-cancelled") jobsCancelled: Int,
+      @jsonField("jobs-failed") jobsFailed: Int)
+
+  object ClusterOverview {
+    implicit val codec: JsonCodec[ClusterOverview] = DeriveJsonCodec.gen[ClusterOverview]
+  }
+
+  case class TaskManagerDetail(
+      id: String,
+      path: String,
+      dataPort: Int,
+      timeSinceLastHeartbeat: Long,
+      slotsNumber: Int,
+      freeSlots: Int,
+      totalResource: TmResource,
+      freeResource: TmResource,
+      hardware: TmHardware,
+      memoryConfiguration: TmMemoryConfig
+  )
+
+  case class TmResource(cpuCores: Int, taskHeapMemory: Long, taskOffHeapMemory: Long, managedMemory: Long, networkMemory: Long)
+  case class TmHardware(cpuCores: Int, physicalMemory: Long, freeMemory: Long, managedMemory: Long)
+  case class TmMemoryConfig(
+      frameworkHeap: Long,
+      taskHeap: Long,
+      frameworkOffHeap: Long,
+      taskOffHeap: Long,
+      networkMemory: Long,
+      managedMemory: Long,
+      jvmMetaspace: Long,
+      jvmOverhead: Long,
+      totalFlinkMemory: Long,
+      totalProcessMemory: Long
+  )
+
+  object TaskManagerDetail {
+    implicit val tmResourceCodec: JsonCodec[TmResource]               = DeriveJsonCodec.gen[TmResource]
+    implicit val tmHardwareCodec: JsonCodec[TmHardware]               = DeriveJsonCodec.gen[TmHardware]
+    implicit val tmMemoryConfigCodec: JsonCodec[TmMemoryConfig]       = DeriveJsonCodec.gen[TmMemoryConfig]
+    implicit val taskManagerDetailCodec: JsonCodec[TaskManagerDetail] = DeriveJsonCodec.gen[TaskManagerDetail]
   }
 
 }

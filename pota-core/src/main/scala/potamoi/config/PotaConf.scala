@@ -20,12 +20,13 @@ case class PotaConf(
     @name("local-storage-dir") localStgDir: String = "var/potamoi",
     @name("show-loaded-config") showLoadedConfig: Boolean = true,
     @name("log") log: LogConf = LogConf(),
+    @name("db") db: DbConf,
     @name("k8s") k8s: K8sConf = K8sConf(),
     @name("s3") s3: S3Conf,
     @name("flink") flink: FlinkConf = FlinkConf(),
     @name("akka") akka: AkkaConf = AkkaConf()) {
 
-  def resolve: PotaConf = Vector(log, k8s, s3, flink, akka).foldLeft(this)((ac, c) => c.resolve(ac))
+  def resolve: PotaConf = Vector(log, db, k8s, s3, flink, akka).foldLeft(this)((ac, c) => c.resolve(ac))
 }
 
 object PotaConf {

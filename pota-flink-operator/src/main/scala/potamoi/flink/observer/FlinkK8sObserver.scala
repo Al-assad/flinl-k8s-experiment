@@ -31,29 +31,6 @@ trait FlinkK8sObserver {
   def retrieveRestEndpoint(fcid: Fcid, directly: Boolean = false): IO[FlinkObrErr, FlinkRestSvcEndpoint]
 
   /**
-   * Get all job id under the flink cluster.
-   */
-  def listJobIds(fcid: Fcid): IO[FlinkObrErr, Vector[JobId]]
-
-  /**
-   * Get flink job status
-   */
-  def getJobStatus(fjid: Fjid): IO[FlinkObrErr, Option[FlinkJobStatus]]
-
-  /**
-   * Get all flink job status under cluster.
-   */
-  def listJobStatus(fcid: Fcid): IO[FlinkObrErr, Vector[FlinkJobStatus]]
-
-  /**
-   * Select flink job status via custom filter function.
-   */
-  def selectJobStatus(
-      filter: (Fjid, FlinkJobStatus) => Boolean,
-      drop: Option[Int] = None,
-      take: Option[Int] = None): IO[FlinkObrErr, Vector[FlinkJobStatus]]
-
-  /**
    * Get current savepoint trigger status of the flink job.
    */
   def getSavepointTrigger(fjid: Fjid, triggerId: String): IO[FlinkObrErr, FlinkSptTriggerStatus]

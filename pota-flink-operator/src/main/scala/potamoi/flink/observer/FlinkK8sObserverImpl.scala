@@ -6,9 +6,10 @@ import com.coralogix.zio.k8s.client.NotFound
 import potamoi.cluster.PotaActorSystem.{ActorGuardian, ActorGuardianExtension}
 import potamoi.common.ActorExtension.ActorRefWrapper
 import potamoi.config.PotaConf
-import potamoi.flink.observer.FlinkObrErr.{ActorInteropErr, ClusterNotFound, RequestFlinkRestApiErr, TriggerTimeout}
+import potamoi.flink.observer.FlinkObrErr.{ActorInteropErr, ClusterNotFound, DbInteropErr, RequestFlinkRestApiErr, TriggerTimeout}
 import potamoi.flink.operator.flinkRest
 import potamoi.flink.share._
+import potamoi.flink.share.repo.FlinkRepoHub
 import potamoi.k8s._
 import potamoi.timex._
 import zio.ZIO.{fail, logDebug, succeed}
@@ -20,25 +21,22 @@ import scala.concurrent.duration.Duration
  * Default FlinkK8sObserver implementation.
  */
 object FlinkK8sObserverImpl {
-  val live: ZLayer[ActorGuardian with K8sClient with PotaConf, Throwable, FlinkK8sObserver] = ZLayer {
+  val live: ZLayer[FlinkRepoHub with ActorGuardian with K8sClient with PotaConf, Throwable, FlinkK8sObserver] = ZLayer {
     for {
       potaConf        <- ZIO.service[PotaConf]
       k8sClient       <- ZIO.service[K8sClient]
+      flinkRepo       <- ZIO.service[FlinkRepoHub]
       guardian        <- ZIO.service[ActorGuardian]
       restEptCache    <- guardian.spawn(RestEptCache(potaConf.akka.ddata.getFlinkRestEndpoint), "flinkRestEndpointCache")
-      jobStatusCache  <- guardian.spawn(JobStatusCache(potaConf.akka.ddata.getFlinkJobStatus), "flinkJobStatusCache")
-      observer        <- ZIO.succeed(new FlinkK8sObserverImpl(potaConf, k8sClient, restEptCache, jobStatusCache)(guardian.scheduler))
-      trackDispatcher <- guardian.spawn(TrackersDispatcher(potaConf.flink, jobStatusCache, observer), "flinkTrackersDispatcher")
+      observer        <- ZIO.succeed(new FlinkK8sObserverImpl(potaConf, k8sClient, flinkRepo, restEptCache)(guardian.scheduler))
+      trackDispatcher <- guardian.spawn(TrackersDispatcher(potaConf.flink, observer, flinkRepo), "flinkTrackersDispatcher")
       _               <- ZIO.succeed(observer.bindTrackDispatcher(trackDispatcher))
     } yield observer
   }
 }
 
-class FlinkK8sObserverImpl(
-    potaConf: PotaConf,
-    k8sClient: K8sClient,
-    restEptCache: ActorRef[RestEptCache.Cmd],
-    jobStatusCache: ActorRef[JobStatusCache.Cmd])(implicit sc: Scheduler)
+class FlinkK8sObserverImpl(potaConf: PotaConf, k8sClient: K8sClient, flinkRepo: FlinkRepoHub, restEptCache: ActorRef[RestEptCache.Cmd])(
+    implicit sc: Scheduler)
     extends FlinkK8sObserver {
 
   private var trackDispatcher: ActorRef[TrackersDispatcher.Cmd]                      = _
@@ -58,10 +56,12 @@ class FlinkK8sObserverImpl(
    * Cancel tracking flink cluster.
    */
   override def unTrackCluster(fcid: Fcid): IO[FlinkObrErr, Unit] = {
-    (trackDispatcher !> TrackersDispatcher.UnTrack(fcid)) <*
-    (restEptCache !> RestEptCache.Remove(fcid)) <*
-    (jobStatusCache !> JobStatusCache.RemoveRecordUnderFcid(fcid))
-  }.mapError(ActorInteropErr)
+    {
+      (trackDispatcher !> TrackersDispatcher.UnTrack(fcid)) <*
+      (restEptCache !> RestEptCache.Remove(fcid))
+    }.mapError(ActorInteropErr) *>
+    flinkRepo.jobOverview.cur.removeInCluster(fcid).mapError(DbInteropErr)
+  }
 
   /**
    * Retrieve Flink rest endpoint via kubernetes api.
@@ -108,46 +108,6 @@ class FlinkK8sObserverImpl(
         { case ClusterNotFound(fcid) => restEptCache !!> RestEptCache.Remove(fcid) },
         endpoint => restEptCache !!> RestEptCache.Put(fcid, endpoint))
   }
-
-  /**
-   * Get flink job status
-   */
-  override def getJobStatus(fjid: Fjid): IO[FlinkObrErr, Option[FlinkJobStatus]] = {
-    jobStatusCache ?> (JobStatusCache.Get(fjid, _))
-  } @@ ZIOAspect.annotated(fjid.toAnno: _*)
-
-  /**
-   * Get all flink job status under cluster.
-   */
-  override def listJobStatus(fcid: Fcid): IO[FlinkObrErr, Vector[FlinkJobStatus]] = {
-    jobStatusCache ?> (JobStatusCache.ListRecordUnderFcid(fcid, _))
-  } @@ ZIOAspect.annotated(fcid.toAnno: _*)
-
-  /**
-   * Select flink job status via custom filter function.
-   */
-  override def selectJobStatus(
-      filter: (Fjid, FlinkJobStatus) => Boolean,
-      drop: Option[RuntimeFlags],
-      take: Option[RuntimeFlags]): IO[FlinkObrErr, Vector[FlinkJobStatus]] = {
-    jobStatusCache ?> (JobStatusCache.SelectRecord(filter, drop, take, _))
-  }
-
-  /**
-   * Get all job id under the flink cluster.
-   */
-  override def listJobIds(fcid: Fcid): IO[FlinkObrErr, Vector[JobId]] = {
-    val fromCache = jobStatusCache.?>(JobStatusCache.ListJobIdUnderFcid(fcid, _)).mapError(ActorInteropErr)
-    val fromRestApi = retrieveRestEndpoint(fcid).flatMap { endpoint =>
-      flinkRest(endpoint.chooseUrl).listJobsStatusInfo.mapBoth(RequestFlinkRestApiErr, _.map(_.id))
-    }
-    fromCache
-      .flatMap(r => if (r.isEmpty) fromRestApi else succeed(r))
-      .catchAll { err =>
-        logDebug(s"Fallback to requesting flink rest api directly due to $err") *>
-        fromRestApi
-      }
-  } @@ ZIOAspect.annotated(fcid.toAnno: _*)
 
   /**
    * Get current flink savepoint status by trigger-id.

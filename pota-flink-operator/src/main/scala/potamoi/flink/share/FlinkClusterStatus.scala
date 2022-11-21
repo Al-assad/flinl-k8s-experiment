@@ -5,37 +5,32 @@ import potamoi.flink.share.FlinkExecMode.FlinkExecMode
 /**
  * Flink cluster status overview.
  */
-case class FlinkClusterStatus(
+case class FlinkClusterInfo(
     clusterId: String,
     namespace: String,
     flinkVersion: String,
     execMode: FlinkExecMode,
     tmTotal: Int,
     slotsTotal: Int,
-    jobsRunning: Int,
-    jobsFinished: Int,
-    jobsCancelled: Int,
-    jobsFailed: Int,
+    jobs: JobsStats
 )
+
+case class JobsStats(running: Int, finished: Int, canceled: Int, failed: Int)
 
 case class JmMetric(
     heapMax: Long,
     heapUsed: Long,
-    nonHeapMax: Long,
-    nonHeapUsed: Long,
-    directMemUsed: Long,
-    directMemCapacity: Long,
 )
 
 case class TmMetric(
-    slotsNum: Int,
+    slotsTotal: Int,
     slotsFree: Int,
     cpuCores: Int,
     physMem: Long,
     heapMemMax: Long,
     heapMemUsed: Long,
-    nonHeapMemMax: Long,
-    nonHeapMemUsed: Long,
-    directMemUsed: Long,
-    mappedMemUsed: Long,
 )
+
+case class FlinkClusterK8sResourceRef()
+
+case class K8sService(name: String)

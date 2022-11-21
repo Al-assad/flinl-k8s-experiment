@@ -1,5 +1,6 @@
 package potamoi.common
 
+import io.getquill.MappedEncoding
 import zio.config.magnolia.Descriptor
 import zio.json._
 
@@ -8,7 +9,8 @@ import zio.json._
  */
 abstract class ComplexEnum extends Enumeration {
 
-  // ZIO-Json decoder
+  // ZIO-Json encoder / decoder
+  implicit val jsonEncoder: JsonEncoder[Value] = JsonEncoder[String].contramap(_.toString)
   implicit val jsonDecoder: JsonDecoder[Value] = JsonDecoder[String].mapOrFail { name =>
     withNameOps(name) match {
       case Some(value) => Right(value)
@@ -16,11 +18,12 @@ abstract class ComplexEnum extends Enumeration {
     }
   }
 
-  // ZIO-Json encoder
-  implicit val jsonEncoder: JsonEncoder[Value] = JsonEncoder[String].contramap(_.toString)
-
   // ZIO-config descriptor
   implicit val configDesc: Descriptor[Value] = Descriptor[String].transform(string => withName(string), _.toString)
+
+  // quill encoder / decoder
+  implicit val quillEncoder = MappedEncoding[Value, String](_.toString)
+  implicit val quillDecoder = MappedEncoding[String, Value](withName)
 
   def withNameOps(name: String): Option[Value] = values.find(_.toString == name)
 
