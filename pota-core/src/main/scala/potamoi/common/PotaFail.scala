@@ -38,7 +38,9 @@ final case class PotaFailException(fail: PotaFail) extends NoStackTrace
 
 final case class FutureException[T](reason: T) extends NoStackTrace
 
-object PotaFail extends PotaFailExtension
+object PotaFail extends PotaFailExtension {
+  trait NotFound
+}
 
 trait PotaFailExtension {
 

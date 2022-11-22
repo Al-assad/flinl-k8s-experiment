@@ -23,7 +23,7 @@ create table if not exists flink_job_overview_cur
     primary key (cluster_id, namespace, job_id)
 );
 
-create index ts_idx on flink_job_overview (ts);
+create index ts_idx on flink_job_overview_cur (ts);
 
 create table if not exists flink_job_overview_hist
 (
@@ -48,3 +48,8 @@ create table if not exists flink_job_overview_hist
     ts                bigint,
     primary key (cluster_id, namespace, job_id, ts)
 );
+
+create table if not exists flink_cluster_overview_cur
+(
+
+)

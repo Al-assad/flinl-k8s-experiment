@@ -9,6 +9,7 @@ import potamoi.config.PotaConf
 import potamoi.flink.observer.FlinkObrErr.{ActorInteropErr, ClusterNotFound, DbInteropErr, RequestFlinkRestApiErr, TriggerTimeout}
 import potamoi.flink.operator.flinkRest
 import potamoi.flink.share._
+import potamoi.flink.share.model.{Fcid, Fjid, FlinkSptTriggerStatus}
 import potamoi.flink.share.repo.FlinkRepoHub
 import potamoi.k8s._
 import potamoi.timex._
@@ -29,7 +30,7 @@ object FlinkK8sObserverImpl {
       guardian        <- ZIO.service[ActorGuardian]
       restEptCache    <- guardian.spawn(RestEptCache(potaConf.akka.ddata.getFlinkRestEndpoint), "flinkRestEndpointCache")
       observer        <- ZIO.succeed(new FlinkK8sObserverImpl(potaConf, k8sClient, flinkRepo, restEptCache)(guardian.scheduler))
-      trackDispatcher <- guardian.spawn(TrackersDispatcher(potaConf.flink, observer, flinkRepo), "flinkTrackersDispatcher")
+      trackDispatcher <- guardian.spawn(TrackersDispatcher(potaConf.log, potaConf.flink, observer, flinkRepo), "flinkTrackersDispatcher")
       _               <- ZIO.succeed(observer.bindTrackDispatcher(trackDispatcher))
     } yield observer
   }
@@ -61,52 +62,6 @@ class FlinkK8sObserverImpl(potaConf: PotaConf, k8sClient: K8sClient, flinkRepo: 
       (restEptCache !> RestEptCache.Remove(fcid))
     }.mapError(ActorInteropErr) *>
     flinkRepo.jobOverview.cur.removeInCluster(fcid).mapError(DbInteropErr)
-  }
-
-  /**
-   * Retrieve Flink rest endpoint via kubernetes api.
-   * Prioritize finding relevant records in ddata, and call k8s api directly as fallback when found nothing.
-   */
-  override def retrieveRestEndpoint(fcid: Fcid, directly: Boolean = false): IO[FlinkObrErr, FlinkRestSvcEndpoint] = {
-    if (directly) retrieveRestEndpointViaK8s(fcid: Fcid)
-    else
-      (restEptCache ?> (RestEptCache.Get(fcid, _)))
-        .flatMap {
-          case Some(r) => succeed(r)
-          case None    => fail(NotFoundRecordFromCache)
-        }
-        .catchAll { err =>
-          logDebug(s"Fallback to requesting k8s svc api directly due to $err") *>
-          retrieveRestEndpointViaK8s(fcid)
-        }
-  } @@ ZIOAspect.annotated(fcid.toAnno: _*)
-
-  private case object NotFoundRecordFromCache
-
-  private def retrieveRestEndpointViaK8s(fcid: Fcid): IO[FlinkObrErr, FlinkRestSvcEndpoint] = {
-    k8sClient.api.v1.services
-      .get(s"${fcid.clusterId}-rest", fcid.namespace)
-      .flatMap { svc =>
-        for {
-          metadata  <- svc.getMetadata
-          name      <- metadata.getName
-          ns        <- metadata.getNamespace
-          spec      <- svc.getSpec
-          clusterIp <- spec.getClusterIP
-          ports     <- spec.getPorts
-          restPort = ports
-            .find(_.port == 8081)
-            .flatMap(_.targetPort.map(_.value.fold(identity, _.toInt)).toOption)
-            .getOrElse(8081)
-        } yield FlinkRestSvcEndpoint(name, ns, restPort, clusterIp)
-      }
-      .mapError {
-        case NotFound => FlinkObrErr.ClusterNotFound(fcid)
-        case failure  => FlinkObrErr.RequestK8sApiErr(failure, liftException(failure).orNull)
-      }
-      .tapBoth(
-        { case ClusterNotFound(fcid) => restEptCache !!> RestEptCache.Remove(fcid) },
-        endpoint => restEptCache !!> RestEptCache.Put(fcid, endpoint))
   }
 
   /**

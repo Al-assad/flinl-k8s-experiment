@@ -1,7 +1,7 @@
-package potamoi.flink.share
+package potamoi.flink.share.model
 
-import potamoi.flink.share.FlinkExecMode.FlinkExecMode
-import potamoi.flink.share.RestExportType.RestExportType
+import potamoi.flink.share.model.FlinkExecMode.FlinkExecMode
+import potamoi.flink.share.model.RestExportType.RestExportType
 import zio.json.{DeriveJsonCodec, JsonCodec}
 
 import scala.language.implicitConversions
@@ -43,7 +43,6 @@ sealed trait FlinkClusterDef[SubType <: FlinkClusterDef[SubType]] { this: SubTyp
 }
 
 object FlinkClusterDef {
-  import FlinkRawConf._
   implicit val sessClusterDefCodec: JsonCodec[FlinkSessClusterDef] = DeriveJsonCodec.gen[FlinkSessClusterDef]
   implicit val appClusterDefCodec: JsonCodec[FlinkAppClusterDef]   = DeriveJsonCodec.gen[FlinkAppClusterDef]
 }

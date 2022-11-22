@@ -1,4 +1,4 @@
-package potamoi.flink.share
+package potamoi.flink.share.model
 
 import zio.json.{DeriveJsonCodec, JsonCodec}
 

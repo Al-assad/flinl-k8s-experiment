@@ -1,14 +1,14 @@
-package potamoi.flink.share
+package potamoi.flink.share.model
 
-import potamoi.common.NumExtension.{DoubleWrapper, IntWrapper}
 import potamoi.common.ComplexEnum
-import potamoi.syntax.GenericPF
+import potamoi.common.NumExtension.{DoubleWrapper, IntWrapper}
 import potamoi.config.S3AccessStyle.PathStyle
 import potamoi.config.S3Conf
-import potamoi.flink.share.CheckpointStorageType.CheckpointStorageType
-import potamoi.flink.share.FlinkRawConf.dryRawMapping
-import potamoi.flink.share.SptRestoreMode.{Claim, SptRestoreMode}
-import potamoi.flink.share.StateBackendType.StateBackendType
+import potamoi.flink.share.model.CheckpointStorageType.CheckpointStorageType
+import potamoi.flink.share.model.FlinkRawConf.dryRawMapping
+import potamoi.flink.share.model.SptRestoreMode.{Claim, SptRestoreMode}
+import potamoi.flink.share.model.StateBackendType.StateBackendType
+import potamoi.syntax.GenericPF
 import zio.json.{DeriveJsonCodec, JsonCodec}
 
 import scala.language.implicitConversions

@@ -8,16 +8,16 @@ import potamoi.common.PathTool.{getFileName, isS3Path}
 import potamoi.common.ZIOExtension.usingAttempt
 import potamoi.config.PotaConf
 import potamoi.flink.observer.FlinkK8sObserver
-import potamoi.flink.operator.FlinkConfigExtension.{configurationToPF, EmptyConfiguration}
+import potamoi.flink.operator.FlinkConfigExtension.{EmptyConfiguration, configurationToPF}
 import potamoi.flink.operator.FlinkOprErr._
 import potamoi.flink.operator.FlinkRestRequest.{RunJobReq, StopJobSptReq, TriggerSptReq}
-import potamoi.flink.share.FlinkExecMode.{FlinkExecMode, K8sSession}
+import potamoi.flink.share.model.FlinkExecMode.{FlinkExecMode, K8sSession}
 import potamoi.flink.share._
-import potamoi.fs.{lfs, S3Operator}
+import potamoi.flink.share.model.{Fcid, Fjid, FlinkAppClusterDef, FlinkClusterDef, FlinkJobSptDef, FlinkSessClusterDef, FlinkSessJobDef}
+import potamoi.fs.{S3Operator, lfs}
 import potamoi.k8s._
-import potamoi.k8s.K8sClient
 import potamoi.syntax._
-import zio.ZIO.{attempt, attemptBlockingInterrupt, fail, logInfo, scoped, succeed}
+import zio.ZIO.{attempt, attemptBlockingInterrupt, logInfo, scoped, succeed}
 import zio._
 
 import scala.language.implicitConversions
@@ -191,15 +191,15 @@ class FlinkK8sOperatorImpl(potaConf: PotaConf, k8sClient: K8sClient, s3Operator:
     } yield ()
   } @@ ZIOAspect.annotated(fcid.toAnno: _*)
 
-  private def findJobIdFromAppCluster(fcid: Fcid): IO[FlinkOprErr, String] =
-    flinkObserver
-      .listJobIds(fcid)
-      .map(_.headOption)
-      .flatMap {
-        case None        => fail(EmptyJobInCluster(fcid))
-        case Some(jobId) => succeed(jobId)
-      }
-      .tap(jobId => logInfo(s"Found job-id in flink application cluster: $jobId "))
+  private def findJobIdFromAppCluster(fcid: Fcid): IO[FlinkOprErr, String] = ???
+//    flinkObserver
+//      .listJobIds(fcid)
+//      .map(_.headOption)
+//      .flatMap {
+//        case None        => fail(EmptyJobInCluster(fcid))
+//        case Some(jobId) => succeed(jobId)
+//      }
+//      .tap(jobId => logInfo(s"Found job-id in flink application cluster: $jobId "))
 
   /**
    * Stop job in flink session cluster with savepoint.

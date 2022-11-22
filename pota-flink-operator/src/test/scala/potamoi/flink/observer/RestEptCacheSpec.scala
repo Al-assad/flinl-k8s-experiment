@@ -4,7 +4,7 @@ import akka.util.Timeout
 import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
 import potamoi.config.DDataConf
 import potamoi.flink.observer.RestEptCache._
-import potamoi.flink.share.FlinkRestSvcEndpoint
+import potamoi.flink.share.model.FlinkRestSvcEndpoint
 import potamoi.testkit.STActorClusterSpec
 
 class RestEptCacheSpec extends STActorClusterSpec {

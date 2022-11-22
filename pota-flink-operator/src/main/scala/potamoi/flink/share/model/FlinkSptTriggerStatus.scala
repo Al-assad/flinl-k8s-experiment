@@ -1,7 +1,7 @@
-package potamoi.flink.share
+package potamoi.flink.share.model
 
 import potamoi.common.ComplexEnum
-import potamoi.flink.share.OprState.OprState
+import potamoi.flink.share.model.OprState.OprState
 import zio.json.{DeriveJsonCodec, JsonCodec}
 
 /**

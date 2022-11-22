@@ -1,6 +1,6 @@
 package potamoi.flink.operator
 
-import potamoi.flink.share.FlinkVer
+import potamoi.flink.share.model.FlinkVer
 
 /**
  * Flink build in plugins resolver.

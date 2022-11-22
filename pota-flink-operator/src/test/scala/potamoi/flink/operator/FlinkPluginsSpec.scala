@@ -1,7 +1,7 @@
 package potamoi.flink.operator
 
 import potamoi.common.ScalaVer.Scala212
-import potamoi.flink.share.FlinkVer
+import potamoi.flink.share.model.FlinkVer
 import potamoi.testkit.STSpec
 
 class FlinkPluginsSpec extends STSpec {

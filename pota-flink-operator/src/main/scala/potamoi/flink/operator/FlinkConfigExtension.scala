@@ -1,7 +1,7 @@
 package potamoi.flink.operator
 
 import org.apache.flink.configuration.Configuration
-import potamoi.flink.share.FlinkRawConf
+import potamoi.flink.share.model.FlinkRawConf
 
 import scala.collection.immutable.{Iterable, TreeMap}
 import scala.jdk.CollectionConverters._

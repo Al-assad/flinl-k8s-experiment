@@ -7,16 +7,16 @@ import potamoi.common.PathTool.{isS3Path, reviseToS3pSchema}
 import potamoi.syntax.safeTrim
 import potamoi.config.PotaConf
 import potamoi.flink.operator.ClusterDefResolver.notAllowCustomRawConfKeys
-import potamoi.flink.operator.FlinkConfigExtension.{configurationToPF, ConfigurationPF, EmptyConfiguration}
+import potamoi.flink.operator.FlinkConfigExtension.{ConfigurationPF, EmptyConfiguration, configurationToPF}
 import potamoi.flink.operator.FlinkOprErr.{DryToFlinkRawConfigErr, ReviseFlinkClusterDefErr}
 import potamoi.flink.operator.FlinkPlugins.{s3Hadoop, s3Presto, s3aPlugins}
-import potamoi.flink.share.{FlinkAppClusterDef, FlinkClusterDef, FlinkSessClusterDef, S3AccessConf}
+import potamoi.flink.share.model.{FlinkAppClusterDef, FlinkClusterDef, FlinkSessClusterDef, S3AccessConf}
 import zio.{IO, ZIO}
 
 import scala.language.implicitConversions
 
 /**
- * Flink cluster definition resolver for [[potamoi.flink.share.FlinkClusterDef]]
+ * Flink cluster definition resolver for [[FlinkClusterDef]]
  */
 sealed trait ClusterDefResolver[ClusterDef <: FlinkClusterDef[ClusterDef]] {
 

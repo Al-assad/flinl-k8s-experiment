@@ -2,7 +2,7 @@ package potamoi.flink.observer
 
 import com.coralogix.zio.k8s.client.K8sFailure
 import potamoi.common.{ActorInteropException, FailStackFill, PotaFail}
-import potamoi.flink.share.Fcid
+import potamoi.flink.share.model.Fcid
 import zio.IO
 
 import java.sql.SQLException
@@ -15,11 +15,12 @@ sealed trait FlinkObrErr extends PotaFail
 
 object FlinkObrErr {
 
-  case class ClusterNotFound(fcid: Fcid)                                extends FlinkObrErr
+  case class ClusterNotFound(fcid: Fcid)                                extends FlinkObrErr with PotaFail.NotFound
   case class RequestK8sApiErr(k8sFailure: K8sFailure, cause: Throwable) extends FlinkObrErr with FailStackFill
   case class RequestFlinkRestApiErr(cause: Throwable)                   extends FlinkObrErr with FailStackFill
   case class ActorInteropErr(cause: ActorInteropException)              extends FlinkObrErr with FailStackFill
   case class DbInteropErr(cause: SQLException)                          extends FlinkObrErr with FailStackFill
+  case class TriggerNotFound(triggerId: String)                         extends FlinkObrErr
   case object TriggerTimeout                                            extends FlinkObrErr
 
   implicit def flattenActorInteropException[A](io: IO[ActorInteropException, A]): IO[ActorInteropErr, A] = io.mapError(ActorInteropErr)

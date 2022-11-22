@@ -3,7 +3,7 @@ package potamoi.flink.observer
 import akka.actor.typed.Behavior
 import potamoi.cluster.LWWMapDData
 import potamoi.config.DDataConf
-import potamoi.flink.share.{Fcid, FlinkRestSvcEndpoint}
+import potamoi.flink.share.model.{Fcid, FlinkRestSvcEndpoint}
 import potamoi.timex._
 
 /**

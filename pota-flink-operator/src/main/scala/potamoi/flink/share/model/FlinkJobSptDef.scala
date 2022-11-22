@@ -1,7 +1,7 @@
-package potamoi.flink.share
+package potamoi.flink.share.model
 
 import potamoi.common.ComplexEnum
-import potamoi.flink.share.SptFormatType.SptFormatType
+import potamoi.flink.share.model.SptFormatType.SptFormatType
 
 /**
  * Flink job savepoint conf.

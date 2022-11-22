@@ -17,6 +17,7 @@ case class FlinkConf(
     @name("mc-image") minioClientImage: String = "minio/mc:RELEASE.2022-10-12T18-12-50Z",
     @name("local-tmpdir") localTmpDir: String = "tmp/flink",
     @name("rest-endpoint-internal") restEndpointTypeInternal: FlkRestEndpointType = FlkRestEndpointType.ClusterIp,
+    @name("query-ask-timeout") queryAskTimeout: Duration = 60.seconds,
     @name("tracking") tracking: FlkTrackConf = FlkTrackConf())
     extends Resolvable {
 

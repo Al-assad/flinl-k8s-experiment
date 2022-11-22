@@ -1,6 +1,7 @@
 package potamoi.cluster
 
 import akka.actor.typed.SupervisorStrategy.restart
+import akka.actor.typed.receptionist.{Receptionist, ServiceKey}
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior}
 import akka.cluster.ddata.Replicator.{GetResponse, NotFound, UpdateResponse, WriteConsistency}
@@ -18,16 +19,20 @@ trait LWWMapDData[Key, Value] {
   trait GetCmd    extends Cmd
   trait UpdateCmd extends Cmd
 
-  case class Get(key: Key, reply: ActorRef[Option[Value]]) extends GetCmd
-  case class Contains(key: Key, reply: ActorRef[Boolean])  extends GetCmd
-  case class ListKeys(reply: ActorRef[Set[Key]])           extends GetCmd
-  case class ListAll(reply: ActorRef[Map[Key, Value]])     extends GetCmd
-  case class Size(reply: ActorRef[Int])                    extends GetCmd
+  case class Get(key: Key, reply: ActorRef[Option[Value]])                             extends GetCmd
+  case class Contains(key: Key, reply: ActorRef[Boolean])                              extends GetCmd
+  case class ListKeys(reply: ActorRef[Set[Key]])                                       extends GetCmd
+  case class ListAll(reply: ActorRef[Map[Key, Value]])                                 extends GetCmd
+  case class Size(reply: ActorRef[Int])                                                extends GetCmd
+  case class Select(filter: (Key, Value) => Boolean, reply: ActorRef[Map[Key, Value]]) extends GetCmd
+  case class SelectKeyExists(filter: Key => Boolean, reply: ActorRef[Boolean])         extends GetCmd
+  case class SelectKeys(filter: Key => Boolean, reply: ActorRef[Set[Key]])             extends GetCmd
 
-  case class Put(key: Key, value: Value) extends UpdateCmd
-  case class PutAll(kv: Map[Key, Value]) extends UpdateCmd
-  case class Remove(key: Key)            extends UpdateCmd
-  case class RemoveAll(keys: Set[Key])   extends UpdateCmd
+  case class Put(key: Key, value: Value)               extends UpdateCmd
+  case class PutAll(kv: Map[Key, Value])               extends UpdateCmd
+  case class Remove(key: Key)                          extends UpdateCmd
+  case class RemoveAll(keys: Set[Key])                 extends UpdateCmd
+  case class RemoveBySelectKey(filter: Key => Boolean) extends UpdateCmd
 
   sealed trait InternalCmd                                                             extends Cmd
   final private case class InternalUpdate(rsp: UpdateResponse[LWWMap[Key, Value]])     extends InternalCmd
@@ -48,13 +53,14 @@ trait LWWMapDData[Key, Value] {
   /**
    * Start actor behavior.
    */
-  protected def start(conf: DDataConf)(
+  protected def start(conf: DDataConf, register: Option[ServiceKey[Cmd]] = None)(
       get: (GetCmd, LWWMap[Key, Value]) => Unit = (_, _) => (),
       notYetInit: GetCmd => Unit = _ => (),
       update: (UpdateCmd, LWWMap[Key, Value]) => LWWMap[Key, Value] = (_, m) => m): Behavior[Cmd] = {
-
     Behaviors.setup { implicit ctx =>
       implicit val node = DistributedData(ctx.system).selfUniqueAddress
+      register.foreach(ctx.system.receptionist ! Receptionist.Register(_, ctx.self))
+
       ctx.log.info(s"Distributed data actor[$cacheId] started.")
       action(conf)(get, notYetInit, update).onFailure[Exception](restart)
     }
@@ -91,19 +97,26 @@ trait LWWMapDData[Key, Value] {
             case PutAll(kv)      => modifyShapePF(cache => kv.foldLeft(cache)((ac, c) => ac.put(node, c._1, c._2)))
             case Remove(key)     => modifyShapePF(cache => cache.remove(node, key))
             case RemoveAll(keys) => modifyShapePF(cache => keys.foldLeft(cache)((ac, c) => ac.remove(node, c)))
-            case c               => modifyShapePF(cache => update(c, cache))
+            case RemoveBySelectKey(filter) =>
+              modifyShapePF { cache =>
+                cache.entries.keys.filter(filter(_)).foldLeft(cache)((ac, c) => ac.remove(node, c))
+              }
+            case c => modifyShapePF(cache => update(c, cache))
           }
 
         // get replica successfully
         case InternalGet(rsp @ Replicator.GetSuccess(cacheKey), cmd) =>
           val map = rsp.get(cacheKey)
           cmd match {
-            case Get(key, reply)      => reply ! map.get(key)
-            case Contains(key, reply) => reply ! map.contains(key)
-            case ListKeys(reply)      => reply ! map.entries.keys.toSet
-            case ListAll(reply)       => reply ! map.entries
-            case Size(reply)          => reply ! map.size
-            case c: GetCmd            => get(c, map)
+            case Get(key, reply)                => reply ! map.get(key)
+            case Contains(key, reply)           => reply ! map.contains(key)
+            case ListKeys(reply)                => reply ! map.entries.keys.toSet
+            case ListAll(reply)                 => reply ! map.entries
+            case Size(reply)                    => reply ! map.size
+            case Select(filter, reply)          => reply ! map.entries.filter { case (k, v) => filter(k, v) }
+            case SelectKeyExists(filter, reply) => reply ! map.entries.keys.exists(filter)
+            case SelectKeys(filter, reply)      => reply ! map.entries.keys.filter(filter(_)).toSet
+            case c: GetCmd                      => get(c, map)
           }
           Behaviors.same
 
@@ -116,12 +129,15 @@ trait LWWMapDData[Key, Value] {
           rsp match {
             case NotFound(_, _) =>
               if (firstNotFoundRsp) cmd match {
-                case Get(_, reply)      => reply ! None
-                case Contains(_, reply) => reply ! false
-                case ListKeys(reply)    => reply ! Set.empty
-                case ListAll(reply)     => reply ! Map.empty
-                case Size(reply)        => reply ! 0
-                case c: GetCmd          => notYetInit(c)
+                case Get(_, reply)             => reply ! None
+                case Contains(_, reply)        => reply ! false
+                case ListKeys(reply)           => reply ! Set.empty
+                case ListAll(reply)            => reply ! Map.empty
+                case Size(reply)               => reply ! 0
+                case Select(_, reply)          => reply ! Map.empty
+                case SelectKeyExists(_, reply) => reply ! false
+                case SelectKeys(_, reply)      => reply ! Set.empty
+                case c: GetCmd                 => notYetInit(c)
               }
               else {
                 firstNotFoundRsp = false

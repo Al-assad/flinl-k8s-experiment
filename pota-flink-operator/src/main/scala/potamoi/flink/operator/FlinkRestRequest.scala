@@ -1,18 +1,19 @@
 package potamoi.flink.operator
 
 import potamoi.common.PathTool.getFileName
-import potamoi.common.SttpExtension.{usingSttp, RequestBodyIOWrapper, RequestDeserializationBodyIOWrapper}
+import potamoi.common.SttpExtension.{RequestBodyIOWrapper, RequestDeserializationBodyIOWrapper, usingSttp}
 import potamoi.curTs
 import potamoi.flink.operator.FlinkRestRequest._
-import potamoi.flink.share.JobState.JobState
-import potamoi.flink.share.SptFormatType.SptFormatType
-import potamoi.flink.share._
+import potamoi.flink.share.model.JobState.JobState
+import potamoi.flink.share.model.SptFormatType.SptFormatType
+import potamoi.flink.share.{model, _}
+import potamoi.flink.share.model.{Fcid, FlinkJobOverview, FlinkJobSptDef, FlinkSessJobDef, FlinkSptTriggerStatus, OprState, TaskStats}
 import potamoi.syntax._
 import sttp.client3._
 import sttp.client3.ziojson._
 import zio.{IO, ZIO}
 import zio.ZIO.attempt
-import zio.json.{jsonField, DeriveJsonCodec, JsonCodec}
+import zio.json.{DeriveJsonCodec, JsonCodec, jsonField}
 
 import java.io.File
 
@@ -26,7 +27,7 @@ case class FlinkRestRequest(restUrl: String) {
    * Uploads jar file.
    * see: https://nightlies.apache.org/flink/flink-docs-master/docs/ops/rest_api/#jars
    */
-  def uploadJar(filePath: String): IO[Throwable, JarId] = usingSttp { backend =>
+  def uploadJar(filePath: String): IO[FlinkOprErr, JarId] = usingSttp { backend =>
     basicRequest
       .post(uri"$restUrl/jars/upload")
       .multipartBody(
@@ -248,6 +249,8 @@ case class FlinkRestRequest(restUrl: String) {
 
 object FlinkRestRequest {
 
+  case object NotFoundErr extends Throwable
+
   def apply(restUrl: String): FlinkRestRequest = new FlinkRestRequest(restUrl)
 
   /**
@@ -324,7 +327,7 @@ object FlinkRestRequest {
       @jsonField("last-modification") lastModifyTime: Long,
       tasks: TaskStats) {
 
-    def toFlinkJobOverview(fcid: Fcid): FlinkJobOverview = FlinkJobOverview(
+    def toFlinkJobOverview(fcid: Fcid): FlinkJobOverview = model.FlinkJobOverview(
       clusterId = fcid.clusterId,
       namespace = fcid.namespace,
       jobId = jid,

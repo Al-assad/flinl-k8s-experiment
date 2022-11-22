@@ -1,6 +1,7 @@
 package potamoi.flink.observer
 
 import potamoi.flink.share._
+import potamoi.flink.share.model.{Fcid, Fjid, FlinkJobOverview, FlinkSptTriggerStatus}
 import zio.IO
 import zio.macros.accessible
 
@@ -23,14 +24,6 @@ trait FlinkK8sObserver {
   def unTrackCluster(fcid: Fcid): IO[FlinkObrErr, Unit]
 
   /**
-   * Retrieve Flink rest endpoint via kubernetes api.
-   * Prioritize finding relevant records in DData cache, and call k8s api directly as fallback
-   * when found nothing.
-   * @param directly retrieve the endpoint via kubernetes api directly and reset the cache immediately.
-   */
-  def retrieveRestEndpoint(fcid: Fcid, directly: Boolean = false): IO[FlinkObrErr, FlinkRestSvcEndpoint]
-
-  /**
    * Get current savepoint trigger status of the flink job.
    */
   def getSavepointTrigger(fjid: Fjid, triggerId: String): IO[FlinkObrErr, FlinkSptTriggerStatus]
@@ -39,5 +32,26 @@ trait FlinkK8sObserver {
    * Watch flink savepoint trigger until it was completed.
    */
   def watchSavepointTrigger(fjid: Fjid, triggerId: String, timeout: Duration = Duration.Inf): IO[FlinkObrErr, FlinkSptTriggerStatus]
+
+}
+
+object FlinkK8sObserver {}
+
+trait FlinkJobOverviewQuery {
+
+  /**
+   * Get flink job status
+   */
+  def get(fjid: Fjid): IO[FlinkObrErr, Option[FlinkJobOverview]]
+
+  /**
+   * Get all job id under the flink cluster.
+   */
+  def listJobIds(fcid: Fcid): IO[FlinkObrErr, Vector[JobId]]
+
+  /**
+   * Get all flink job status under cluster.
+   */
+  def listInCluster(fcid: Fcid): IO[FlinkObrErr, Vector[FlinkJobOverview]]
 
 }

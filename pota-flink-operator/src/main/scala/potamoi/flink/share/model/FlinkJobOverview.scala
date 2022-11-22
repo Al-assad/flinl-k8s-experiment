@@ -1,8 +1,8 @@
-package potamoi.flink.share
+package potamoi.flink.share.model
 
 import potamoi.common.ComplexEnum
 import potamoi.curTs
-import potamoi.flink.share.JobState.JobState
+import potamoi.flink.share.model.JobState.JobState
 import zio.json.{DeriveJsonCodec, JsonCodec}
 
 /**
@@ -18,6 +18,7 @@ case class FlinkJobOverview(
     endTs: Long,
     tasks: TaskStats,
     ts: Long) {
+
   def durationTs: Long = curTs - startTs
   def fjid: Fjid       = Fjid(clusterId, namespace, jobId)
 }

@@ -5,7 +5,7 @@ import com.typesafe.config.{Config, ConfigFactory}
 import potamoi.common
 import potamoi.config.AkkaConf.{cborSerializableClzPath, jsonSerializableClzPath}
 import potamoi.config.DDataReadLevel.ReadLocal
-import potamoi.config.DDataWriteLevel.WriteLocal
+import potamoi.config.DDataWriteLevel.WriteMajority
 import zio.config.magnolia.name
 import zio.json.{DeriveJsonCodec, JsonCodec}
 import zio.{IO, ZIO}
@@ -85,10 +85,10 @@ object AkkaConf {
  */
 case class DDataConfs(
     @name("default") default: DDataConf = DDataConf(),
-    @name("flink-job-status") flinkJobStatus: Option[DDataConf] = None,
+    @name("flink-jobs-ov-index") flinkJobsOvIndex: Option[DDataConf] = None,
     @name("flink-rest-endpoint") flinkRestEndpoint: Option[DDataConf] = None) {
 
-  def getFlinkJobStatus: DDataConf    = flinkJobStatus.getOrElse(default)
+  def getFlinkJobsOvIndex: DDataConf  = flinkJobsOvIndex.getOrElse(default)
   def getFlinkRestEndpoint: DDataConf = flinkRestEndpoint.getOrElse(default)
 }
 
@@ -101,7 +101,7 @@ object DDataConfs {
  */
 case class DDataConf(
     @name("ask-timeout") askTimeout: Duration = 5.seconds,
-    @name("write-level") writeLevel: DDataWriteLevel = WriteLocal,
+    @name("write-level") writeLevel: DDataWriteLevel = WriteMajority(10.seconds, 0),
     @name("read-level") readLevel: DDataReadLevel = ReadLocal)
 
 object DDataConf {

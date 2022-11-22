@@ -8,7 +8,7 @@ import io.circe.yaml.syntax._
 import potamoi.common.PathTool.{isS3Path, purePath}
 import potamoi.config.PotaConf
 import potamoi.flink.operator.FlinkOprErr.{DecodePodTemplateYamlErr, EncodePodTemplateYamlErr, GenPodTemplateErr, IOErr}
-import potamoi.flink.share.{FlinkAppClusterDef, FlinkClusterDef}
+import potamoi.flink.share.model.{FlinkAppClusterDef, FlinkClusterDef}
 import potamoi.fs.lfs
 import zio.ZIO.logInfo
 import zio.prelude.data.Optional.{Absent, Present}

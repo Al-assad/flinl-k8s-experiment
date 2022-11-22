@@ -1,6 +1,7 @@
 package potamoi.flink.operator
 
 import potamoi.flink.share._
+import potamoi.flink.share.model.{Fcid, Fjid, FlinkAppClusterDef, FlinkJobSptDef, FlinkSessClusterDef, FlinkSessJobDef}
 import zio._
 import zio.macros.accessible
 

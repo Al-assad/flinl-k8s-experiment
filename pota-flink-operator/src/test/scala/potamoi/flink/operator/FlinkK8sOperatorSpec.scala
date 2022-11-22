@@ -2,9 +2,10 @@ package potamoi.flink.operator
 
 import potamoi.cluster.PotaActorSystem
 import potamoi.flink.observer.FlinkK8sObserverImpl
-import potamoi.flink.share.CheckpointStorageType.Filesystem
-import potamoi.flink.share.StateBackendType.Rocksdb
+import potamoi.flink.share.model.CheckpointStorageType.Filesystem
+import potamoi.flink.share.model.StateBackendType.Rocksdb
 import potamoi.flink.share._
+import potamoi.flink.share.model.{FlinkAppClusterDef, FlinkSessClusterDef, FlinkSessJobDef, FlinkVer, StateBackendConf}
 import potamoi.fs.S3Operator
 import potamoi.k8s.K8sClient
 import potamoi.logger.PotaLogger

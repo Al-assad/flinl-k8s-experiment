@@ -1,4 +1,4 @@
-package potamoi.flink.share
+package potamoi.flink.share.model
 
 import potamoi.config.{FlinkConf, FlkRestEndpointType}
 
