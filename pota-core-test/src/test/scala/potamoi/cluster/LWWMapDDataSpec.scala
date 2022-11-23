@@ -96,7 +96,7 @@ class LWWMapDDataSpec extends STActorClusterSpec {
           case (BiggerThan(n, reply), map) => reply ! map.entries.filter(_._2 > n).keySet
           case (LessThan(n, reply), map)   => reply ! map.entries.filter(_._2 < n).keySet
         },
-        notYetInit = {
+        defaultNotFound = {
           case BiggerThan(_, reply) => reply ! Set.empty
           case LessThan(_, reply)   => reply ! Set.empty
         },

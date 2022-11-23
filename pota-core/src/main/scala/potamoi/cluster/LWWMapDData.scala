@@ -19,22 +19,22 @@ trait LWWMapDData[Key, Value] {
   trait GetCmd    extends Cmd
   trait UpdateCmd extends Cmd
 
-  case class Get(key: Key, reply: ActorRef[Option[Value]])                             extends GetCmd
-  case class Contains(key: Key, reply: ActorRef[Boolean])                              extends GetCmd
-  case class ListKeys(reply: ActorRef[Set[Key]])                                       extends GetCmd
-  case class ListAll(reply: ActorRef[Map[Key, Value]])                                 extends GetCmd
-  case class Size(reply: ActorRef[Int])                                                extends GetCmd
-  case class Select(filter: (Key, Value) => Boolean, reply: ActorRef[Map[Key, Value]]) extends GetCmd
-  case class SelectKeyExists(filter: Key => Boolean, reply: ActorRef[Boolean])         extends GetCmd
-  case class SelectKeys(filter: Key => Boolean, reply: ActorRef[Set[Key]])             extends GetCmd
+  final case class Get(key: Key, reply: ActorRef[Option[Value]])                             extends GetCmd
+  final case class Contains(key: Key, reply: ActorRef[Boolean])                              extends GetCmd
+  final case class ListKeys(reply: ActorRef[Set[Key]])                                       extends GetCmd
+  final case class ListAll(reply: ActorRef[Map[Key, Value]])                                 extends GetCmd
+  final case class Size(reply: ActorRef[Int])                                                extends GetCmd
+  final case class Select(filter: (Key, Value) => Boolean, reply: ActorRef[Map[Key, Value]]) extends GetCmd
+  final case class SelectKeyExists(filter: Key => Boolean, reply: ActorRef[Boolean])         extends GetCmd
+  final case class SelectKeys(filter: Key => Boolean, reply: ActorRef[Set[Key]])             extends GetCmd
 
-  case class Put(key: Key, value: Value)               extends UpdateCmd
-  case class PutAll(kv: Map[Key, Value])               extends UpdateCmd
-  case class Remove(key: Key)                          extends UpdateCmd
-  case class RemoveAll(keys: Set[Key])                 extends UpdateCmd
-  case class RemoveBySelectKey(filter: Key => Boolean) extends UpdateCmd
+  final case class Put(key: Key, value: Value)               extends UpdateCmd
+  final case class PutAll(kv: Map[Key, Value])               extends UpdateCmd
+  final case class Remove(key: Key)                          extends UpdateCmd
+  final case class RemoveAll(keys: Set[Key])                 extends UpdateCmd
+  final case class RemoveBySelectKey(filter: Key => Boolean) extends UpdateCmd
 
-  sealed trait InternalCmd                                                             extends Cmd
+  sealed private trait InternalCmd                                                     extends Cmd
   final private case class InternalUpdate(rsp: UpdateResponse[LWWMap[Key, Value]])     extends InternalCmd
   final private case class InternalGet(rsp: GetResponse[LWWMap[Key, Value]], cmd: Cmd) extends InternalCmd
 
@@ -53,25 +53,27 @@ trait LWWMapDData[Key, Value] {
   /**
    * Start actor behavior.
    */
+  // noinspection DuplicatedCode
   protected def start(conf: DDataConf, register: Option[ServiceKey[Cmd]] = None)(
       get: (GetCmd, LWWMap[Key, Value]) => Unit = (_, _) => (),
-      notYetInit: GetCmd => Unit = _ => (),
+      defaultNotFound: GetCmd => Unit = _ => (),
       update: (UpdateCmd, LWWMap[Key, Value]) => LWWMap[Key, Value] = (_, m) => m): Behavior[Cmd] = {
     Behaviors.setup { implicit ctx =>
       implicit val node = DistributedData(ctx.system).selfUniqueAddress
       register.foreach(ctx.system.receptionist ! Receptionist.Register(_, ctx.self))
 
       ctx.log.info(s"Distributed data actor[$cacheId] started.")
-      action(conf)(get, notYetInit, update).onFailure[Exception](restart)
+      action(conf)(get, defaultNotFound, update).onFailure[Exception](restart)
     }
   }
 
   /**
    * Receive message behavior.
    */
+  // noinspection DuplicatedCode
   protected def action(conf: DDataConf)(
       get: (GetCmd, LWWMap[Key, Value]) => Unit = (_, _) => (),
-      notYetInit: GetCmd => Unit = _ => (),
+      defaultNotFound: GetCmd => Unit = _ => (),
       update: (UpdateCmd, LWWMap[Key, Value]) => LWWMap[Key, Value] = (_, m) => m)(
       implicit ctx: ActorContext[Cmd],
       node: SelfUniqueAddress): Behavior[Cmd] = {
@@ -79,7 +81,6 @@ trait LWWMapDData[Key, Value] {
     implicit val timeout = conf.askTimeout
     val writeLevel       = conf.writeLevel.asAkka
     val readLevel        = conf.readLevel.asAkka
-    var firstNotFoundRsp = true
 
     DistributedData.withReplicatorMessageAdapter[Cmd, LWWMap[Key, Value]] { implicit replicator =>
       val modifyShapePF = modifyShape(writeLevel)(_)
@@ -128,7 +129,7 @@ trait LWWMapDData[Key, Value] {
         case InternalGet(rsp, cmd) =>
           rsp match {
             case NotFound(_, _) =>
-              if (firstNotFoundRsp) cmd match {
+              cmd match {
                 case Get(_, reply)             => reply ! None
                 case Contains(_, reply)        => reply ! false
                 case ListKeys(reply)           => reply ! Set.empty
@@ -137,11 +138,7 @@ trait LWWMapDData[Key, Value] {
                 case Select(_, reply)          => reply ! Map.empty
                 case SelectKeyExists(_, reply) => reply ! false
                 case SelectKeys(_, reply)      => reply ! Set.empty
-                case c: GetCmd                 => notYetInit(c)
-              }
-              else {
-                firstNotFoundRsp = false
-                ctx.log.error(s"Get data replica failed: ${rsp.toString}")
+                case c: GetCmd                 => defaultNotFound(c)
               }
             case _ => ctx.log.error(s"Get data replica failed: ${rsp.toString}")
           }
@@ -155,6 +152,7 @@ trait LWWMapDData[Key, Value] {
     }
   }
 
+  // noinspection DuplicatedCode
   private def modifyShape(writeLevel: WriteConsistency)(modify: LWWMap[Key, Value] => LWWMap[Key, Value])(
       implicit replicator: ReplicatorMessageAdapter[Cmd, LWWMap[Key, Value]]): Behavior[Cmd] = {
     replicator.askUpdate(
