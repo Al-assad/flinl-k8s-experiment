@@ -43,6 +43,7 @@ sealed trait FlinkClusterDef[SubType <: FlinkClusterDef[SubType]] { this: SubTyp
 }
 
 object FlinkClusterDef {
+  import FlinkRawConf._
   implicit val sessClusterDefCodec: JsonCodec[FlinkSessClusterDef] = DeriveJsonCodec.gen[FlinkSessClusterDef]
   implicit val appClusterDefCodec: JsonCodec[FlinkAppClusterDef]   = DeriveJsonCodec.gen[FlinkAppClusterDef]
 }

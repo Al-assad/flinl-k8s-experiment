@@ -2,12 +2,11 @@ package potamoi.flink.operator
 
 import potamoi.common.PathTool.getFileName
 import potamoi.curTs
-import potamoi.flink.operator.FlinkRestRequest._
 import potamoi.flink.share.FlinkOprErr._
 import potamoi.flink.share.model.JobState.JobState
 import potamoi.flink.share.model.SptFormatType.SptFormatType
 import potamoi.flink.share.model._
-import potamoi.flink.share.{model, _}
+import potamoi.flink.share._
 import potamoi.sttpx._
 import potamoi.syntax._
 import sttp.client3._
@@ -21,6 +20,7 @@ import java.io.File
  * Reference to https://nightlies.apache.org/flink/flink-docs-master/docs/ops/rest_api/
  */
 case class FlinkRestRequest(restUrl: String) {
+  import FlinkRestRequest._
 
   /**
    * Uploads jar file.

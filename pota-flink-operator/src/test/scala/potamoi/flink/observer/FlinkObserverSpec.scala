@@ -9,8 +9,6 @@ import zio.ZIO
 // TODO unsafe
 class FlinkObserverSpec extends STSpec {
 
-  import FlinkObserver._
-
   val layers = {
     PotaDev.conf >+>
     PotaLogger.live ++
