@@ -62,3 +62,6 @@ trait FlinkK8sOperator {
   def killCluster(fcid: Fcid): IO[FlinkOprErr, Unit]
 
 }
+
+
+

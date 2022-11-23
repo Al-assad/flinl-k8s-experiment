@@ -7,14 +7,14 @@ import org.apache.flink.client.deployment.{ClusterClientFactory, DefaultClusterC
 import potamoi.common.PathTool.{getFileName, isS3Path}
 import potamoi.common.ZIOExtension.usingAttempt
 import potamoi.config.PotaConf
-import potamoi.flink.observer.FlinkK8sObserver
-import potamoi.flink.operator.FlinkConfigExtension.{EmptyConfiguration, configurationToPF}
+import potamoi.flink.observer.{FlinkObserver}
+import potamoi.flink.operator.FlinkConfigExtension.{configurationToPF, EmptyConfiguration}
 import potamoi.flink.operator.FlinkOprErr._
 import potamoi.flink.operator.FlinkRestRequest.{RunJobReq, StopJobSptReq, TriggerSptReq}
 import potamoi.flink.share.model.FlinkExecMode.{FlinkExecMode, K8sSession}
 import potamoi.flink.share._
 import potamoi.flink.share.model.{Fcid, Fjid, FlinkAppClusterDef, FlinkClusterDef, FlinkJobSptDef, FlinkSessClusterDef, FlinkSessJobDef}
-import potamoi.fs.{S3Operator, lfs}
+import potamoi.fs.{lfs, S3Operator}
 import potamoi.k8s._
 import potamoi.syntax._
 import zio.ZIO.{attempt, attemptBlockingInterrupt, logInfo, scoped, succeed}
@@ -26,12 +26,12 @@ import scala.language.implicitConversions
  * Default FlinkK8sOperator implementation.
  */
 object FlinkK8sOperatorImpl {
-  val live: ZLayer[FlinkK8sObserver with S3Operator with K8sClient with PotaConf, Nothing, FlinkK8sOperator] = ZLayer {
+  val live = ZLayer {
     for {
       potaConf      <- ZIO.service[PotaConf]
       k8sClient     <- ZIO.service[K8sClient]
       s3Operator    <- ZIO.service[S3Operator]
-      flinkObserver <- ZIO.service[FlinkK8sObserver]
+      flinkObserver <- ZIO.service[FlinkObserver]
     } yield new FlinkK8sOperatorImpl(potaConf, k8sClient, s3Operator, flinkObserver)
   }
 }

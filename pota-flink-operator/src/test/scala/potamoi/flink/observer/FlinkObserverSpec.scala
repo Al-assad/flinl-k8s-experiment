@@ -4,26 +4,31 @@ import potamoi.cluster.PotaActorSystem
 import potamoi.k8s.K8sClient
 import potamoi.logger.PotaLogger
 import potamoi.testkit.{PotaDev, STSpec, UnsafeEnv}
+import zio.ZIO
 
 // TODO unsafe
-class FlinkK8sObserverSpec extends STSpec {
+class FlinkObserverSpec extends STSpec {
 
-  import FlinkK8sObserver._
+  import FlinkObserver._
 
   val layers = {
     PotaDev.conf >+>
     PotaLogger.live ++
     PotaActorSystem.live ++
     K8sClient.live >+>
-    FlinkK8sObserverImpl.live
+    FlinkObserver.live
   }
 
   "FlinkK8sObserver" should {
 
     "retrieve flink rest endpoint" taggedAs UnsafeEnv in {
-      val ef2 = retrieveRestEndpoint("session-01" -> "fdev").debug *>
-        retrieveRestEndpoint("session-14" -> "fdev").debug
-      ef2.provide(layers).run
+      ZIO
+        .serviceWithZIO[FlinkObserver] { obr =>
+          obr.restEndpoint.get("session-01" -> "fdev").debug *>
+          obr.restEndpoint.get("session-14" -> "fdev").debug
+        }
+        .provide(layers)
+        .run
     }
 
   }

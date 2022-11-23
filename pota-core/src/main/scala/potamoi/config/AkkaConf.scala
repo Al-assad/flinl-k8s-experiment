@@ -85,9 +85,11 @@ object AkkaConf {
  */
 case class DDataConfs(
     @name("default") default: DDataConf = DDataConf(),
+    @name("flink-cluster-id") flinkClusterIds: Option[DDataConf] = None,
     @name("flink-jobs-ov-index") flinkJobsOvIndex: Option[DDataConf] = None,
     @name("flink-rest-endpoint") flinkRestEndpoint: Option[DDataConf] = None) {
 
+  def getFlinkClusterIds: DDataConf    = flinkClusterIds.getOrElse(default)
   def getFlinkJobsOvIndex: DDataConf  = flinkJobsOvIndex.getOrElse(default)
   def getFlinkRestEndpoint: DDataConf = flinkRestEndpoint.getOrElse(default)
 }

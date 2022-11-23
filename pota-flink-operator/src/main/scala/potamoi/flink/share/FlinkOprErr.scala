@@ -5,6 +5,7 @@ import potamoi.common.{ActorInteropException, FailProxy, FailStackFill, PotaFail
 import potamoi.flink.share.model.Fcid
 import potamoi.fs.S3Err
 import potamoi.k8s
+import zio.IO
 
 import scala.language.implicitConversions
 
@@ -29,14 +30,19 @@ object FlinkOprErr {
   case class UnableToResolveS3Resource(potaFail: S3Err)                     extends FlinkOprErr with FailProxy
 
   case class ClusterNotFound(fcid: Fcid)        extends FlinkOprErr with PotaFail.NotFound
+  case class JobNotFound(jobId: String)         extends FlinkOprErr with PotaFail.NotFound
+  case class JarNotFound(jarId: String)         extends FlinkOprErr with PotaFail.NotFound
   case class TriggerNotFound(triggerId: String) extends FlinkOprErr with PotaFail.NotFound
+  case class TaskManagerNotFound(tmId: String)  extends FlinkOprErr with PotaFail.NotFound
 
   case class ActorInteropErr(cause: ActorInteropException)              extends FlinkOprErr with FailStackFill
   case class RequestFlinkRestApiErr(cause: Throwable)                   extends FlinkOprErr with FailStackFill
   case class RequestK8sApiErr(k8sFailure: K8sFailure, cause: Throwable) extends FlinkOprErr with FailStackFill
+  case object WatchTimeout                                              extends FlinkOprErr
 
   object RequestK8sApiErr {
     def apply(k8sFailure: K8sFailure): RequestK8sApiErr = RequestK8sApiErr(k8sFailure, k8s.liftException(k8sFailure).orNull)
   }
 
+  implicit def actorInteropErrConversion[A](io: IO[ActorInteropException, A]): IO[FlinkOprErr, A] = io.mapError(ActorInteropErr)
 }

@@ -1,19 +1,18 @@
 package potamoi.flink.operator
 
 import potamoi.common.PathTool.getFileName
-import potamoi.common.SttpExtension.{RequestBodyIOWrapper, RequestDeserializationBodyIOWrapper, usingSttp}
 import potamoi.curTs
 import potamoi.flink.operator.FlinkRestRequest._
+import potamoi.flink.share.FlinkOprErr._
 import potamoi.flink.share.model.JobState.JobState
 import potamoi.flink.share.model.SptFormatType.SptFormatType
+import potamoi.flink.share.model._
 import potamoi.flink.share.{model, _}
-import potamoi.flink.share.model.{Fcid, FlinkJobOverview, FlinkJobSptDef, FlinkSessJobDef, FlinkSptTriggerStatus, OprState, TaskStats}
+import potamoi.sttpx._
 import potamoi.syntax._
 import sttp.client3._
 import sttp.client3.ziojson._
-import zio.{IO, ZIO}
-import zio.ZIO.attempt
-import zio.json.{DeriveJsonCodec, JsonCodec, jsonField}
+import zio.json.{jsonField, DeriveJsonCodec, JsonCodec}
 
 import java.io.File
 
@@ -27,8 +26,8 @@ case class FlinkRestRequest(restUrl: String) {
    * Uploads jar file.
    * see: https://nightlies.apache.org/flink/flink-docs-master/docs/ops/rest_api/#jars
    */
-  def uploadJar(filePath: String): IO[FlinkOprErr, JarId] = usingSttp { backend =>
-    basicRequest
+  def uploadJar(filePath: String): FlinkIO[JarId] = usingTypedSttp { backend =>
+    request
       .post(uri"$restUrl/jars/upload")
       .multipartBody(
         multipartFile("jarfile", new File(filePath))
@@ -36,33 +35,32 @@ case class FlinkRestRequest(restUrl: String) {
           .contentType("application/java-archive")
       )
       .send(backend)
-      .map(_.body)
-      .narrowEither
-      .flatMap(rsp => attempt(ujson.read(rsp)("filename").str.split("/").last))
+      .narrowBody[FlinkOprErr]
+      .attemptBody(ujson.read(_)("filename").str.split("/").last)
   }
 
   /**
    * Runs job from jar file.
    * see: https://nightlies.apache.org/flink/flink-docs-master/docs/ops/rest_api/#jars-jarid-run
    */
-  def runJar(jarId: String, jobRunReq: RunJobReq): IO[Throwable, JobId] = usingSttp { backend =>
-    basicRequest
+  def runJar(jarId: String, jobRunReq: RunJobReq): FlinkIO[JobId] = usingTypedSttp { backend =>
+    request
       .post(uri"$restUrl/jars/$jarId/run")
       .body(jobRunReq)
       .send(backend)
-      .map(_.body)
-      .narrowEither
-      .flatMap(rsp => attempt(ujson.read(rsp)("jobid").str))
+      .narrowBodyT[FlinkOprErr](JarNotFound(jarId))
+      .attemptBody(ujson.read(_)("jobid").str)
   }
 
   /**
    * Deletes jar file.
    * see: https://nightlies.apache.org/flink/flink-docs-master/docs/ops/rest_api/#jars-jarid
    */
-  def deleteJar(jarId: String): IO[Throwable, Unit] = usingSttp { backend =>
-    basicRequest
+  def deleteJar(jarId: String): FlinkIO[Unit] = usingTypedSttp { backend =>
+    request
       .delete(uri"$restUrl/jars/$jarId")
       .send(backend)
+      .narrowBodyT[FlinkOprErr](JarNotFound(jarId))
       .unit
   }
 
@@ -70,10 +68,11 @@ case class FlinkRestRequest(restUrl: String) {
    * Cancels job.
    * see: https://nightlies.apache.org/flink/flink-docs-master/docs/ops/rest_api/#jobs-jobid-1
    */
-  def cancelJob(jobId: String): IO[Throwable, Unit] = usingSttp { backend =>
-    basicRequest
+  def cancelJob(jobId: String): FlinkIO[Unit] = usingTypedSttp { backend =>
+    request
       .patch(uri"$restUrl/jobs/$jobId?mode=cancel")
       .send(backend)
+      .narrowBodyT[FlinkOprErr](JobNotFound(jobId))
       .unit
   }
 
@@ -81,47 +80,42 @@ case class FlinkRestRequest(restUrl: String) {
    * Stops job with savepoint.
    * see: https://nightlies.apache.org/flink/flink-docs-master/docs/ops/rest_api/#jobs-jobid-stop
    */
-  def stopJobWithSavepoint(jobId: String, sptReq: StopJobSptReq) = usingSttp { backend =>
-    basicRequest
+  def stopJobWithSavepoint(jobId: String, sptReq: StopJobSptReq): FlinkIO[TriggerId] = usingTypedSttp { backend =>
+    request
       .post(uri"$restUrl/jobs/$jobId/stop")
       .body(sptReq)
       .send(backend)
-      .map(_.body)
-      .narrowEither
-      .flatMap(rsp => attempt(ujson.read(rsp)("request-id").str))
+      .narrowBodyT[FlinkOprErr](JobNotFound(jobId))
+      .attemptBody(ujson.read(_)("request-id").str)
   }
 
   /**
    * Triggers a savepoint of job.
    * see: https://nightlies.apache.org/flink/flink-docs-master/docs/ops/rest_api/#jobs-jobid-savepoints
    */
-  def triggerSavepoint(jobId: String, sptReq: TriggerSptReq): IO[Throwable, TriggerId] = usingSttp { backend =>
-    basicRequest
+  def triggerSavepoint(jobId: String, sptReq: TriggerSptReq): FlinkIO[TriggerId] = usingTypedSttp { backend =>
+    request
       .post(uri"$restUrl/jobs/$jobId/savepoints")
       .body(sptReq)
       .send(backend)
-      .map(_.body)
-      .narrowEither
-      .flatMap(rsp => attempt(ujson.read(rsp)("request-id").str))
+      .narrowBodyT[FlinkOprErr](JobNotFound(jobId))
+      .attemptBody(ujson.read(_)("request-id").str)
   }
 
   /**
    * Get status of savepoint operation.
    * see: https://nightlies.apache.org/flink/flink-docs-master/docs/ops/rest_api/#jobs-jobid-savepoints-triggerid
    */
-  def getSavepointOperationStatus(jobId: String, triggerId: String): IO[Throwable, FlinkSptTriggerStatus] = usingSttp { backend =>
-    basicRequest
+  def getSavepointOperationStatus(jobId: String, triggerId: String): FlinkIO[FlinkSptTriggerStatus] = usingTypedSttp { backend =>
+    request
       .get(uri"$restUrl/jobs/$jobId/savepoints/$triggerId")
       .send(backend)
-      .map(_.body)
-      .narrowEither
-      .flatMap { rsp =>
-        attempt {
-          val rspJson      = ujson.read(rsp)
-          val status       = rspJson("status")("id").str.contra(OprState.withName)
-          val failureCause = rspJson("operation").objOpt.map(_("failure-cause")("stack-trace").str)
-          FlinkSptTriggerStatus(status, failureCause)
-        }
+      .narrowBodyT[FlinkOprErr](TriggerNotFound(triggerId))
+      .attemptBody { body =>
+        val rspJson      = ujson.read(body)
+        val status       = rspJson("status")("id").str.contra(OprState.withName)
+        val failureCause = rspJson("operation").objOpt.map(_("failure-cause")("stack-trace").str)
+        FlinkSptTriggerStatus(status, failureCause)
       }
   }
 
@@ -129,129 +123,106 @@ case class FlinkRestRequest(restUrl: String) {
    * Get all job and the current state.
    * see: https://nightlies.apache.org/flink/flink-docs-master/docs/ops/rest_api/#jobs
    */
-  def listJobsStatusInfo: IO[Throwable, Vector[JobStatusInfo]] = usingSttp { backend =>
-    basicRequest
+  def listJobsStatusInfo: FlinkIO[Vector[JobStatusInfo]] = usingTypedSttp { backend =>
+    request
       .get(uri"$restUrl/jobs")
       .response(asJson[Vector[JobStatusInfo]])
       .send(backend)
-      .map(_.body)
-      .narrowEither
+      .narrowBody[FlinkOprErr]
   }
 
   /**
    * Get all job overview info
    * see: https://nightlies.apache.org/flink/flink-docs-master/docs/ops/rest_api/#jobs-overview
    */
-  def listJobOverviewInfo: IO[Throwable, Vector[JobOverviewInfo]] = usingSttp { backend =>
-    basicRequest
+  def listJobOverviewInfo: FlinkIO[Vector[JobOverviewInfo]] = usingTypedSttp { backend =>
+    request
       .get(uri"$restUrl/jobs/overview")
       .response(asJson[Vector[JobOverviewInfo]])
       .send(backend)
-      .map(_.body)
-      .narrowEither
+      .narrowBody[FlinkOprErr]
   }
 
   /**
    * Get cluster overview
    * see: https://nightlies.apache.org/flink/flink-docs-master/docs/ops/rest_api/#overview-1
    */
-  def getClusterOverview: IO[Throwable, ClusterOverview] = usingSttp { backend =>
-    basicRequest
+  def getClusterOverview: FlinkIO[ClusterOverview] = usingTypedSttp { backend =>
+    request
       .get(uri"$restUrl/overview")
       .response(asJson[ClusterOverview])
       .send(backend)
-      .map(_.body)
-      .narrowEither
+      .narrowBody[FlinkOprErr]
   }
 
   /**
    * Get cluster configuration.
    * see: https://nightlies.apache.org/flink/flink-docs-master/docs/ops/rest_api/#config
    */
-  def getClusterConfig: IO[Throwable, Map[String, String]] = usingSttp { backend =>
-    basicRequest
+  def getClusterConfig: FlinkIO[Map[String, String]] = usingTypedSttp { backend =>
+    request
       .get(uri"$restUrl/config")
       .send(backend)
-      .map(_.body)
-      .narrowEither
-      .flatMap { rsp =>
-        attempt {
-          ujson.read(rsp).arr.map(item => item("key").str -> item("value").str).toMap
-        }
-      }
+      .narrowBody[FlinkOprErr]
+      .attemptBody(ujson.read(_).arr.map(item => item("key").str -> item("value").str).toMap)
   }
 
   /**
    * Get job manager metrics.
    * see: https://nightlies.apache.org/flink/flink-docs-master/docs/ops/rest_api/#jobmanager-metrics
    */
-  def getJmMetrics(metricsKeys: Set[String]): IO[Throwable, Map[String, String]] = usingSttp { backend =>
-    basicRequest
+  def getJmMetrics(metricsKeys: Set[String]): FlinkIO[Map[String, String]] = usingTypedSttp { backend =>
+    request
       .get(uri"$restUrl/jobmanager/metrics?get=${metricsKeys.mkString(",")}")
       .send(backend)
-      .map(_.body)
-      .narrowEither
-      .flatMap { rsp =>
-        attempt {
-          ujson.read(rsp).arr.map(item => item("id").str -> item("value").str).toMap
-        }
-      }
+      .narrowBody[FlinkOprErr]
+      .attemptBody(ujson.read(_).arr.map(item => item("id").str -> item("value").str).toMap)
   }
 
   /**
    * List all task manager ids on cluster
    * see: https://nightlies.apache.org/flink/flink-docs-master/docs/ops/rest_api/#taskmanagers
    */
-  def listTaskManagerIds: IO[Throwable, Vector[String]] = usingSttp { backend =>
-    basicRequest
+  def listTaskManagerIds: FlinkIO[Vector[String]] = usingTypedSttp { backend =>
+    request
       .get(uri"$restUrl/taskmanagers")
       .send(backend)
-      .map(_.body)
-      .narrowEither
-      .flatMap { rsp =>
-        attempt {
-          ujson.read(rsp)("taskmanagers").arr.map(_("id").str).toVector
-        }
-      }
+      .narrowBody[FlinkOprErr]
+      .attemptBody(ujson.read(_)("taskmanagers").arr.map(_("id").str).toVector)
   }
 
   /**
    * Get task manager detail.
    * see: https://nightlies.apache.org/flink/flink-docs-master/docs/ops/rest_api/#taskmanagers-taskmanagerid
    */
-  def getTaskManagerDetails(tmId: String): IO[Throwable, TaskManagerDetail] = usingSttp { backend =>
-    basicRequest
+  def getTaskManagerDetails(tmId: String): FlinkIO[TaskManagerDetail] = usingTypedSttp { backend =>
+    request
       .get(uri"$restUrl/taskmanagers/$tmId")
       .response(asJson[TaskManagerDetail])
       .send(backend)
-      .map(_.body)
-      .narrowEither
+      .narrowBodyT[FlinkOprErr](TaskManagerNotFound(tmId))
   }
 
   /**
    * Get task manager metrics.
    * see: https://nightlies.apache.org/flink/flink-docs-master/docs/ops/rest_api/#taskmanagers-taskmanagerid-metrics
    */
-  def getTmMetrics(metricsKeys: Set[String]): IO[Throwable, Map[String, String]] = usingSttp { backend =>
-    basicRequest
-      .get(uri"$restUrl/taskmanagers/metrics?get=${metricsKeys.mkString(",")}")
+  def getTmMetrics(tmId: String, metricsKeys: Set[String]): FlinkIO[Map[String, String]] = usingTypedSttp { backend =>
+    request
+      .get(uri"$restUrl/taskmanagers/$tmId/metrics?get=${metricsKeys.mkString(",")}")
       .send(backend)
-      .map(_.body)
-      .narrowEither
-      .flatMap { rsp =>
-        ZIO.attempt {
-          ujson.read(rsp).arr.map(item => item("id").str -> item("value").str).toMap
-        }
-      }
+      .narrowBodyT[FlinkOprErr](TaskManagerNotFound(tmId))
+      .attemptBody(ujson.read(_).arr.map(item => item("id").str -> item("value").str).toMap)
   }
 
 }
 
 object FlinkRestRequest {
 
-  case object NotFoundErr extends Throwable
-
   def apply(restUrl: String): FlinkRestRequest = new FlinkRestRequest(restUrl)
+
+  private val request                                      = basicRequest
+  implicit private val narrowErr: Throwable => FlinkOprErr = RequestFlinkRestApiErr
 
   /**
    * see: [[FlinkRestRequest.runJar]]

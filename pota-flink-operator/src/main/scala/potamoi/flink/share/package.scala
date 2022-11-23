@@ -8,6 +8,9 @@ package object share {
   type JarId     = String
   type TriggerId = String
 
+  /**
+   * Flink operation IO
+   */
   type FlinkIO[A] = IO[FlinkOprErr, A]
 
 }

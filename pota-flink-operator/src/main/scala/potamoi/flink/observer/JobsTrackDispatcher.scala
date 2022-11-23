@@ -1,21 +1,18 @@
 package potamoi.flink.observer
 
 import akka.actor.typed.SupervisorStrategy.restart
-import akka.actor.typed.receptionist.ServiceKey
 import akka.actor.typed.scaladsl.Behaviors
 import akka.actor.typed.{ActorRef, Behavior}
 import akka.cluster.sharding.typed.scaladsl.{ClusterSharding, Entity, EntityTypeKey}
 import akka.cluster.sharding.typed.{ClusterShardingSettings, ShardingEnvelope}
-import potamoi.cluster.LWWMapDData
 import potamoi.common.ActorExtension.BehaviorWrapper
-import potamoi.config.{DDataConf, FlinkConf, LogConf, NodeRole}
+import potamoi.config.{FlinkConf, LogConf, NodeRole}
 import potamoi.flink.share.model.{Fcid, Fjid, FlinkJobOverview}
-import potamoi.flink.share.model.JobState.JobState
 
 /**
  * Akka cluster sharding dispatcher for [[JobsTracker]].
  */
-object JobsTraceDispatcher {
+object JobsTrackDispatcher {
 
   sealed trait Cmd
   final case class Track(fcid: Fcid)                                                                          extends Cmd
@@ -28,12 +25,12 @@ object JobsTraceDispatcher {
 
   val JobsTrackerKey = EntityTypeKey[JobsTracker.Cmd]("flink-job-tracker")
 
-  def apply(logConf: LogConf, flinkConf: FlinkConf, idxCache: ActorRef[JobOvIndexCache.Cmd], flinkObserver: FlinkK8sObserver): Behavior[Cmd] =
+  def apply(logConf: LogConf, flinkConf: FlinkConf, idxCache: ActorRef[JobOvIndexCache.Cmd], flinkEndpointQuery: RestEndpointQuery): Behavior[Cmd] =
     Behaviors.setup { implicit ctx =>
       val sharding = ClusterSharding(ctx.system)
 
       val region = sharding.init(
-        Entity(JobsTrackerKey)(entityCxt => JobsTracker(entityCxt.entityId, logConf, flinkConf, flinkObserver))
+        Entity(JobsTrackerKey)(entityCxt => JobsTracker(entityCxt.entityId, logConf, flinkConf, flinkEndpointQuery))
           .withStopMessage(JobsTracker.Stop)
           .withRole(NodeRole.FlinkOperator.toString)
           .withSettings(ClusterShardingSettings(ctx.system).withNoPassivationStrategy)
@@ -83,14 +80,3 @@ object JobsTraceDispatcher {
         .onFailure[Exception](restart)
     }
 }
-
-/**
- * Job overview query index cache.
- */
-object JobOvIndexCache extends LWWMapDData[Fjid, JobOvIndex] {
-  val cacheId                               = "flink-job-ov-index"
-  val serviceKey                            = ServiceKey[Cmd](cacheId + "-cache")
-  def apply(conf: DDataConf): Behavior[Cmd] = start(conf, Some(serviceKey))()
-}
-
-case class JobOvIndex(state: JobState)

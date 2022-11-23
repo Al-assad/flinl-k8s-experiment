@@ -29,7 +29,8 @@ case class FlinkConf(
 }
 
 object FlinkConf {
-  implicit val codec: JsonCodec[FlinkConf] = DeriveJsonCodec.gen[FlinkConf]
+  implicit val durCodec: JsonCodec[Duration] = common.scalaDurationCodec
+  implicit val codec: JsonCodec[FlinkConf]   = DeriveJsonCodec.gen[FlinkConf]
 }
 
 /**

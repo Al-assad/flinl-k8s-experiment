@@ -32,7 +32,7 @@ object JobsTracker {
   private case class FoundJobOvCacheSvcListing(listing: Listing)    extends Cmd
   private case class RefreshRecords(records: Set[FlinkJobOverview]) extends Cmd
 
-  def apply(fcidStr: String, logConf: LogConf, flinkConf: FlinkConf, flinkObserver: FlinkK8sObserver): Behavior[Cmd] =
+  def apply(fcidStr: String, logConf: LogConf, flinkConf: FlinkConf, flinkEndpointQuery: RestEndpointQuery): Behavior[Cmd] =
     Behaviors.setup { implicit ctx =>
       Behaviors.withStash[Cmd](100) { stash =>
         Behaviors.receiveMessage {
@@ -45,7 +45,7 @@ object JobsTracker {
               case Some(cache) =>
                 val fcid = unMarshallFcid(fcidStr)
                 ctx.log.info(s"Flink JobsTracker actor initialized, fcid=$fcid")
-                new JobsTracker(fcid, logConf, flinkConf, flinkObserver, cache).action
+                new JobsTracker(fcid, logConf, flinkConf, flinkEndpointQuery, cache).action
                 Behaviors.same
             }
           case cmd =>
@@ -62,7 +62,7 @@ private class JobsTracker(
     fcid: Fcid,
     logConf: LogConf,
     flinkConf: FlinkConf,
-    flinkObserver: FlinkK8sObserver,
+    flinkEndpointQuery: RestEndpointQuery,
     idxCache: ActorRef[JobOvIndexCache.Cmd])(implicit ctx: ActorContext[JobsTracker.Cmd]) {
   import JobsTracker._
 
@@ -120,7 +120,7 @@ private class JobsTracker(
   private def pollingJobOverviewApi = {
     def polling(mur: Ref[Int]) =
       for {
-        restUrl <- flinkObserver.retrieveRestEndpoint(fcid)
+        restUrl <- flinkEndpointQuery.get(fcid)
         ovInfo  <- flinkRest(restUrl.chooseUrl(flinkConf)).listJobOverviewInfo.map(_.toSet)
         preMur  <- mur.get
         curMur = MurmurHash3.setHash(ovInfo)
