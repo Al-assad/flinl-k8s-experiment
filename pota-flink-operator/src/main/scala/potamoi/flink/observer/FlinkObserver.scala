@@ -11,31 +11,13 @@ import zio.{ZIO, ZLayer}
  * Flink cluster on kubernetes observer.
  */
 trait FlinkObserver {
-
-  /**
-   * Trackers manager.
-   */
   def tracker: FlinkTrackManager
-
-  /**
-   * Flink rest endpoint query.
-   */
   def restEndpoint: RestEndpointQuery
-
-  /**
-   * Flink savepoint trigger query.
-   */
   def savepointTrigger: SavepointTriggerQuery
-
-  /**
-   * Flink job overview query.
-   */
   def jobOverview: JobOverviewQuery
-
 }
 
 object FlinkObserver {
-
   val live: ZLayer[ActorGuardian with K8sClient with PotaConf, ActorInteropException, FlinkObserver] = ZLayer {
     for {
       potaConf        <- ZIO.service[PotaConf]
@@ -68,5 +50,4 @@ object FlinkObserver {
       val jobOverview      = jobOverviewQuery
     }
   }
-
 }

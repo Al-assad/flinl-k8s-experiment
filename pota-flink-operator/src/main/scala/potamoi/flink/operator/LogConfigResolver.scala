@@ -1,5 +1,7 @@
 package potamoi.flink.operator
 
+import potamoi.flink.share.FlinkIO
+import potamoi.flink.share.FlinkOprErr.IOErr
 import potamoi.fs.lfs
 import zio.ZIO.{logInfo, succeed}
 import zio._
@@ -25,11 +27,11 @@ object LogConfigResolver {
    * write the default configuration file when the file does not exist.
    * See Flink config item: $internal.deployment.config-dir
    */
-  def ensureFlinkLogsConfigFiles(confDir: String, overwrite: Boolean = false): ZIO[Any, FlinkOprErr, Unit] = {
+  def ensureFlinkLogsConfigFiles(confDir: String, overwrite: Boolean = false): FlinkIO[Unit] = {
     val isAllFilesExist = ZIO
       .foreachPar(flinkLogConfigNames.map(n => s"$confDir/$n"))(lfs.fileExists)
       .mapBoth(
-        e => FlinkOprErr.IOErr(s"Unable to access flink log config directory: $confDir", e.cause),
+        e => IOErr(s"Unable to access flink log config directory: $confDir", e.cause),
         r => !r.contains(false)
       )
     val writeConfigFiles =
@@ -38,7 +40,7 @@ object LogConfigResolver {
           targetFilePath <- succeed(s"$confDir/$fName")
           _ <- lfs
             .write(targetFilePath, content)
-            .mapError(e => FlinkOprErr.IOErr(s"Fail to write flink config file: $confDir/$fName", e.cause))
+            .mapError(e => IOErr(s"Fail to write flink config file: $confDir/$fName", e.cause))
           _ <- logInfo(s"Wrote flink log config file: $targetFilePath")
         } yield ()
       }

@@ -26,6 +26,7 @@ object FlinkOprErr {
 
   case class SubmitFlinkSessionClusterErr(fcid: Fcid, cause: Throwable)     extends FlinkOprErr with FailStackFill
   case class SubmitFlinkApplicationClusterErr(fcid: Fcid, cause: Throwable) extends FlinkOprErr with FailStackFill
+  case class EmptyJobInCluster(fcid: Fcid)                                  extends FlinkOprErr
   case class NotSupportJobJarPath(path: String)                             extends FlinkOprErr
   case class UnableToResolveS3Resource(potaFail: S3Err)                     extends FlinkOprErr with FailProxy
 

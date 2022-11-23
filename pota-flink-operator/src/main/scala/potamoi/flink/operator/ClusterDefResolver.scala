@@ -4,13 +4,13 @@ import cats.Eval
 import org.apache.flink.configuration.Configuration
 import potamoi.common.CollectionExtension.StringIterableWrapper
 import potamoi.common.PathTool.{isS3Path, reviseToS3pSchema}
-import potamoi.syntax.safeTrim
 import potamoi.config.PotaConf
 import potamoi.flink.operator.ClusterDefResolver.notAllowCustomRawConfKeys
 import potamoi.flink.operator.FlinkConfigExtension.{ConfigurationPF, EmptyConfiguration, configurationToPF}
-import potamoi.flink.operator.FlinkOprErr.{DryToFlinkRawConfigErr, ReviseFlinkClusterDefErr}
 import potamoi.flink.operator.FlinkPlugins.{s3Hadoop, s3Presto, s3aPlugins}
+import potamoi.flink.share.FlinkOprErr.{DryToFlinkRawConfigErr, ReviseFlinkClusterDefErr}
 import potamoi.flink.share.model.{FlinkAppClusterDef, FlinkClusterDef, FlinkSessClusterDef, S3AccessConf}
+import potamoi.syntax.safeTrim
 import zio.{IO, ZIO}
 
 import scala.language.implicitConversions

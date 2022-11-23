@@ -7,7 +7,8 @@ import io.circe.yaml.parser.{parse => parseYaml}
 import io.circe.yaml.syntax._
 import potamoi.common.PathTool.{isS3Path, purePath}
 import potamoi.config.PotaConf
-import potamoi.flink.operator.FlinkOprErr.{DecodePodTemplateYamlErr, EncodePodTemplateYamlErr, GenPodTemplateErr, IOErr}
+import potamoi.flink.share.FlinkIO
+import potamoi.flink.share.FlinkOprErr.{DecodePodTemplateYamlErr, EncodePodTemplateYamlErr, GenPodTemplateErr, IOErr}
 import potamoi.flink.share.model.{FlinkAppClusterDef, FlinkClusterDef}
 import potamoi.fs.lfs
 import zio.ZIO.logInfo
@@ -22,7 +23,7 @@ object PodTemplateResolver {
   /**
    * Generate PodTemplate and dump it to local dir, return the yaml file path on local fs.
    */
-  def resolvePodTemplateAndDump(definition: FlinkClusterDef[_], potaConf: PotaConf, outputPath: String): IO[FlinkOprErr, Unit] = {
+  def resolvePodTemplateAndDump(definition: FlinkClusterDef[_], potaConf: PotaConf, outputPath: String): FlinkIO[Unit] = {
     for {
       podTemplate <- resolvePodTemplate(definition, potaConf)
       _           <- writeToLocal(podTemplate, outputPath)
@@ -33,7 +34,7 @@ object PodTemplateResolver {
    * Resolve and generate PodTemplate from Flink cluster definition,
    * if definition.overridePodTemplate is defined, use it directly.
    */
-  def resolvePodTemplate(definition: FlinkClusterDef[_], potaConf: PotaConf): IO[FlinkOprErr, Pod] = {
+  def resolvePodTemplate(definition: FlinkClusterDef[_], potaConf: PotaConf): FlinkIO[Pod] = {
     definition.overridePodTemplate match {
       case Some(podTemplate) => ZIO.fromEither(parseYaml(podTemplate).map(_.as[Pod]).flatMap(identity)).mapError(DecodePodTemplateYamlErr(_))
       case None              => genPodTemplate(definition, potaConf)
@@ -43,7 +44,7 @@ object PodTemplateResolver {
   /**
    * Generate PodTemplate from Flink cluster definition and ignore definition.overridePodTemplate.
    */
-  def genPodTemplate(definition: FlinkClusterDef[_], potaConf: PotaConf): IO[FlinkOprErr.GenPodTemplateErr, Pod] =
+  def genPodTemplate(definition: FlinkClusterDef[_], potaConf: PotaConf): IO[GenPodTemplateErr, Pod] =
     ZIO
       .attempt {
         // user libs on s3: (pure path, jar name)
@@ -104,14 +105,14 @@ object PodTemplateResolver {
   /**
    * Encode podTemplate object to yaml string content.
    */
-  def encodePodTemplateToYaml(podTemplate: Pod): IO[FlinkOprErr.EncodePodTemplateYamlErr, String] =
+  def encodePodTemplateToYaml(podTemplate: Pod): IO[EncodePodTemplateYamlErr, String] =
     ZIO.attempt(podTemplate.asJson.deepDropNullValues.asYaml.spaces2).mapError(EncodePodTemplateYamlErr)
 
   /**
    * Write the Pod to a local temporary file in yaml format.
    * Return generated yaml file path.
    */
-  def writeToLocal(podTemplate: Pod, path: String): IO[FlinkOprErr, Unit] =
+  def writeToLocal(podTemplate: Pod, path: String): FlinkIO[Unit] =
     for {
       yaml <- encodePodTemplateToYaml(podTemplate)
       _    <- (lfs.rm(path) *> lfs.write(path, yaml)).mapError(e => IOErr(s"Fail to write podtemplate to local file: $path", e.cause))
