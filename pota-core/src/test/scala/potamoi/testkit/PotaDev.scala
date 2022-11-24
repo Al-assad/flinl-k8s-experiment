@@ -1,8 +1,8 @@
 package potamoi.testkit
 
-import potamoi.config.{DbConf, NodeRole, PotaConf, S3AccessStyle, S3Conf}
-import zio.{ULayer, ZLayer}
+import potamoi.config._
 import potamoi.syntax.valueToSome
+import zio.{ULayer, ZLayer}
 
 object PotaDev {
 
@@ -21,8 +21,13 @@ object PotaDev {
       accessKey = "minio",
       secretKey = "minio123",
       accessStyle = S3AccessStyle.PathStyle
+    ),
+    akka = AkkaConf().copy(
+      host = "127.0.0.1",
+      port = 3300,
+      seedsAddress = Set("127.0.0.1:3300")
     )
-  )
+  ).resolve
 
   val conf: ULayer[PotaConf] = ZLayer.succeed(rawConf)
 

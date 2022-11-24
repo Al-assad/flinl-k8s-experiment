@@ -5,8 +5,10 @@ import akka.util.Timeout
 import potamoi.flink.share.FlinkIO
 import potamoi.flink.share.model.Fcid
 import potamoi.actorx._
+import potamoi.timex._
 import potamoi.cluster.ORSetDData
-import potamoi.config.DDataConf
+import potamoi.cluster.PotaActorSystem.{ActorGuardian, ActorGuardianExtension}
+import potamoi.config.{DDataConf, PotaConf}
 
 /**
  * Flink trackers manager.
@@ -31,6 +33,13 @@ trait FlinkTrackManager {
 }
 
 object FlinkTrackManager {
+
+  def live(potaConf: PotaConf, guardian: ActorGuardian, jobsTrackers: ActorRef[JobsTrackDispatcher.Cmd]) =
+    for {
+      clusterIdsCache <- guardian.spawn(TrackClusterIdsCache(potaConf.akka.ddata.getFlinkClusterIds), "flkTrackClusterCache")
+      queryTimeout = potaConf.flink.queryAskTimeout
+      sc           = guardian.scheduler
+    } yield Live(clusterIdsCache, jobsTrackers)(sc, queryTimeout)
 
   /**
    * Implementation based on Akka infra.

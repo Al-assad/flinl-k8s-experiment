@@ -16,7 +16,7 @@ import scala.concurrent.duration.DurationInt
  */
 object BotServerApp extends ZIOAppDefault {
 
-  val rpcServers = BotRpcServer.init *> ZIO.unit.forever
+  val rpcServers = BotRpcServer.init *> ZIO.never
 
   val run = rpcServers.provide(
     PotaDev.conf.change(

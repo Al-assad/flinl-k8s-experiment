@@ -1,14 +1,15 @@
 package potamoi.flink.observer
 
-import akka.actor.typed.receptionist.ServiceKey
 import akka.actor.typed.{ActorRef, Behavior, Scheduler}
 import akka.util.Timeout
 import potamoi.cluster.LWWMapDData
+import potamoi.cluster.PotaActorSystem.{ActorGuardian, ActorGuardianExtension}
 import potamoi.common.ActorExtension.ActorRefWrapper
-import potamoi.config.DDataConf
+import potamoi.config.{DDataConf, PotaConf}
 import potamoi.flink.share.model.JobState.JobState
 import potamoi.flink.share.model.{Fcid, Fjid, FlinkJobOverview}
 import potamoi.flink.share.{FlinkIO, JobId}
+import potamoi.timex._
 
 /**
  * Flink jobs overview snapshot query layer.
@@ -33,6 +34,14 @@ trait JobOverviewQuery {
 }
 
 object JobOverviewQuery {
+
+  def live(potaConf: PotaConf, guardian: ActorGuardian, endpointQuery: RestEndpointQuery) =
+    for {
+      idxCache          <- guardian.spawn(JobOvIndexCache(potaConf.akka.ddata.getFlinkJobsOvIndex), "flkJobOvIndexCache")
+      trackerDispatcher <- guardian.spawn(JobsTrackDispatcher(potaConf, idxCache, endpointQuery), "flkJobsTrackDispatcher")
+      queryTimeout = potaConf.flink.queryAskTimeout
+      sc           = guardian.scheduler
+    } yield Live(trackerDispatcher, idxCache)(sc, queryTimeout)
 
   /**
    * Akka Sharding/DData hybrid storage implementation.
@@ -59,8 +68,7 @@ object JobOverviewQuery {
  */
 private[observer] object JobOvIndexCache extends LWWMapDData[Fjid, JobOvIndex] {
   val cacheId                               = "flink-job-ov-index"
-  val serviceKey                            = ServiceKey[Cmd](cacheId + "-cache")
-  def apply(conf: DDataConf): Behavior[Cmd] = start(conf, Some(serviceKey))()
+  def apply(conf: DDataConf): Behavior[Cmd] = start(conf)()
 }
 
 case class JobOvIndex(state: JobState)

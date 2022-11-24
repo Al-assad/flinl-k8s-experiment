@@ -138,9 +138,10 @@ case class FlinkRestRequest(restUrl: String) {
   def listJobOverviewInfo: FlinkIO[Vector[JobOverviewInfo]] = usingTypedSttp { backend =>
     request
       .get(uri"$restUrl/jobs/overview")
-      .response(asJson[Vector[JobOverviewInfo]])
+      .response(asJson[JobOverviewRsp])
       .send(backend)
       .narrowBody[FlinkOprErr]
+      .map(_.jobs)
   }
 
   /**
@@ -288,13 +289,13 @@ object FlinkRestRequest {
   /**
    * see: [[FlinkRestRequest.listJobOverviewInfo]]
    */
+  case class JobOverviewRsp(jobs: Vector[JobOverviewInfo])
   case class JobOverviewInfo(
       @jsonField("jid") jid: String,
       name: String,
       state: JobState,
       @jsonField("start-time") startTime: Long,
       @jsonField("end-time") endTime: Long,
-      duration: Long,
       @jsonField("last-modification") lastModifyTime: Long,
       tasks: TaskStats) {
 
@@ -311,9 +312,10 @@ object FlinkRestRequest {
     )
   }
 
-  object JobOverviewInfo {
-    implicit val taskStatsCodec: JsonCodec[TaskStats] = DeriveJsonCodec.gen[TaskStats]
-    implicit val codec: JsonCodec[JobOverviewInfo]    = DeriveJsonCodec.gen[JobOverviewInfo]
+  object JobOverviewRsp {
+    implicit val taskStatsCodec: JsonCodec[TaskStats]     = DeriveJsonCodec.gen[TaskStats]
+    implicit val jobOvCodec: JsonCodec[JobOverviewInfo]   = DeriveJsonCodec.gen[JobOverviewInfo]
+    implicit val jobOvRspCodec: JsonCodec[JobOverviewRsp] = DeriveJsonCodec.gen[JobOverviewRsp]
   }
 
   case class ClusterOverview(

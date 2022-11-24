@@ -4,11 +4,13 @@ import akka.actor.typed.{ActorRef, Behavior, Scheduler}
 import akka.util.Timeout
 import com.coralogix.zio.k8s.client.NotFound
 import potamoi.cluster.LWWMapDData
+import potamoi.cluster.PotaActorSystem.{ActorGuardian, ActorGuardianExtension}
 import potamoi.common.ActorExtension.ActorRefWrapper
-import potamoi.config.DDataConf
+import potamoi.config.{DDataConf, PotaConf}
 import potamoi.flink.share.model.{Fcid, FlinkRestSvcEndpoint}
 import potamoi.flink.share.{FlinkIO, FlinkOprErr}
 import potamoi.k8s._
+import potamoi.timex._
 import zio.ZIO.{fail, logDebug, succeed}
 import zio.{IO, ZIOAspect}
 
@@ -35,13 +37,18 @@ trait RestEndpointQuery {
 
 object RestEndpointQuery {
 
+  def live(potaConf: PotaConf, k8sClient: K8sClient, guardian: ActorGuardian) =
+    for {
+      restEptCache <- guardian.spawn(RestEndpointCache(potaConf.akka.ddata.getFlinkRestEndpoint), "flkRestEndpointCache")
+      queryTimeout = potaConf.flink.queryAskTimeout
+      sc           = guardian.scheduler
+    } yield Live(k8sClient, restEptCache)(sc, queryTimeout)
+
   /**
    * Implementation based on Akka DData as cache.
    */
   case class Live(k8sClient: K8sClient, restEptCache: ActorRef[RestEndpointCache.Cmd])(implicit sc: Scheduler, queryTimeout: Timeout)
       extends RestEndpointQuery {
-
-    private case object NotFoundRecordFromCache
 
     /**
      * Get Flink rest endpoint.
@@ -51,8 +58,11 @@ object RestEndpointQuery {
         .map(Some(_))
         .catchSome { case FlinkOprErr.ClusterNotFound(_) => succeed(None) }
 
+    private case object NotFoundRecordFromCache
+
     /**
      * Get Flink rest endpoint.
+     * todo auto sync cache from flink cluster tracker.
      */
     override def get(fcid: Fcid, directly: Boolean): FlinkIO[FlinkRestSvcEndpoint] = {
       if (directly) retrieveRestEndpointViaK8s(fcid: Fcid)

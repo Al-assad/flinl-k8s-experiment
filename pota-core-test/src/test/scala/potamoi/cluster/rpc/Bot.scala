@@ -58,7 +58,8 @@ object BotImpl {
 /**
  * Rpc server
  */
-object BotRpcServer extends RpcServerActor[BotProto.Req] {
+object
+BotRpcServer extends RpcServerActor[BotProto.Req] {
   import BotProto._
 
   val init = for {

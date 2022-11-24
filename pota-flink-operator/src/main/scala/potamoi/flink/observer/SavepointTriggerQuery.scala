@@ -8,6 +8,7 @@ import potamoi.flink.share.model.{Fjid, FlinkSptTriggerStatus}
 import zio.ZIO.succeed
 import zio.ZIOAspect.annotated
 import potamoi.timex._
+import zio.ZIO
 
 import scala.concurrent.duration.Duration
 
@@ -29,6 +30,8 @@ trait SavepointTriggerQuery {
 }
 
 object SavepointTriggerQuery {
+
+  def live(flinkConf: FlinkConf, endpointQuery: RestEndpointQuery) = ZIO.succeed(Live(flinkConf, endpointQuery))
 
   /**
    * Implementation based on accessing api directly.
@@ -59,4 +62,5 @@ object SavepointTriggerQuery {
       } yield rs
     } @@ annotated(fjid.toAnno :+ "flink.triggerId" -> triggerId: _*)
   }
+
 }

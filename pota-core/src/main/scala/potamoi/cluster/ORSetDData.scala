@@ -1,7 +1,6 @@
 package potamoi.cluster
 
 import akka.actor.typed.SupervisorStrategy.restart
-import akka.actor.typed.receptionist.{Receptionist, ServiceKey}
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior}
 import akka.cluster.ddata.Replicator.{GetResponse, NotFound, UpdateResponse, WriteConsistency}
@@ -51,13 +50,12 @@ trait ORSetDData[Value] {
    * Start actor behavior.
    */
   // noinspection DuplicatedCode
-  protected def start(conf: DDataConf, register: Option[ServiceKey[Cmd]] = None)(
+  protected def start(conf: DDataConf)(
       get: (GetCmd, ORSet[Value]) => Unit = (_, _) => (),
       defaultNotFound: GetCmd => Unit = _ => (),
       update: (UpdateCmd, ORSet[Value]) => ORSet[Value] = (_, s) => s): Behavior[Cmd] = {
     Behaviors.setup { implicit ctx =>
       implicit val node = DistributedData(ctx.system).selfUniqueAddress
-      register.foreach(ctx.system.receptionist ! Receptionist.Register(_, ctx.self))
       action(conf)(get, defaultNotFound, update).onFailure[Exception](restart)
     }
   }

@@ -6,7 +6,7 @@ import akka.actor.typed.{ActorRef, Behavior}
 import akka.cluster.sharding.typed.scaladsl.{ClusterSharding, Entity, EntityTypeKey}
 import akka.cluster.sharding.typed.{ClusterShardingSettings, ShardingEnvelope}
 import potamoi.common.ActorExtension.BehaviorWrapper
-import potamoi.config.{FlinkConf, LogConf, NodeRole}
+import potamoi.config.{NodeRole, PotaConf}
 import potamoi.flink.share.model.{Fcid, Fjid, FlinkJobOverview}
 
 /**
@@ -23,17 +23,16 @@ object JobsTrackDispatcher {
   final case class ListJobOvInCluster(fcid: Fcid, reply: ActorRef[Set[FlinkJobOverview]])                     extends Query
   private case class ValidateExistsThen(exists: Boolean, cmd: Query)                                          extends Cmd
 
-  val JobsTrackerKey = EntityTypeKey[JobsTracker.Cmd]("flink-job-tracker")
+  val JobsTrackerKey = EntityTypeKey[JobsTracker.Cmd]("flinkJobTracker")
 
-  def apply(logConf: LogConf, flinkConf: FlinkConf, idxCache: ActorRef[JobOvIndexCache.Cmd], flinkEndpointQuery: RestEndpointQuery): Behavior[Cmd] =
+  def apply(potaConf: PotaConf, idxCache: ActorRef[JobOvIndexCache.Cmd], flinkEndpointQuery: RestEndpointQuery): Behavior[Cmd] =
     Behaviors.setup { implicit ctx =>
       val sharding = ClusterSharding(ctx.system)
-
       val region = sharding.init(
-        Entity(JobsTrackerKey)(entityCxt => JobsTracker(entityCxt.entityId, logConf, flinkConf, flinkEndpointQuery))
+        Entity(JobsTrackerKey)(entityCxt => JobsTracker(entityCxt.entityId, potaConf, flinkEndpointQuery))
           .withStopMessage(JobsTracker.Stop)
           .withRole(NodeRole.FlinkOperator.toString)
-          .withSettings(ClusterShardingSettings(ctx.system).withNoPassivationStrategy)
+          .withSettings(ClusterShardingSettings(ctx.system).withNoPassivationStrategy())
       )
       ctx.log.info("Flink JobsTraceDispatcher actor started.")
 

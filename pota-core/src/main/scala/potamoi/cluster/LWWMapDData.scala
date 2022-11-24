@@ -1,7 +1,6 @@
 package potamoi.cluster
 
 import akka.actor.typed.SupervisorStrategy.restart
-import akka.actor.typed.receptionist.{Receptionist, ServiceKey}
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior}
 import akka.cluster.ddata.Replicator.{GetResponse, NotFound, UpdateResponse, WriteConsistency}
@@ -54,15 +53,13 @@ trait LWWMapDData[Key, Value] {
    * Start actor behavior.
    */
   // noinspection DuplicatedCode
-  protected def start(conf: DDataConf, register: Option[ServiceKey[Cmd]] = None)(
+  protected def start(conf: DDataConf)(
       get: (GetCmd, LWWMap[Key, Value]) => Unit = (_, _) => (),
       defaultNotFound: GetCmd => Unit = _ => (),
       update: (UpdateCmd, LWWMap[Key, Value]) => LWWMap[Key, Value] = (_, m) => m): Behavior[Cmd] = {
     Behaviors.setup { implicit ctx =>
       implicit val node = DistributedData(ctx.system).selfUniqueAddress
-      register.foreach(ctx.system.receptionist ! Receptionist.Register(_, ctx.self))
-
-      ctx.log.info(s"Distributed data actor[$cacheId] started.")
+      // ctx.log.info(s"Distributed data actor[$cacheId] started.")
       action(conf)(get, defaultNotFound, update).onFailure[Exception](restart)
     }
   }
