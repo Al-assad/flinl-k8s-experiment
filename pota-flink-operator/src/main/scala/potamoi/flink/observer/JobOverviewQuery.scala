@@ -60,8 +60,11 @@ object JobOverviewQuery {
   /**
    * Akka Sharding/DData hybrid storage implementation.
    */
-  case class Live(trackers: ActorRef[JobsTrackerProxy.Cmd], idxCache: ActorRef[JobOvIndexCache.Cmd], queryParallelism: Int)(
-      implicit sc: Scheduler,
+  case class Live(
+      trackers: ActorRef[JobsTrackerProxy.Cmd],
+      idxCache: ActorRef[JobOvIndexCache.Cmd],
+      queryParallelism: Int
+    )(implicit sc: Scheduler,
       queryTimeout: Timeout)
       extends JobOverviewQuery {
 

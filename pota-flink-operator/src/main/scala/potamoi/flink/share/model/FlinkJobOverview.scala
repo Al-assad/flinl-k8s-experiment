@@ -6,7 +6,7 @@ import potamoi.flink.share.model.JobState.JobState
 import zio.json.{DeriveJsonCodec, JsonCodec}
 
 /**
- * Flink job status overview.
+ * Flink job overview.
  */
 case class FlinkJobOverview(
     clusterId: String,
@@ -18,9 +18,8 @@ case class FlinkJobOverview(
     endTs: Long,
     tasks: TaskStats,
     ts: Long) {
-
+  lazy val fjid: Fjid  = Fjid(clusterId, namespace, jobId)
   def durationTs: Long = curTs - startTs
-  def fjid: Fjid       = Fjid(clusterId, namespace, jobId)
 }
 
 case class TaskStats(

@@ -41,5 +41,3 @@ case class DbConf(
 object DbConf {
   implicit val codec: JsonCodec[DbConf] = DeriveJsonCodec.gen[DbConf]
 }
-
-

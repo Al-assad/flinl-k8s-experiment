@@ -1,6 +1,5 @@
 package potamoi.k8s
 
-import org.joda.time.DateTime
 import potamoi.common.ComplexEnum
 import potamoi.k8s.QuantityUnit.QuantityUnit
 
@@ -31,12 +30,4 @@ case class K8sQuantity(value: Double, unit: QuantityUnit) {
     else if (unit <= E) value * 1.024 * pow(1000, (targetUnit.id - Ki.id) - (unit.id - k.id))
     else value / 1.024 * pow(1000, (unit.id - Ki.id) - (targetUnit.id - k.id))
   }
-}
-
-
-object test extends App {
-  val str = "2022-11-18T08:41:34Z"
-  val a = DateTime.parse(str).getMillis
-  println(a)
-
 }

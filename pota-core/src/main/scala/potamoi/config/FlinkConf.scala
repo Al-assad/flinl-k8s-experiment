@@ -48,8 +48,7 @@ case class FlkTrackConf(
  */
 case class FlkSnapshotQueryConf(
     @name("timeout") askTimeout: Duration = 60.seconds,
-    @name("parallelism") parallelism: Int = 16
-)
+    @name("parallelism") parallelism: Int = 16)
 
 /**
  * Flink rest api export type.

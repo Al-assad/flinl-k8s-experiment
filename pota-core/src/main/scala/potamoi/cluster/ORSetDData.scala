@@ -55,8 +55,9 @@ trait ORSetDData[Value] {
    *                        is not initialized with the corresponding DData.
    */
   // noinspection DuplicatedCode
-  protected def start(conf: DDataConf)(
-      get: (GetCmd, ORSet[Value]) => Unit = (_, _) => (),
+  protected def start(
+      conf: DDataConf
+    )(get: (GetCmd, ORSet[Value]) => Unit = (_, _) => (),
       defaultNotFound: GetCmd => Unit = _ => (),
       update: (UpdateCmd, ORSet[Value]) => ORSet[Value] = (_, s) => s): Behavior[Cmd] = {
     Behaviors.setup { implicit ctx =>
@@ -66,10 +67,13 @@ trait ORSetDData[Value] {
   }
 
   // noinspection DuplicatedCode
-  protected def action(conf: DDataConf)(
-      get: (GetCmd, ORSet[Value]) => Unit = (_, _) => (),
+  protected def action(
+      conf: DDataConf
+    )(get: (GetCmd, ORSet[Value]) => Unit = (_, _) => (),
       defaultNotFound: GetCmd => Unit = _ => (),
-      update: (UpdateCmd, ORSet[Value]) => ORSet[Value] = (_, s) => s)(implicit ctx: ActorContext[Cmd], node: SelfUniqueAddress): Behavior[Cmd] = {
+      update: (UpdateCmd, ORSet[Value]) => ORSet[Value] = (_, s) => s
+    )(implicit ctx: ActorContext[Cmd],
+      node: SelfUniqueAddress): Behavior[Cmd] = {
 
     implicit val timeout = conf.askTimeout
     val writeLevel       = conf.writeLevel.asAkka
@@ -139,8 +143,10 @@ trait ORSetDData[Value] {
   }
 
   // noinspection DuplicatedCode
-  private def modifyShape(writeLevel: WriteConsistency)(modify: ORSet[Value] => ORSet[Value])(
-      implicit replicator: ReplicatorMessageAdapter[Cmd, ORSet[Value]]): Behavior[Cmd] = {
+  private def modifyShape(
+      writeLevel: WriteConsistency
+    )(modify: ORSet[Value] => ORSet[Value]
+    )(implicit replicator: ReplicatorMessageAdapter[Cmd, ORSet[Value]]): Behavior[Cmd] = {
     replicator.askUpdate(
       replyTo => Replicator.Update(cacheKey, init, writeLevel, replyTo)(modify(_)),
       rsp => InternalUpdate(rsp)

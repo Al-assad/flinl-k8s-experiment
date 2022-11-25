@@ -66,14 +66,14 @@ abstract class FlinkBaseOperator(potaConf: PotaConf, k8sClient: K8sClient, flink
    * Terminate the flink cluster and reclaim all associated k8s resources.
    */
   def killCluster(fcid: Fcid): FlinkIO[Unit] = {
-                                                 k8sClient.api.apps.v1.deployments
+    k8sClient.api.apps.v1.deployments
       .delete(name = fcid.clusterId, namespace = fcid.namespace, deleteOptions = DeleteOptions())
       .mapError {
         case NotFound => ClusterNotFound(fcid)
         case failure  => FlinkOprErr.RequestK8sApiErr(failure)
       }
       .unit <*
-                                                 flinkObserver.manager.untrackCluster(fcid).ignore <*
-                                                 logInfo(s"Delete flink cluster successfully.")
+    flinkObserver.manager.untrackCluster(fcid).ignore <*
+    logInfo(s"Delete flink cluster successfully.")
   } @@ ZIOAspect.annotated(fcid.toAnno: _*)
 }

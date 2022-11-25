@@ -44,8 +44,10 @@ object FlinkTrackManager {
   /**
    * Implementation based on Akka infra.
    */
-  case class Live(clusterIdsCache: ActorRef[TrackClusterIdsCache.Cmd], jobsTrackers: ActorRef[JobsTrackerProxy.Cmd])(
-      implicit sc: Scheduler,
+  case class Live(
+      clusterIdsCache: ActorRef[TrackClusterIdsCache.Cmd],
+      jobsTrackers: ActorRef[JobsTrackerProxy.Cmd]
+    )(implicit sc: Scheduler,
       queryTimeout: Timeout)
       extends FlinkTrackManager {
 

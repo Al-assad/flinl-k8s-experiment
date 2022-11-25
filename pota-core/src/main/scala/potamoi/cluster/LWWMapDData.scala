@@ -58,8 +58,9 @@ trait LWWMapDData[Key, Value] {
    *                        is not initialized with the corresponding DData.
    */
   // noinspection DuplicatedCode
-  protected def start(conf: DDataConf)(
-      get: (GetCmd, LWWMap[Key, Value]) => Unit = (_, _) => (),
+  protected def start(
+      conf: DDataConf
+    )(get: (GetCmd, LWWMap[Key, Value]) => Unit = (_, _) => (),
       defaultNotFound: GetCmd => Unit = _ => (),
       update: (UpdateCmd, LWWMap[Key, Value]) => LWWMap[Key, Value] = (_, m) => m): Behavior[Cmd] = {
     Behaviors.setup { implicit ctx =>
@@ -73,11 +74,12 @@ trait LWWMapDData[Key, Value] {
    * Receive message behavior.
    */
   // noinspection DuplicatedCode
-  protected def action(conf: DDataConf)(
-      get: (GetCmd, LWWMap[Key, Value]) => Unit = (_, _) => (),
+  protected def action(
+      conf: DDataConf
+    )(get: (GetCmd, LWWMap[Key, Value]) => Unit = (_, _) => (),
       defaultNotFound: GetCmd => Unit = _ => (),
-      update: (UpdateCmd, LWWMap[Key, Value]) => LWWMap[Key, Value] = (_, m) => m)(
-      implicit ctx: ActorContext[Cmd],
+      update: (UpdateCmd, LWWMap[Key, Value]) => LWWMap[Key, Value] = (_, m) => m
+    )(implicit ctx: ActorContext[Cmd],
       node: SelfUniqueAddress): Behavior[Cmd] = {
 
     implicit val timeout = conf.askTimeout
@@ -155,8 +157,10 @@ trait LWWMapDData[Key, Value] {
   }
 
   // noinspection DuplicatedCode
-  private def modifyShape(writeLevel: WriteConsistency)(modify: LWWMap[Key, Value] => LWWMap[Key, Value])(
-      implicit replicator: ReplicatorMessageAdapter[Cmd, LWWMap[Key, Value]]): Behavior[Cmd] = {
+  private def modifyShape(
+      writeLevel: WriteConsistency
+    )(modify: LWWMap[Key, Value] => LWWMap[Key, Value]
+    )(implicit replicator: ReplicatorMessageAdapter[Cmd, LWWMap[Key, Value]]): Behavior[Cmd] = {
     replicator.askUpdate(
       replyTo => Replicator.Update(cacheKey, init, writeLevel, replyTo)(modify(_)),
       rsp => InternalUpdate(rsp)

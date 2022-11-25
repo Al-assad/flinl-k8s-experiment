@@ -59,8 +59,12 @@ private[observer] object JobsTracker {
   }
 }
 
-private class JobsTracker(fcid: Fcid, potaConf: PotaConf, flinkEndpointQuery: RestEndpointQuery, idxCache: ActorRef[JobOvIndexCache.Cmd])(
-    implicit ctx: ActorContext[JobsTracker.Cmd]) {
+private class JobsTracker(
+    fcid: Fcid,
+    potaConf: PotaConf,
+    flinkEndpointQuery: RestEndpointQuery,
+    idxCache: ActorRef[JobOvIndexCache.Cmd]
+  )(implicit ctx: ActorContext[JobsTracker.Cmd]) {
   import JobsTracker._
 
   private var proc: Option[CancelableFuture[Unit]] = None

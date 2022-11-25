@@ -78,8 +78,9 @@ abstract class RpcClientActor[Proto <: Product: ClassTag] {
   /**
    * Binding actor receiving message behavior and ZIO behavior.
    */
-  protected def bind[E, A](f: ActorRef[MayBe[E, A]] => Proto)(
-      implicit actor: ActorRef[Request],
+  protected def bind[E, A](
+      f: ActorRef[MayBe[E, A]] => Proto
+    )(implicit actor: ActorRef[Request],
       sc: Scheduler,
       timeout: Timeout,
       actorErrAdapter: ActorInteropException => E): IO[E, A] = {

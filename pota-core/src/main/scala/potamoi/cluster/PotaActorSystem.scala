@@ -42,8 +42,10 @@ object PotaActorSystem {
     /**
      * Spawn actor in zio effect.
      */
-    def spawn[T](behavior: Behavior[T], name: String)(
-        implicit timeout: Timeout = defaultSpawnActorTimeout): IO[ActorInteropException, ActorRef[T]] = {
+    def spawn[T](
+        behavior: Behavior[T],
+        name: String
+      )(implicit timeout: Timeout = defaultSpawnActorTimeout): IO[ActorInteropException, ActorRef[T]] = {
       system.askZIO[ActorRef[T]](SpawnActor(behavior, name, _))(system.scheduler, timeout)
     }
 

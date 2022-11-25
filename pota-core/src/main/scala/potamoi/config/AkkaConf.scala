@@ -89,7 +89,7 @@ case class DDataConfs(
     @name("flink-jobs-ov-index") flinkJobsOvIndex: Option[DDataConf] = None,
     @name("flink-rest-endpoint") flinkRestEndpoint: Option[DDataConf] = None) {
 
-  def getFlinkClusterIds: DDataConf    = flinkClusterIds.getOrElse(default)
+  def getFlinkClusterIds: DDataConf   = flinkClusterIds.getOrElse(default)
   def getFlinkJobsOvIndex: DDataConf  = flinkJobsOvIndex.getOrElse(default)
   def getFlinkRestEndpoint: DDataConf = flinkRestEndpoint.getOrElse(default)
 }

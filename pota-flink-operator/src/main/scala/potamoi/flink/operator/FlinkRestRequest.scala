@@ -148,10 +148,10 @@ case class FlinkRestRequest(restUrl: String) {
    * Get cluster overview
    * see: https://nightlies.apache.org/flink/flink-docs-master/docs/ops/rest_api/#overview-1
    */
-  def getClusterOverview: FlinkIO[ClusterOverview] = usingTypedSttp { backend =>
+  def getClusterOverview: FlinkIO[ClusterOverviewInfo] = usingTypedSttp { backend =>
     request
       .get(uri"$restUrl/overview")
-      .response(asJson[ClusterOverview])
+      .response(asJson[ClusterOverviewInfo])
       .send(backend)
       .narrowBody[FlinkOprErr]
   }
@@ -318,7 +318,7 @@ object FlinkRestRequest {
     implicit val jobOvRspCodec: JsonCodec[JobOverviewRsp] = DeriveJsonCodec.gen[JobOverviewRsp]
   }
 
-  case class ClusterOverview(
+  case class ClusterOverviewInfo(
       @jsonField("flink-version") flinkVersion: String,
       @jsonField("taskmanagers") taskManagers: Int,
       @jsonField("slots-total") slotsTotal: Int,
@@ -328,8 +328,8 @@ object FlinkRestRequest {
       @jsonField("jobs-cancelled") jobsCancelled: Int,
       @jsonField("jobs-failed") jobsFailed: Int)
 
-  object ClusterOverview {
-    implicit val codec: JsonCodec[ClusterOverview] = DeriveJsonCodec.gen[ClusterOverview]
+  object ClusterOverviewInfo {
+    implicit val codec: JsonCodec[ClusterOverviewInfo] = DeriveJsonCodec.gen[ClusterOverviewInfo]
   }
 
   case class TaskManagerDetail(
