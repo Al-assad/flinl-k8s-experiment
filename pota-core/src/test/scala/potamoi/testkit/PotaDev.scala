@@ -1,8 +1,11 @@
 package potamoi.testkit
 
 import potamoi.config._
+import potamoi.logger.LogsLevel
 import potamoi.syntax.valueToSome
 import zio.{ULayer, ZLayer}
+
+import scala.concurrent.duration.DurationInt
 
 object PotaDev {
 
@@ -26,6 +29,15 @@ object PotaDev {
       host = "127.0.0.1",
       port = 3300,
       seedsAddress = Set("127.0.0.1:3300")
+    ),
+    log = LogConf().copy(
+      level = LogsLevel.INFO
+    ),
+    flink = FlinkConf().copy(
+      snapshotQuery = FlkSnapshotQueryConf(
+        askTimeout = 5.seconds,
+        parallelism = 8
+      )
     )
   ).resolve
 

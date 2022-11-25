@@ -74,7 +74,7 @@ case class FlinkSessClusterOperatorImpl(potaConf: PotaConf, k8sClient: K8sClient
           .append("kubernetes.pod-template-file.taskmanager", podTemplateFilePath)
           .append("$internal.deployment.config-dir", logConfFilePath)
       }
-      _ <- logInfo(s"Start to deploy flink application cluster:\n${rawConfig.toMap(true).toPrettyString}".stripMargin)
+      _ <- logInfo(s"Start to deploy flink application cluster:\n${rawConfig.toMap(true).toPrettyStr}".stripMargin)
       // deploy cluster
       _ <- scoped {
         for {
@@ -85,7 +85,7 @@ case class FlinkSessClusterOperatorImpl(potaConf: PotaConf, k8sClient: K8sClient
         } yield ()
       }.mapError(SubmitFlinkApplicationClusterErr(clusterDef.fcid, _))
       // tracking cluster
-      _ <- flinkObserver.tracker.trackCluster(clusterDef.fcid).ignore
+      _ <- flinkObserver.manager.trackCluster(clusterDef.fcid).ignore
       _ <- logInfo(s"Deploy flink application cluster successfully.")
     } yield ()
   } @@ annotated(clusterDef.fcid.toAnno: _*)
@@ -107,7 +107,7 @@ case class FlinkSessClusterOperatorImpl(potaConf: PotaConf, k8sClient: K8sClient
         .mapBoth(UnableToResolveS3Resource, _.getPath)
 
       // submit job
-      _ <- logInfo(s"Start to submit job to flink cluster: \n${jobDef.toPrettyString}".stripMargin)
+      _ <- logInfo(s"Start to submit job to flink cluster: \n${jobDef.toPrettyStr}".stripMargin)
       jobId <- for {
         _ <- logInfo(s"Uploading flink job jar to flink cluster, path: $jobJarPath, flink-rest: $restUrl")
         rest = flinkRest(restUrl)

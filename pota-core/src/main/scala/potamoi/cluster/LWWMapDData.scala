@@ -51,6 +51,11 @@ trait LWWMapDData[Key, Value] {
 
   /**
    * Start actor behavior.
+   *
+   * @param get             Additional extended [[GetCmd]] handling behavior.
+   * @param update          Additional extended [[UpdateCmd]] handling behavior.
+   * @param defaultNotFound Default response behavior of the extended [[GetCmd]] when the akka cluster
+   *                        is not initialized with the corresponding DData.
    */
   // noinspection DuplicatedCode
   protected def start(conf: DDataConf)(

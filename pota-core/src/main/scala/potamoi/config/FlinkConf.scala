@@ -17,7 +17,7 @@ case class FlinkConf(
     @name("mc-image") minioClientImage: String = "minio/mc:RELEASE.2022-10-12T18-12-50Z",
     @name("local-tmpdir") localTmpDir: String = "tmp/flink",
     @name("rest-endpoint-internal") restEndpointTypeInternal: FlkRestEndpointType = FlkRestEndpointType.ClusterIp,
-    @name("query-ask-timeout") queryAskTimeout: Duration = 60.seconds,
+    @name("snapshot-query") snapshotQuery: FlkSnapshotQueryConf = FlkSnapshotQueryConf(),
     @name("tracking") tracking: FlkTrackConf = FlkTrackConf())
     extends Resolvable {
 
@@ -29,21 +29,27 @@ case class FlinkConf(
 }
 
 object FlinkConf {
-  implicit val durCodec: JsonCodec[Duration] = common.scalaDurationCodec
-  implicit val codec: JsonCodec[FlinkConf]   = DeriveJsonCodec.gen[FlinkConf]
+  implicit val durCodec: JsonCodec[Duration]                         = common.scalaDurationCodec
+  implicit val trackConfCodec: JsonCodec[FlkTrackConf]               = DeriveJsonCodec.gen[FlkTrackConf]
+  implicit val snapshotQryConfCodec: JsonCodec[FlkSnapshotQueryConf] = DeriveJsonCodec.gen[FlkSnapshotQueryConf]
+  implicit val codec: JsonCodec[FlinkConf]                           = DeriveJsonCodec.gen[FlinkConf]
 }
 
 /**
- * Flink tracking config.
+ * Flink cluster tracking config.
  */
 case class FlkTrackConf(
     @name("poll-job") jobPolling: Duration = 500.millis,
     @name("poll-savepoint-trigger") savepointTriggerPolling: Duration = 100.millis)
 
-object FlkTrackConf {
-  implicit val durCodec: JsonCodec[Duration]  = common.scalaDurationCodec
-  implicit val codec: JsonCodec[FlkTrackConf] = DeriveJsonCodec.gen[FlkTrackConf]
-}
+/**
+ * Configuration of Flink snapshot queries stored in Akka distributed
+ * system (DData or cluster-sharding).
+ */
+case class FlkSnapshotQueryConf(
+    @name("timeout") askTimeout: Duration = 60.seconds,
+    @name("parallelism") parallelism: Int = 16
+)
 
 /**
  * Flink rest api export type.

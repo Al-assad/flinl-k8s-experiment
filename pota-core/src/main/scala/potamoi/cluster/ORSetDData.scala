@@ -48,6 +48,11 @@ trait ORSetDData[Value] {
 
   /**
    * Start actor behavior.
+   *
+   * @param get             Additional extended [[GetCmd]] handling behavior.
+   * @param update          Additional extended [[UpdateCmd]] handling behavior.
+   * @param defaultNotFound Default response behavior of the extended [[GetCmd]] when the akka cluster
+   *                        is not initialized with the corresponding DData.
    */
   // noinspection DuplicatedCode
   protected def start(conf: DDataConf)(
@@ -111,6 +116,7 @@ trait ORSetDData[Value] {
         // fail to get replica
         case InternalGet(rsp, cmd) =>
           rsp match {
+            // prevent wasted time on external ask behavior
             case NotFound(_, _) =>
               cmd match {
                 case List(reply)            => reply ! Set.empty

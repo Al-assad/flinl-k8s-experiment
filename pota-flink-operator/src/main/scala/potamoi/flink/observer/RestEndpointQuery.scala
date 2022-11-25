@@ -40,7 +40,7 @@ object RestEndpointQuery {
   def live(potaConf: PotaConf, k8sClient: K8sClient, guardian: ActorGuardian) =
     for {
       restEptCache <- guardian.spawn(RestEndpointCache(potaConf.akka.ddata.getFlinkRestEndpoint), "flkRestEndpointCache")
-      queryTimeout = potaConf.flink.queryAskTimeout
+      queryTimeout = potaConf.flink.snapshotQuery.askTimeout
       sc           = guardian.scheduler
     } yield Live(k8sClient, restEptCache)(sc, queryTimeout)
 

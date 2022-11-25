@@ -69,7 +69,7 @@ case class FlinkAppClusterOperatorImpl(potaConf: PotaConf, k8sClient: K8sClient,
           .append("kubernetes.pod-template-file.taskmanager", podTemplateFilePath)
           .append("$internal.deployment.config-dir", logConfFilePath)
       }
-      _ <- logInfo(s"Start to deploy flink session cluster:\n${rawConfig.toMap(true).toPrettyString}".stripMargin)
+      _ <- logInfo(s"Start to deploy flink session cluster:\n${rawConfig.toMap(true).toPrettyStr}".stripMargin)
       // deploy app cluster
       _ <- scoped {
         for {
@@ -81,7 +81,7 @@ case class FlinkAppClusterOperatorImpl(potaConf: PotaConf, k8sClient: K8sClient,
         } yield ()
       }.mapError(SubmitFlinkApplicationClusterErr(clusterDef.fcid, _))
       // tracking cluster
-      _ <- flinkObserver.tracker.trackCluster(clusterDef.fcid).ignore
+      _ <- flinkObserver.manager.trackCluster(clusterDef.fcid).ignore
       _ <- logInfo(s"Deploy flink session cluster successfully.")
     } yield ()
   } @@ annotated(clusterDef.fcid.toAnno: _*)

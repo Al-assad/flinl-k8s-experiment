@@ -23,7 +23,7 @@ trait FlinkTrackManager {
   /**
    * UnTracking flink cluster.
    */
-  def unTrackCluster(fcid: Fcid): FlinkIO[Unit]
+  def untrackCluster(fcid: Fcid): FlinkIO[Unit]
 
   /**
    * Listing tracked cluster id.
@@ -34,29 +34,29 @@ trait FlinkTrackManager {
 
 object FlinkTrackManager {
 
-  def live(potaConf: PotaConf, guardian: ActorGuardian, jobsTrackers: ActorRef[JobsTrackDispatcher.Cmd]) =
+  def live(potaConf: PotaConf, guardian: ActorGuardian, jobsTrackers: ActorRef[JobsTrackerProxy.Cmd]) =
     for {
       clusterIdsCache <- guardian.spawn(TrackClusterIdsCache(potaConf.akka.ddata.getFlinkClusterIds), "flkTrackClusterCache")
-      queryTimeout = potaConf.flink.queryAskTimeout
+      queryTimeout = potaConf.flink.snapshotQuery.askTimeout
       sc           = guardian.scheduler
     } yield Live(clusterIdsCache, jobsTrackers)(sc, queryTimeout)
 
   /**
    * Implementation based on Akka infra.
    */
-  case class Live(clusterIdsCache: ActorRef[TrackClusterIdsCache.Cmd], jobsTrackers: ActorRef[JobsTrackDispatcher.Cmd])(
+  case class Live(clusterIdsCache: ActorRef[TrackClusterIdsCache.Cmd], jobsTrackers: ActorRef[JobsTrackerProxy.Cmd])(
       implicit sc: Scheduler,
       queryTimeout: Timeout)
       extends FlinkTrackManager {
 
     override def trackCluster(fcid: Fcid): FlinkIO[Unit] = {
       clusterIdsCache.tellZIO(TrackClusterIdsCache.Put(fcid)) *>
-      jobsTrackers.tellZIO(JobsTrackDispatcher.Track(fcid))
+      jobsTrackers.tellZIO(JobsTrackerProxy.Proxy(fcid, JobsTracker.Start))
     }
 
-    override def unTrackCluster(fcid: Fcid): FlinkIO[Unit] = {
+    override def untrackCluster(fcid: Fcid): FlinkIO[Unit] = {
       clusterIdsCache.tellZIO(TrackClusterIdsCache.Remove(fcid)) *>
-      jobsTrackers.tellZIO(JobsTrackDispatcher.UnTrack(fcid))
+      jobsTrackers.tellZIO(JobsTrackerProxy.Proxy(fcid, JobsTracker.Stop))
     }
 
     override def listTrackedCluster: FlinkIO[Set[Fcid]] = {

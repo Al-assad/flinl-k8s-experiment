@@ -2,9 +2,10 @@ package potamoi.flink.observer
 
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior}
-import potamoi.cluster.CborSerializable
+import akka.cluster.sharding.typed.scaladsl.EntityTypeKey
+import potamoi.cluster.{CborSerializable, ShardingProxy}
 import potamoi.common.ActorExtension.ActorRefWrapper
-import potamoi.config.PotaConf
+import potamoi.config.{NodeRole, PotaConf}
 import potamoi.flink.operator.flinkRest
 import potamoi.flink.share.FlinkOprErr
 import potamoi.flink.share.model.{Fcid, FlinkJobOverview}
@@ -20,17 +21,33 @@ import zio.{CancelableFuture, Ref}
 import scala.util.hashing.MurmurHash3
 
 /**
+ * Akka cluster sharding proxy for [[JobsTracker]].
+ */
+private[observer] object JobsTrackerProxy extends ShardingProxy[Fcid, JobsTracker.Cmd] {
+  val entityKey   = EntityTypeKey[JobsTracker.Cmd]("flinkJobTracker")
+  val marshallKey = marshallFcid
+
+  def apply(potaConf: PotaConf, flinkEndpointQuery: RestEndpointQuery): Behavior[Cmd] = action(
+    createBehavior = entityId => JobsTracker(entityId, potaConf, flinkEndpointQuery),
+    stopMessage = JobsTracker.Stop,
+    bindRole = NodeRole.FlinkOperator.toString
+  )
+}
+
+/**
  * Job overview info tracker for single flink cluster.
  */
-object JobsTracker {
+private[observer] object JobsTracker {
 
   sealed trait Cmd                                                                             extends CborSerializable
   final case object Start                                                                      extends Cmd
   final case object Stop                                                                       extends Cmd
-  final case class ListJobOverviews(reply: ActorRef[Set[FlinkJobOverview]])                    extends Cmd
-  final case class GetJobOverview(jobId: String, reply: ActorRef[Option[FlinkJobOverview]])    extends Cmd
-  final case class GetJobOverviews(jobId: Set[String], reply: ActorRef[Set[FlinkJobOverview]]) extends Cmd
-  private case class RefreshRecords(records: Set[FlinkJobOverview])                            extends Cmd
+  sealed trait Query                                                                           extends Cmd
+  final case class ListJobOverviews(reply: ActorRef[Set[FlinkJobOverview]])                    extends Query
+  final case class GetJobOverview(jobId: String, reply: ActorRef[Option[FlinkJobOverview]])    extends Query
+  final case class GetJobOverviews(jobId: Set[String], reply: ActorRef[Set[FlinkJobOverview]]) extends Query
+  sealed private trait Internal                                                                extends Cmd
+  private case class RefreshRecords(records: Set[FlinkJobOverview])                            extends Internal
 
   def apply(fcidStr: String, potaConf: PotaConf, flinkEndpointQuery: RestEndpointQuery): Behavior[Cmd] = {
     Behaviors.setup { implicit ctx =>
@@ -118,11 +135,10 @@ private class JobsTracker(fcid: Fcid, potaConf: PotaConf, flinkEndpointQuery: Re
         .schedule(spaced(potaConf.flink.tracking.jobPolling))
         .tapError { err =>
           // logging non-repetitive error
-          preErr.get.flatMap(pre => (logError(err.toPrettyString) *> preErr.set(err)).when(!pre.contains(err)))
+          preErr.get.flatMap(pre => (logError(err.toPrettyStr) *> preErr.set(err)).when(!pre.contains(err)))
         }
         .ignore
         .forever
     } yield effect
   } @@ annotated(fcid.toAnno :+ "akkaSource" -> actorSrc: _*)
-
 }

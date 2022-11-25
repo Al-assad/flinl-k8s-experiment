@@ -11,7 +11,7 @@ import zio.{ZIO, ZLayer}
  * The service needs to be loaded eagerly.
  */
 trait FlinkObserver {
-  def tracker: FlinkTrackManager
+  def manager: FlinkTrackManager
   def restEndpoint: RestEndpointQuery
   def savepointTrigger: SavepointTriggerQuery
   def jobOverview: JobOverviewQuery
@@ -28,7 +28,7 @@ object FlinkObserver {
       jobOverviewQuery <- JobOverviewQuery.live(potaConf, guardian, endpointQuery)
       trackerManager   <- FlinkTrackManager.live(potaConf, guardian, jobOverviewQuery.trackers)
     } yield new FlinkObserver {
-      val tracker          = trackerManager
+      val manager          = trackerManager
       val restEndpoint     = endpointQuery
       val savepointTrigger = savepointQuery
       val jobOverview      = jobOverviewQuery

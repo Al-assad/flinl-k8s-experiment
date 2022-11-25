@@ -37,7 +37,7 @@ object PotaConf {
    */
   def layer(conf: PotaConf): ULayer[PotaConf] = ZLayer {
     ZIO.succeed(conf.resolve).tap { conf =>
-      if (conf.showLoadedConfig) logInfo(s"Loaded config: \n${conf.toPrettyString}")
+      if (conf.showLoadedConfig) logInfo(s"Loaded config: \n${conf.toPrettyStr}")
       else logInfo(s"Loaded config.")
     }
   }
@@ -52,7 +52,7 @@ object PotaConf {
       desc   = descriptor[PotaConf] from source
       potaConf <- read(desc).map(_.resolve)
       _ <-
-        if (potaConf.showLoadedConfig) logInfo(s"Loaded config from hocon: \n${potaConf.toPrettyString}")
+        if (potaConf.showLoadedConfig) logInfo(s"Loaded config from hocon: \n${potaConf.toPrettyStr}")
         else logInfo(s"Loaded config from hocon.")
     } yield potaConf
   }
