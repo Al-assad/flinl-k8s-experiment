@@ -12,9 +12,9 @@ import zio.{ZIO, ZLayer}
  */
 trait FlinkObserver {
   def manager: FlinkTrackManager
-  def restEndpoint: RestEndpointQuery
-  def savepointTrigger: SavepointTriggerQuery
-  def jobOverview: JobOverviewQuery
+  def jobs: JobQuery
+  def restEndpoints: RestEndpointQuery
+  def savepointTriggers: SavepointTriggerQuery
 }
 
 object FlinkObserver {
@@ -25,13 +25,13 @@ object FlinkObserver {
       guardian         <- ZIO.service[ActorGuardian]
       endpointQuery    <- RestEndpointQuery.live(potaConf, k8sClient, guardian)
       savepointQuery   <- SavepointTriggerQuery.live(potaConf.flink, endpointQuery)
-      jobOverviewQuery <- JobOverviewQuery.live(potaConf, guardian, endpointQuery)
-      trackerManager   <- FlinkTrackManager.live(potaConf, guardian, jobOverviewQuery.trackers)
+      jobQuery <- JobQuery.live(potaConf, guardian, endpointQuery)
+      trackerManager   <- FlinkTrackManager.live(potaConf, guardian, jobQuery.trackers)
     } yield new FlinkObserver {
-      val manager          = trackerManager
-      val restEndpoint     = endpointQuery
-      val savepointTrigger = savepointQuery
-      val jobOverview      = jobOverviewQuery
+      val manager           = trackerManager
+      val restEndpoints     = endpointQuery
+      val savepointTriggers = savepointQuery
+      val jobs              = jobQuery
     }
   }
 

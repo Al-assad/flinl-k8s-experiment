@@ -96,7 +96,7 @@ case class FlinkSessClusterOperatorImpl(potaConf: PotaConf, k8sClient: K8sClient
   override def submitJob(jobDef: FlinkSessJobDef): FlinkIO[JobId] = {
     for {
       // get rest api url of session cluster
-      restUrl <- flinkObserver.restEndpoint.get(jobDef.clusterId -> jobDef.namespace, directly = true).map(_.chooseUrl)
+      restUrl <- flinkObserver.restEndpoints.get(jobDef.clusterId -> jobDef.namespace, directly = true).map(_.chooseUrl)
       _       <- logInfo(s"Connect flink rest service: $restUrl")
       _       <- ZIO.fail(NotSupportJobJarPath(jobDef.jobJar)).unless(isS3Path(jobDef.jobJar))
 
@@ -126,7 +126,7 @@ case class FlinkSessClusterOperatorImpl(potaConf: PotaConf, k8sClient: K8sClient
    */
   override def cancelJob(fjid: Fjid): FlinkIO[Unit] = {
     for {
-      restUrl <- flinkObserver.restEndpoint.get(fjid.fcid, directly = true).map(_.chooseUrl)
+      restUrl <- flinkObserver.restEndpoints.get(fjid.fcid, directly = true).map(_.chooseUrl)
       _       <- flinkRest(restUrl).cancelJob(fjid.jobId)
     } yield ()
   } @@ annotated(fjid.toAnno: _*)
@@ -136,7 +136,7 @@ case class FlinkSessClusterOperatorImpl(potaConf: PotaConf, k8sClient: K8sClient
    */
   override def stopJob(fjid: Fjid, savepoint: FlinkJobSptDef): FlinkIO[(Fjid, TriggerId)] = {
     for {
-      restUrl   <- flinkObserver.restEndpoint.get(fjid.fcid, directly = true).map(_.chooseUrl)
+      restUrl   <- flinkObserver.restEndpoints.get(fjid.fcid, directly = true).map(_.chooseUrl)
       triggerId <- flinkRest(restUrl).stopJobWithSavepoint(fjid.jobId, StopJobSptReq(savepoint))
     } yield fjid -> triggerId
   } @@ annotated(fjid.toAnno: _*)
@@ -146,7 +146,7 @@ case class FlinkSessClusterOperatorImpl(potaConf: PotaConf, k8sClient: K8sClient
    */
   override def triggerJobSavepoint(fjid: Fjid, savepoint: FlinkJobSptDef): FlinkIO[(Fjid, TriggerId)] = {
     for {
-      restUrl   <- flinkObserver.restEndpoint.get(fjid.fcid, directly = true).map(_.chooseUrl)
+      restUrl   <- flinkObserver.restEndpoints.get(fjid.fcid, directly = true).map(_.chooseUrl)
       triggerId <- flinkRest(restUrl).triggerSavepoint(fjid.jobId, TriggerSptReq(savepoint))
     } yield fjid -> triggerId
   } @@ annotated(fjid.toAnno: _*)

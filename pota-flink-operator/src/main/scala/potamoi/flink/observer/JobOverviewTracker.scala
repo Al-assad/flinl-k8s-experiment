@@ -60,10 +60,10 @@ private[observer] object JobsTracker {
 }
 
 private class JobsTracker(
-    fcid: Fcid,
-    potaConf: PotaConf,
-    flinkEndpointQuery: RestEndpointQuery,
-    idxCache: ActorRef[JobOvIndexCache.Cmd]
+                           fcid: Fcid,
+                           potaConf: PotaConf,
+                           flinkEndpointQuery: RestEndpointQuery,
+                           idxCache: ActorRef[JobOvIndexCache.Cmd]
   )(implicit ctx: ActorContext[JobsTracker.Cmd]) {
   import JobsTracker._
 

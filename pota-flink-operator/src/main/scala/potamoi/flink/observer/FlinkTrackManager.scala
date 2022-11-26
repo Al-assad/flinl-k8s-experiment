@@ -2,13 +2,13 @@ package potamoi.flink.observer
 
 import akka.actor.typed.{ActorRef, Behavior, Scheduler}
 import akka.util.Timeout
-import potamoi.flink.share.FlinkIO
-import potamoi.flink.share.model.Fcid
 import potamoi.actorx._
-import potamoi.timex._
 import potamoi.cluster.ORSetDData
 import potamoi.cluster.PotaActorSystem.{ActorGuardian, ActorGuardianExtension}
 import potamoi.config.{DDataConf, PotaConf}
+import potamoi.flink.share.FlinkIO
+import potamoi.flink.share.model.Fcid
+import potamoi.timex._
 
 /**
  * Flink trackers manager.
@@ -52,18 +52,16 @@ object FlinkTrackManager {
       extends FlinkTrackManager {
 
     override def trackCluster(fcid: Fcid): FlinkIO[Unit] = {
-      clusterIdsCache.tellZIO(TrackClusterIdsCache.Put(fcid)) *>
-      jobsTrackers.tellZIO(JobsTrackerProxy.Proxy(fcid, JobsTracker.Start))
+      clusterIdsCache.put(fcid) *>
+      jobsTrackers(fcid).tell(JobsTracker.Start)
     }
 
     override def untrackCluster(fcid: Fcid): FlinkIO[Unit] = {
-      clusterIdsCache.tellZIO(TrackClusterIdsCache.Remove(fcid)) *>
-      jobsTrackers.tellZIO(JobsTrackerProxy.Proxy(fcid, JobsTracker.Stop))
+      clusterIdsCache.remove(fcid) *>
+      jobsTrackers(fcid).tell(JobsTracker.Stop)
     }
 
-    override def listTrackedCluster: FlinkIO[Set[Fcid]] = {
-      clusterIdsCache.askZIO(TrackClusterIdsCache.List)
-    }
+    override def listTrackedCluster: FlinkIO[Set[Fcid]] = clusterIdsCache.list
   }
 }
 
@@ -72,5 +70,5 @@ object FlinkTrackManager {
  */
 private[observer] object TrackClusterIdsCache extends ORSetDData[Fcid] {
   val cacheId                               = "flink-cluster-id"
-  def apply(conf: DDataConf): Behavior[Cmd] = start(conf)()
+  def apply(conf: DDataConf): Behavior[Cmd] = start(conf)
 }

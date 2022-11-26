@@ -91,7 +91,7 @@ case class FlinkAppClusterOperatorImpl(potaConf: PotaConf, k8sClient: K8sClient,
    */
   override def cancelJob(fcid: Fcid): FlinkIO[Unit] = {
     for {
-      restUrl <- flinkObserver.restEndpoint.get(fcid, directly = true).map(_.chooseUrl)
+      restUrl <- flinkObserver.restEndpoints.get(fcid, directly = true).map(_.chooseUrl)
       jobId   <- findJobIdFromAppCluster(fcid)
       _       <- flinkRest(restUrl).cancelJob(jobId)
     } yield ()
@@ -102,15 +102,15 @@ case class FlinkAppClusterOperatorImpl(potaConf: PotaConf, k8sClient: K8sClient,
    */
   override def stopJob(fcid: Fcid, savepoint: FlinkJobSptDef): FlinkIO[(Fjid, TriggerId)] = {
     for {
-      restUrl   <- flinkObserver.restEndpoint.get(fcid, directly = true).map(_.chooseUrl)
+      restUrl   <- flinkObserver.restEndpoints.get(fcid, directly = true).map(_.chooseUrl)
       jobId     <- findJobIdFromAppCluster(fcid)
       triggerId <- flinkRest(restUrl).stopJobWithSavepoint(jobId, StopJobSptReq(savepoint))
     } yield Fjid(fcid, jobId) -> triggerId
   } @@ annotated(fcid.toAnno: _*)
 
   private def findJobIdFromAppCluster(fcid: Fcid): FlinkIO[String] =
-    flinkObserver.jobOverview
-      .listJobIds(fcid)
+    flinkObserver.jobs
+      .listJobId(fcid)
       .map(_.headOption)
       .flatMap {
         case None        => fail(EmptyJobInCluster(fcid))
@@ -123,7 +123,7 @@ case class FlinkAppClusterOperatorImpl(potaConf: PotaConf, k8sClient: K8sClient,
    */
   override def triggerJobSavepoint(fcid: Fcid, savepoint: FlinkJobSptDef): FlinkIO[(Fjid, TriggerId)] = {
     for {
-      restUrl   <- flinkObserver.restEndpoint.get(fcid, directly = true).map(_.chooseUrl)
+      restUrl   <- flinkObserver.restEndpoints.get(fcid, directly = true).map(_.chooseUrl)
       jobId     <- findJobIdFromAppCluster(fcid)
       triggerId <- flinkRest(restUrl).triggerSavepoint(jobId, TriggerSptReq(savepoint))
     } yield Fjid(fcid, jobId) -> triggerId

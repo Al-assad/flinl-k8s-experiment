@@ -19,7 +19,6 @@ class ORSetDDataSpec extends STActorClusterSpec {
         _     <- cache !> Put(3)
         _     <- (cache ?> List).map(_ shouldBe Set(1, 2, 3))
         _     <- (cache ?> (Contains(2, _))).map(_ shouldBe true)
-        _     <- (cache ?> (Select(_ > 1, _))).map(_ shouldBe Set(2, 3))
         _     <- cache !> Remove(1)
         _     <- (cache ?> List).map(_ shouldBe Set(2, 3))
         _     <- cache !> Clear
@@ -31,7 +30,7 @@ class ORSetDDataSpec extends STActorClusterSpec {
 
   object SimpleOrSetActor extends ORSetDData[Int] {
     val cacheId                = "simple"
-    def apply(): Behavior[Cmd] = start(DDataConf())()
+    def apply(): Behavior[Cmd] = start(DDataConf())
   }
 
 }

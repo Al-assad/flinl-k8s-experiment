@@ -2,12 +2,15 @@ package potamoi.cluster
 
 import akka.actor.typed.SupervisorStrategy.restart
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
-import akka.actor.typed.{ActorRef, Behavior}
+import akka.actor.typed.{ActorRef, Behavior, Scheduler}
 import akka.cluster.ddata.Replicator.{GetResponse, NotFound, UpdateResponse, WriteConsistency}
 import akka.cluster.ddata.typed.scaladsl.{DistributedData, Replicator, ReplicatorMessageAdapter}
 import akka.cluster.ddata.{LWWMap, LWWMapKey, SelfUniqueAddress}
-import potamoi.common.ActorExtension.BehaviorWrapper
+import akka.util.Timeout
+import potamoi.common.ActorExtension.{ActorRefWrapper, BehaviorWrapper}
+import potamoi.common.ActorInteropException
 import potamoi.config.DDataConf
+import zio.IO
 
 /**
  * Akka LWWMap type DData structure wrapped implementation.
@@ -15,18 +18,15 @@ import potamoi.config.DDataConf
 trait LWWMapDData[Key, Value] {
 
   sealed trait Cmd
-  trait GetCmd    extends Cmd
-  trait UpdateCmd extends Cmd
 
-  final case class Get(key: Key, reply: ActorRef[Option[Value]])                             extends GetCmd
-  final case class Contains(key: Key, reply: ActorRef[Boolean])                              extends GetCmd
-  final case class ListKeys(reply: ActorRef[Set[Key]])                                       extends GetCmd
-  final case class ListAll(reply: ActorRef[Map[Key, Value]])                                 extends GetCmd
-  final case class Size(reply: ActorRef[Int])                                                extends GetCmd
-  final case class Select(filter: (Key, Value) => Boolean, reply: ActorRef[Map[Key, Value]]) extends GetCmd
-  final case class SelectKeyExists(filter: Key => Boolean, reply: ActorRef[Boolean])         extends GetCmd
-  final case class SelectKeys(filter: Key => Boolean, reply: ActorRef[Set[Key]])             extends GetCmd
+  trait GetCmd                                                   extends Cmd
+  final case class Get(key: Key, reply: ActorRef[Option[Value]]) extends GetCmd
+  final case class Contains(key: Key, reply: ActorRef[Boolean])  extends GetCmd
+  final case class ListKeys(reply: ActorRef[Set[Key]])           extends GetCmd
+  final case class ListAll(reply: ActorRef[Map[Key, Value]])     extends GetCmd
+  final case class Size(reply: ActorRef[Int])                    extends GetCmd
 
+  trait UpdateCmd                                            extends Cmd
   final case class Put(key: Key, value: Value)               extends UpdateCmd
   final case class PutAll(kv: Map[Key, Value])               extends UpdateCmd
   final case class Remove(key: Key)                          extends UpdateCmd
@@ -37,17 +37,17 @@ trait LWWMapDData[Key, Value] {
   final private case class InternalUpdate(rsp: UpdateResponse[LWWMap[Key, Value]])     extends InternalCmd
   final private case class InternalGet(rsp: GetResponse[LWWMap[Key, Value]], cmd: Cmd) extends InternalCmd
 
+  lazy val cacheKey = LWWMapKey[Key, Value](cacheId)
+
   /**
    * LWWMap cache key.
    */
   def cacheId: String
 
-  /**
+  /*
    * LWWMap initial value.
    */
   def init: LWWMap[Key, Value] = LWWMap.empty
-
-  lazy val cacheKey = LWWMapKey[Key, Value](cacheId)
 
   /**
    * Start actor behavior.
@@ -59,14 +59,14 @@ trait LWWMapDData[Key, Value] {
    */
   // noinspection DuplicatedCode
   protected def start(
-      conf: DDataConf
-    )(get: (GetCmd, LWWMap[Key, Value]) => Unit = (_, _) => (),
+      conf: DDataConf,
+      get: (GetCmd, LWWMap[Key, Value]) => Unit = (_, _) => (),
       defaultNotFound: GetCmd => Unit = _ => (),
       update: (UpdateCmd, LWWMap[Key, Value]) => LWWMap[Key, Value] = (_, m) => m): Behavior[Cmd] = {
     Behaviors.setup { implicit ctx =>
       implicit val node = DistributedData(ctx.system).selfUniqueAddress
       // ctx.log.info(s"Distributed data actor[$cacheId] started.")
-      action(conf)(get, defaultNotFound, update).onFailure[Exception](restart)
+      action(conf, get, defaultNotFound, update).onFailure[Exception](restart)
     }
   }
 
@@ -75,8 +75,8 @@ trait LWWMapDData[Key, Value] {
    */
   // noinspection DuplicatedCode
   protected def action(
-      conf: DDataConf
-    )(get: (GetCmd, LWWMap[Key, Value]) => Unit = (_, _) => (),
+      conf: DDataConf,
+      get: (GetCmd, LWWMap[Key, Value]) => Unit = (_, _) => (),
       defaultNotFound: GetCmd => Unit = _ => (),
       update: (UpdateCmd, LWWMap[Key, Value]) => LWWMap[Key, Value] = (_, m) => m
     )(implicit ctx: ActorContext[Cmd],
@@ -113,15 +113,12 @@ trait LWWMapDData[Key, Value] {
         case InternalGet(rsp @ Replicator.GetSuccess(cacheKey), cmd) =>
           val map = rsp.get(cacheKey)
           cmd match {
-            case Get(key, reply)                => reply ! map.get(key)
-            case Contains(key, reply)           => reply ! map.contains(key)
-            case ListKeys(reply)                => reply ! map.entries.keys.toSet
-            case ListAll(reply)                 => reply ! map.entries
-            case Size(reply)                    => reply ! map.size
-            case Select(filter, reply)          => reply ! map.entries.filter { case (k, v) => filter(k, v) }
-            case SelectKeyExists(filter, reply) => reply ! map.entries.keys.exists(filter)
-            case SelectKeys(filter, reply)      => reply ! map.entries.keys.filter(filter(_)).toSet
-            case c: GetCmd                      => get(c, map)
+            case Get(key, reply)      => reply ! map.get(key)
+            case Contains(key, reply) => reply ! map.contains(key)
+            case ListKeys(reply)      => reply ! map.entries.keys.toSet
+            case ListAll(reply)       => reply ! map.entries
+            case Size(reply)          => reply ! map.size
+            case c: GetCmd            => get(c, map)
           }
           Behaviors.same
 
@@ -134,15 +131,12 @@ trait LWWMapDData[Key, Value] {
           rsp match {
             case NotFound(_, _) =>
               cmd match {
-                case Get(_, reply)             => reply ! None
-                case Contains(_, reply)        => reply ! false
-                case ListKeys(reply)           => reply ! Set.empty
-                case ListAll(reply)            => reply ! Map.empty
-                case Size(reply)               => reply ! 0
-                case Select(_, reply)          => reply ! Map.empty
-                case SelectKeyExists(_, reply) => reply ! false
-                case SelectKeys(_, reply)      => reply ! Set.empty
-                case c: GetCmd                 => defaultNotFound(c)
+                case Get(_, reply)      => reply ! None
+                case Contains(_, reply) => reply ! false
+                case ListKeys(reply)    => reply ! Set.empty
+                case ListAll(reply)     => reply ! Map.empty
+                case Size(reply)        => reply ! 0
+                case c: GetCmd          => defaultNotFound(c)
               }
             case _ => ctx.log.error(s"Get data replica failed: ${rsp.toString}")
           }
@@ -166,6 +160,24 @@ trait LWWMapDData[Key, Value] {
       rsp => InternalUpdate(rsp)
     )
     Behaviors.same
+  }
+
+  /**
+   * ZIO interop.
+   */
+  type InteropIO[A] = IO[ActorInteropException, A]
+
+  implicit class ZIOOperation(actor: ActorRef[Cmd])(implicit sc: Scheduler, askTimeout: Timeout) {
+    def get(key: Key): InteropIO[Option[Value]]                    = actor.askZIO(Get(key, _))
+    def contains(key: Key): InteropIO[Boolean]                     = actor.askZIO(Contains(key, _))
+    def listKeys: InteropIO[Set[Key]]                              = actor.askZIO(ListKeys)
+    def listAll: InteropIO[Map[Key, Value]]                        = actor.askZIO(ListAll)
+    def size: InteropIO[Int]                                       = actor.askZIO(Size)
+    def put(key: Key, value: Value): InteropIO[Unit]               = actor.tellZIO(Put(key, value))
+    def putAll(kv: Map[Key, Value]): InteropIO[Unit]               = actor.tellZIO(PutAll(kv))
+    def remove(key: Key): InteropIO[Unit]                          = actor.tellZIO(Remove(key))
+    def removeAll(keys: Set[Key]): InteropIO[Unit]                 = actor.tellZIO(RemoveAll(keys))
+    def removeBySelectKey(filter: Key => Boolean): InteropIO[Unit] = actor.tellZIO(RemoveBySelectKey(filter))
   }
 
 }

@@ -48,6 +48,15 @@ class LWWMapDDataSpec extends STActorClusterSpec {
       spec.runActorSpec
     }
 
+    "zio operation api" in {
+      val spec = for {
+        cache <- spawn(SimpleLWWMapActor())
+        _     <- cache.put("k1", "1")
+        _     <- cache.get("k1").map(_ shouldBe Some("1"))
+      } yield ()
+      spec.runActorSpec
+    }
+
     "additional get/update implementation" in {
       import ExtLWWMapActor._
 
@@ -77,7 +86,7 @@ class LWWMapDDataSpec extends STActorClusterSpec {
     def apply(): Behavior[Cmd] = Behaviors.setup { implicit ctx =>
       implicit val node             = DistributedData(ctx.system).selfUniqueAddress
       implicit val timeout: Timeout = 2.seconds
-      action(DDataConf())()
+      action(DDataConf())
     }
   }
 
@@ -91,7 +100,8 @@ class LWWMapDDataSpec extends STActorClusterSpec {
 
     def apply(): Behavior[Cmd] = Behaviors.setup { implicit ctx =>
       implicit val node = DistributedData(ctx.system).selfUniqueAddress
-      action(DDataConf())(
+      action(
+        conf = DDataConf(),
         get = {
           case (BiggerThan(n, reply), map) => reply ! map.entries.filter(_._2 > n).keySet
           case (LessThan(n, reply), map)   => reply ! map.entries.filter(_._2 < n).keySet
@@ -105,8 +115,7 @@ class LWWMapDDataSpec extends STActorClusterSpec {
             case Some(value) => map :+ (key, value + inc)
             case None        => map
           }
-        }
-      )
+        })
     }
   }
 

@@ -1,12 +1,17 @@
 package potamoi.cluster
 
-import akka.actor.typed.{ActorRef, Behavior}
 import akka.actor.typed.SupervisorStrategy.restart
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
-import akka.cluster.sharding.typed.{ClusterShardingSettings, ShardingEnvelope}
+import akka.actor.typed.{ActorRef, Behavior, Scheduler}
 import akka.cluster.sharding.typed.scaladsl.{ClusterSharding, Entity, EntityTypeKey}
-import potamoi.common.ActorExtension.BehaviorWrapper
+import akka.cluster.sharding.typed.{ClusterShardingSettings, ShardingEnvelope}
+import akka.util.Timeout
+import potamoi.common.ActorExtension.{ActorRefWrapper, BehaviorWrapper}
+import potamoi.common.ActorInteropException
 import potamoi.common.Syntax.GenericPF
+import zio.IO
+
+import scala.reflect.ClassTag
 
 /**
  * Cluster sharding proxy for Akka actor.
@@ -64,6 +69,20 @@ trait ShardingProxy[ShardKey, ProxyCommand] {
             case None       => it
           }
         }
+    }
+  }
+
+  /**
+   * ZIO interop.
+   */
+  type InteropIO[A] = IO[ActorInteropException, A]
+
+  implicit class ZIOOperation(actor: ActorRef[Cmd])(implicit sc: Scheduler, askTimeout: Timeout) {
+    def apply(key: ShardKey): ProxyPartiallyApplied = ProxyPartiallyApplied(key)
+
+    case class ProxyPartiallyApplied(key: ShardKey) {
+      def tell(cmd: ProxyCommand): InteropIO[Unit]                               = actor.tellZIO(Proxy(key, cmd))
+      def ask[Res: ClassTag](cmd: ActorRef[Res] => ProxyCommand): InteropIO[Res] = actor.askZIO[Res](ref => Proxy(key, cmd(ref)))
     }
   }
 

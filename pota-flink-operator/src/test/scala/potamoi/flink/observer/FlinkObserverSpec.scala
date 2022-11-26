@@ -34,38 +34,44 @@ class FlinkObserverSpec extends STSpec {
     }
 
     "Query RestEndpoint" taggedAs UnsafeEnv in testObr { obr =>
-      obr.restEndpoint.get("session-01" -> "fdev").debug *>
-      obr.restEndpoint.get("app-t1" -> "fdev").debug *>
-      obr.restEndpoint.get("app-t1" -> "fdev").debug
+      obr.restEndpoints.get("session-01" -> "fdev").debug *>
+      obr.restEndpoints.get("app-t1" -> "fdev").debug *>
+      obr.restEndpoints.get("app-t1" -> "fdev").debug
     }
 
     "Query JobOverview" should {
       "list ov in the same cluster" taggedAs UnsafeEnv in testObr { obr =>
         obr.manager.trackCluster("app-t1" -> "fdev") *>
-        obr.jobOverview.list("app-t1" -> "fdev").map(_.toPrettyStr).debug.repeat(spaced(1.seconds))
+        obr.jobs.listOverview("app-t1" -> "fdev").map(_.toPrettyStr).debug.repeat(spaced(1.seconds))
       }
 
       "get ov" taggedAs UnsafeEnv in testObr { obr =>
         obr.manager.trackCluster("app-t1" -> "fdev") *>
-        obr.jobOverview.get(Fjid("app-t1", "fdev", "e5b1721d95a810ee799ea248b0b46a5c")).map(_.toPrettyStr).debug.repeat(spaced(1.seconds))
+        obr.jobs.getOverview(Fjid("app-t1", "fdev", "e5b1721d95a810ee799ea248b0b46a5c")).map(_.toPrettyStr).debug.repeat(spaced(1.seconds))
       }
 
       "list all tracked ov" taggedAs UnsafeEnv in testObr { obr =>
         obr.manager.trackCluster("app-t1" -> "fdev") *>
         obr.manager.trackCluster("app-t2" -> "fdev") *>
-        obr.jobOverview.listAll.map(_.toString).debug.repeat(spaced(1.seconds))
+        obr.jobs.listAllOverview.map(_.toString).debug.repeat(spaced(1.seconds))
       }
 
       "list jobId in the same cluster" taggedAs UnsafeEnv in testObr { obr =>
         obr.manager.trackCluster("app-t1" -> "fdev") *>
-        obr.jobOverview.listJobIds("app-t1" -> "fdev").map(_.toString).debug.repeat(spaced(1.seconds))
+        obr.jobs.listJobId("app-t1" -> "fdev").map(_.toString).debug.repeat(spaced(1.seconds))
       }
 
       "list jobId of all tracked clusters" taggedAs UnsafeEnv in testObr { obr =>
         obr.manager.trackCluster("app-t1" -> "fdev") *>
         obr.manager.trackCluster("app-t2" -> "fdev") *>
-        obr.jobOverview.listAllJobIds.map(_.toString).debug.repeat(spaced(1.seconds))
+        obr.jobs.listAllJobId.map(_.toString).debug.repeat(spaced(1.seconds))
       }
+
+//      "test" taggedAs UnsafeEnv in testObr { obr =>
+//        obr.jobs.select((a, _) => a.clusterId == "fdev")
+//
+//
+//      }
     }
 
     // continue

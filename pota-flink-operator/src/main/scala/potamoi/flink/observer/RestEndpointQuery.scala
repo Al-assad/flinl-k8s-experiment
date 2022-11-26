@@ -114,5 +114,5 @@ object RestEndpointQuery {
  */
 private[observer] object RestEndpointCache extends LWWMapDData[Fcid, FlinkRestSvcEndpoint] {
   val cacheId                               = "flink-rest-endpoint"
-  def apply(conf: DDataConf): Behavior[Cmd] = start(conf)()
+  def apply(conf: DDataConf): Behavior[Cmd] = start(conf)
 }

@@ -2,28 +2,28 @@ package potamoi.cluster
 
 import akka.actor.typed.SupervisorStrategy.restart
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
-import akka.actor.typed.{ActorRef, Behavior}
+import akka.actor.typed.{ActorRef, Behavior, Scheduler}
 import akka.cluster.ddata.Replicator.{GetResponse, NotFound, UpdateResponse, WriteConsistency}
 import akka.cluster.ddata.typed.scaladsl.{DistributedData, Replicator, ReplicatorMessageAdapter}
 import akka.cluster.ddata.{ORSet, ORSetKey, SelfUniqueAddress}
-import potamoi.common.ActorExtension.BehaviorWrapper
+import akka.util.Timeout
+import potamoi.common.ActorExtension.{ActorRefWrapper, BehaviorWrapper}
+import potamoi.common.ActorInteropException
 import potamoi.config.DDataConf
+import zio.IO
 
 /**
  * Akka ORSet type DData structure wrapped implementation.
  */
 trait ORSetDData[Value] {
-
   sealed trait Cmd
-  trait GetCmd    extends Cmd
-  trait UpdateCmd extends Cmd
 
-  final case class List(reply: ActorRef[Set[Value]])                                extends GetCmd
-  final case class Size(reply: ActorRef[Int])                                       extends GetCmd
-  final case class Contains(value: Value, reply: ActorRef[Boolean])                 extends GetCmd
-  final case class SelectExists(filter: Value => Boolean, reply: ActorRef[Boolean]) extends GetCmd
-  final case class Select(filter: Value => Boolean, reply: ActorRef[Set[Value]])    extends GetCmd
+  trait GetCmd                                                      extends Cmd
+  final case class List(reply: ActorRef[Set[Value]])                extends GetCmd
+  final case class Size(reply: ActorRef[Int])                       extends GetCmd
+  final case class Contains(value: Value, reply: ActorRef[Boolean]) extends GetCmd
 
+  trait UpdateCmd                                extends Cmd
   final case class Put(value: Value)             extends UpdateCmd
   final case class PutAll(values: Set[Value])    extends UpdateCmd
   final case class Remove(value: Value)          extends UpdateCmd
@@ -56,20 +56,20 @@ trait ORSetDData[Value] {
    */
   // noinspection DuplicatedCode
   protected def start(
-      conf: DDataConf
-    )(get: (GetCmd, ORSet[Value]) => Unit = (_, _) => (),
+      conf: DDataConf,
+      get: (GetCmd, ORSet[Value]) => Unit = (_, _) => (),
       defaultNotFound: GetCmd => Unit = _ => (),
       update: (UpdateCmd, ORSet[Value]) => ORSet[Value] = (_, s) => s): Behavior[Cmd] = {
     Behaviors.setup { implicit ctx =>
       implicit val node = DistributedData(ctx.system).selfUniqueAddress
-      action(conf)(get, defaultNotFound, update).onFailure[Exception](restart)
+      action(conf, get, defaultNotFound, update).onFailure[Exception](restart)
     }
   }
 
   // noinspection DuplicatedCode
   protected def action(
-      conf: DDataConf
-    )(get: (GetCmd, ORSet[Value]) => Unit = (_, _) => (),
+      conf: DDataConf,
+      get: (GetCmd, ORSet[Value]) => Unit = (_, _) => (),
       defaultNotFound: GetCmd => Unit = _ => (),
       update: (UpdateCmd, ORSet[Value]) => ORSet[Value] = (_, s) => s
     )(implicit ctx: ActorContext[Cmd],
@@ -104,12 +104,10 @@ trait ORSetDData[Value] {
         case InternalGet(rsp @ Replicator.GetSuccess(cacheKey), cmd) =>
           val set = rsp.get(cacheKey)
           cmd match {
-            case List(reply)                 => reply ! set.elements
-            case Size(reply)                 => reply ! set.size
-            case Contains(value, reply)      => reply ! set.elements.contains(value)
-            case SelectExists(filter, reply) => reply ! set.elements.exists(filter(_))
-            case Select(filter, reply)       => reply ! set.elements.filter(filter(_))
-            case c: GetCmd                   => get(c, set)
+            case List(reply)            => reply ! set.elements
+            case Size(reply)            => reply ! set.size
+            case Contains(value, reply) => reply ! set.elements.contains(value)
+            case c: GetCmd              => get(c, set)
           }
           Behaviors.same
 
@@ -123,12 +121,10 @@ trait ORSetDData[Value] {
             // prevent wasted time on external ask behavior
             case NotFound(_, _) =>
               cmd match {
-                case List(reply)            => reply ! Set.empty
-                case Size(reply)            => reply ! 0
-                case Contains(_, reply)     => reply ! false
-                case SelectExists(_, reply) => reply ! false
-                case Select(_, reply)       => reply ! Set.empty
-                case c: GetCmd              => defaultNotFound(c)
+                case List(reply)        => reply ! Set.empty
+                case Size(reply)        => reply ! 0
+                case Contains(_, reply) => reply ! false
+                case c: GetCmd          => defaultNotFound(c)
               }
             case _ => ctx.log.error(s"Get data replica failed: ${rsp.toString}")
           }
@@ -152,6 +148,22 @@ trait ORSetDData[Value] {
       rsp => InternalUpdate(rsp)
     )
     Behaviors.same
+  }
+
+  /**
+   * ZIO interop.
+   */
+  type InteropIO[A] = IO[ActorInteropException, A]
+
+  implicit class ZIOOperation(actor: ActorRef[Cmd])(implicit sc: Scheduler, askTimeout: Timeout) {
+    def list: InteropIO[Set[Value]]                    = actor.askZIO(List)
+    def size: InteropIO[Int]                           = actor.askZIO(Size)
+    def contains(value: Value): InteropIO[Boolean]     = actor.askZIO(Contains(value, _))
+    def put(value: Value): InteropIO[Unit]             = actor.tellZIO(Put(value))
+    def putAll(values: Set[Value]): InteropIO[Unit]    = actor.tellZIO(PutAll(values))
+    def remove(value: Value): InteropIO[Unit]          = actor.tellZIO(Remove(value))
+    def removeAll(values: Set[Value]): InteropIO[Unit] = actor.tellZIO(RemoveAll(values))
+    def clear: InteropIO[Unit]                         = actor.tellZIO(Clear)
   }
 
 }
