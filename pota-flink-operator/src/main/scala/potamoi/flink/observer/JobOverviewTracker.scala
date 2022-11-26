@@ -60,10 +60,10 @@ private[observer] object JobsTracker {
 }
 
 private class JobsTracker(
-                           fcid: Fcid,
-                           potaConf: PotaConf,
-                           flinkEndpointQuery: RestEndpointQuery,
-                           idxCache: ActorRef[JobOvIndexCache.Cmd]
+    fcid: Fcid,
+    potaConf: PotaConf,
+    flinkEndpointQuery: RestEndpointQuery,
+    idxCache: ActorRef[JobOvIndexCache.Cmd]
   )(implicit ctx: ActorContext[JobsTracker.Cmd]) {
   import JobsTracker._
 
@@ -91,14 +91,14 @@ private class JobsTracker(
       // update jobs index cache
       if (firstRefresh) {
         idxCache ! JobOvIndexCache.RemoveBySelectKey(_.fcid == fcid)
-        idxCache ! JobOvIndexCache.PutAll(records.map(e => e.fjid -> JobOvIndex(e.state)).toMap)
+        idxCache ! JobOvIndexCache.PutAll(records.map(JobOvIndex.of).toMap)
         firstRefresh = false
       } else {
         val intersect = records intersect state
         val puts      = records diff intersect
         val removes   = records diff intersect
         idxCache ! JobOvIndexCache.RemoveAll(removes.map(_.fjid))
-        idxCache ! JobOvIndexCache.PutAll(puts.map(e => e.fjid -> JobOvIndex(e.state)).toMap)
+        idxCache ! JobOvIndexCache.PutAll(puts.map(JobOvIndex.of).toMap)
       }
       state = records
       Behaviors.same

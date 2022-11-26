@@ -13,6 +13,7 @@ case class Fcid(clusterId: String, namespace: String) {
 
 object Fcid {
   implicit val codec: JsonCodec[Fcid]                      = DeriveJsonCodec.gen[Fcid]
+  implicit val ordering: Ordering[Fcid]                    = Ordering.by(fcid => (fcid.clusterId, fcid.namespace))
   implicit def tuple2ToFcid(tuple: (String, String)): Fcid = Fcid(tuple._1, tuple._2)
 }
 
@@ -27,5 +28,6 @@ case class Fjid(clusterId: String, namespace: String, jobId: String) {
 
 object Fjid {
   implicit val codec: JsonCodec[Fjid]        = DeriveJsonCodec.gen[Fjid]
+  implicit val ordering: Ordering[Fjid]      = Ordering.by(fjid => (fjid.clusterId, fjid.namespace, fjid.jobId))
   def apply(fcid: Fcid, jobId: String): Fjid = Fjid(fcid.clusterId, fcid.namespace, jobId)
 }

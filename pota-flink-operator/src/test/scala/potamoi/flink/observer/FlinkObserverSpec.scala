@@ -1,12 +1,14 @@
 package potamoi.flink.observer
 
 import potamoi.cluster.PotaActorSystem
+import potamoi.common.Order.{asc, desc}
+import potamoi.common.PageReq
 import potamoi.flink.share.model.{Fcid, Fjid}
 import potamoi.k8s.K8sClient
+import potamoi.syntax._
 import potamoi.testkit.{PotaDev, STSpec, UnsafeEnv}
 import zio.Schedule.spaced
 import zio.{durationInt, IO, ZIO}
-import potamoi.syntax._
 
 // TODO unsafe
 class FlinkObserverSpec extends STSpec {
@@ -67,11 +69,41 @@ class FlinkObserverSpec extends STSpec {
         obr.jobs.listAllJobId.map(_.toString).debug.repeat(spaced(1.seconds))
       }
 
-//      "test" taggedAs UnsafeEnv in testObr { obr =>
-//        obr.jobs.select((a, _) => a.clusterId == "fdev")
-//
-//
-//      }
+      "select job overview" taggedAs UnsafeEnv in testObr { obr =>
+        import JobQryTerm._
+        import SortField._
+        obr.manager.trackCluster("app-t1" -> "fdev") *>
+        obr.manager.trackCluster("app-t2" -> "fdev") *>
+        obr.manager.trackCluster("session-01" -> "fdev") *>
+        obr.jobs
+          .selectOverview(
+            filter = Filter(
+              jobNameContains = Some("State machine"),
+              jobIdIn = Set("5849a3ce9fccb3289688718122d098ae", "e5b1721d95a810ee799ea248b0b46a5c")
+            ),
+            orders = Vector(startTs -> desc, jobName -> asc)
+          )
+          .map(_.toString)
+          .debug
+          .repeat(spaced(1.seconds))
+      }
+
+      "paging select job overview" taggedAs UnsafeEnv in testObr { obr =>
+        import JobQryTerm._
+        import SortField._
+        obr.manager.trackCluster("app-t1" -> "fdev") *>
+        obr.manager.trackCluster("app-t2" -> "fdev") *>
+        obr.manager.trackCluster("session-01" -> "fdev") *>
+        obr.jobs
+          .pageSelectOverview(
+            filter = JobQryTerm.Filter(jobNameContains = Some("State machine")),
+            pageReq = PageReq(pagNum = 1, pagSize = 2),
+            orders = Vector(startTs -> desc, jobName -> asc)
+          )
+          .map(_.toString)
+          .debug
+          .repeat(spaced(1.seconds))
+      }
     }
 
     // continue

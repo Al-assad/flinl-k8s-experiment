@@ -36,8 +36,9 @@ case class TaskStats(
     initializing: Int)
 
 object FlinkJobOverview {
-  implicit def tasksCodec: JsonCodec[TaskStats]   = DeriveJsonCodec.gen[TaskStats]
-  implicit def codec: JsonCodec[FlinkJobOverview] = DeriveJsonCodec.gen[FlinkJobOverview]
+  implicit val tasksCodec: JsonCodec[TaskStats]    = DeriveJsonCodec.gen[TaskStats]
+  implicit val codec: JsonCodec[FlinkJobOverview]  = DeriveJsonCodec.gen[FlinkJobOverview]
+  implicit val sorting: Ordering[FlinkJobOverview] = Ordering.by(e => (e.clusterId, e.namespace, e.jobId))
 }
 
 /**
