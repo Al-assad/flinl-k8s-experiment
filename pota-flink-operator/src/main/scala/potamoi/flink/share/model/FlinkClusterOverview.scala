@@ -27,18 +27,14 @@ object FlinkClusterOverview {
   implicit val codec         = DeriveJsonCodec.gen[FlinkClusterOverview]
 }
 
-case class JmMetric(
-    heapMax: Long,
-    heapUsed: Long)
-
-case class TmMetric(
-    slotsTotal: Int,
-    slotsFree: Int,
-    cpuCores: Int,
-    physMem: Long,
-    heapMemMax: Long,
-    heapMemUsed: Long)
-
-case class FlinkClusterK8sResourceRef()
-
-case class K8sService(name: String)
+//case class JmMetric(
+//    heapMax: Long,
+//    heapUsed: Long)
+//
+//case class TmMetric(
+//    slotsTotal: Int,
+//    slotsFree: Int,
+//    cpuCores: Int,
+//    physMem: Long,
+//    heapMemMax: Long,
+//    heapMemUsed: Long)

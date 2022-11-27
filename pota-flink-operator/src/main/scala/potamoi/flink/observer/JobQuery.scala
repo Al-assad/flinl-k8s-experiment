@@ -10,7 +10,7 @@ import potamoi.common.{ComplexEnum, PageReq, PageRsp, TsRange}
 import potamoi.config.{DDataConf, PotaConf}
 import potamoi.flink.observer.JobQryTerm.SortField.SortField
 import potamoi.flink.observer.JobQryTerm.{Filter, SortField, SortTerm}
-import potamoi.flink.observer.JobsTracker.{GetJobOverview, GetJobOverviews, ListJobOverviews}
+import potamoi.flink.observer.JobsOvTracker.{GetJobOverview, GetJobOverviews, ListJobOverviews}
 import potamoi.flink.share.model.JobState.JobState
 import potamoi.flink.share.model.{Fcid, Fjid, FlinkJobOverview}
 import potamoi.flink.share.{FlinkIO, FlinkOprErr, JobId}
@@ -56,7 +56,7 @@ object JobQuery {
   def live(potaConf: PotaConf, guardian: ActorGuardian, endpointQuery: RestEndpointQuery) =
     for {
       idxCache      <- guardian.spawn(JobOvIndexCache(potaConf.akka.ddata.getFlinkJobsOvIndex), "flkJobOvIndexCache")
-      trackersProxy <- guardian.spawn(JobsTrackerProxy(potaConf, endpointQuery), "flkJobsTrackerProxy")
+      trackersProxy <- guardian.spawn(JobsOvTrackerProxy(potaConf, endpointQuery), "flkJobsTrackerProxy")
       queryTimeout     = potaConf.flink.snapshotQuery.askTimeout
       queryParallelism = potaConf.flink.snapshotQuery.parallelism
       sc               = guardian.scheduler
@@ -66,9 +66,9 @@ object JobQuery {
    * Akka Sharding/DData hybrid storage implementation.
    */
   case class Live(
-      trackers: ActorRef[JobsTrackerProxy.Cmd],
-      idxCache: ActorRef[JobOvIndexCache.Cmd],
-      queryParallelism: Int
+                   trackers: ActorRef[JobsOvTrackerProxy.Cmd],
+                   idxCache: ActorRef[JobOvIndexCache.Cmd],
+                   queryParallelism: Int
     )(implicit sc: Scheduler,
       queryTimeout: Timeout)
       extends JobQuery {

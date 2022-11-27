@@ -21,15 +21,15 @@ import zio.{CancelableFuture, Ref}
 import scala.util.hashing.MurmurHash3
 
 /**
- * Akka cluster sharding proxy for [[JobsTracker]].
+ * Akka cluster sharding proxy for [[JobsOvTracker]].
  */
-private[observer] object JobsTrackerProxy extends ShardingProxy[Fcid, JobsTracker.Cmd] {
-  val entityKey   = EntityTypeKey[JobsTracker.Cmd]("flinkJobTracker")
+private[observer] object JobsOvTrackerProxy extends ShardingProxy[Fcid, JobsOvTracker.Cmd] {
+  val entityKey   = EntityTypeKey[JobsOvTracker.Cmd]("flinkJobTracker")
   val marshallKey = marshallFcid
 
   def apply(potaConf: PotaConf, flinkEndpointQuery: RestEndpointQuery): Behavior[Cmd] = action(
-    createBehavior = entityId => JobsTracker(entityId, potaConf, flinkEndpointQuery),
-    stopMessage = JobsTracker.Stop,
+    createBehavior = entityId => JobsOvTracker(entityId, potaConf, flinkEndpointQuery),
+    stopMessage = JobsOvTracker.Stop,
     bindRole = NodeRole.FlinkOperator.toString
   )
 }
@@ -37,7 +37,7 @@ private[observer] object JobsTrackerProxy extends ShardingProxy[Fcid, JobsTracke
 /**
  * Job overview info tracker for single flink cluster.
  */
-private[observer] object JobsTracker {
+private[observer] object JobsOvTracker {
 
   sealed trait Cmd                                                                             extends CborSerializable
   final case object Start                                                                      extends Cmd
@@ -54,18 +54,18 @@ private[observer] object JobsTracker {
       val fcid     = unMarshallFcid(fcidStr)
       val idxCache = ctx.spawn(JobOvIndexCache(potaConf.akka.ddata.getFlinkJobsOvIndex), "flkJobOvIndexCache")
       ctx.log.info(s"Flink JobsTracker actor initialized, fcid=$fcid")
-      new JobsTracker(fcid, potaConf: PotaConf, flinkEndpointQuery, idxCache).action
+      new JobsOvTracker(fcid, potaConf: PotaConf, flinkEndpointQuery, idxCache).action
     }
   }
 }
 
-private class JobsTracker(
+private class JobsOvTracker(
     fcid: Fcid,
     potaConf: PotaConf,
     flinkEndpointQuery: RestEndpointQuery,
     idxCache: ActorRef[JobOvIndexCache.Cmd]
-  )(implicit ctx: ActorContext[JobsTracker.Cmd]) {
-  import JobsTracker._
+  )(implicit ctx: ActorContext[JobsOvTracker.Cmd]) {
+  import JobsOvTracker._
 
   private var proc: Option[CancelableFuture[Unit]] = None
   private var firstRefresh: Boolean                = true
