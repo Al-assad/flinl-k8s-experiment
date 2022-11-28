@@ -7,6 +7,7 @@ import potamoi.flink.share.model.JobState.JobState
 import potamoi.flink.share.model.SptFormatType.SptFormatType
 import potamoi.flink.share.model._
 import potamoi.flink.share._
+import potamoi.flink.share.model.FlinkExecMode.FlinkExecMode
 import potamoi.sttpx._
 import potamoi.syntax._
 import sttp.client3._
@@ -157,12 +158,12 @@ case class FlinkRestRequest(restUrl: String) {
   }
 
   /**
-   * Get cluster configuration.
-   * see: https://nightlies.apache.org/flink/flink-docs-master/docs/ops/rest_api/#config
+   * Get job manager configuration.
+   * see: https://nightlies.apache.org/flink/flink-docs-master/docs/ops/rest_api/#jobmanager-config
    */
-  def getClusterConfig: FlinkIO[Map[String, String]] = usingTypedSttp { backend =>
+  def getJobmanagerConfig: FlinkIO[Map[String, String]] = usingTypedSttp { backend =>
     request
-      .get(uri"$restUrl/config")
+      .get(uri"$restUrl/jobmanager/config")
       .send(backend)
       .narrowBody[FlinkOprErr]
       .attemptBody(ujson.read(_).arr.map(item => item("key").str -> item("value").str).toMap)
@@ -326,7 +327,24 @@ object FlinkRestRequest {
       @jsonField("jobs-running") jobsRunning: Int,
       @jsonField("jobs-finished") jobsFinished: Int,
       @jsonField("jobs-cancelled") jobsCancelled: Int,
-      @jsonField("jobs-failed") jobsFailed: Int)
+      @jsonField("jobs-failed") jobsFailed: Int) {
+
+    def toFlinkClusterOverview(fcid: Fcid, execMode: FlinkExecMode): FlinkClusterOverview = model.FlinkClusterOverview(
+      clusterId = fcid.clusterId,
+      namespace = fcid.namespace,
+      execMode = execMode,
+      tmTotal = taskManagers,
+      slotsTotal = slotsTotal,
+      slotsAvailable = slotsAvailable,
+      jobs = JobsStats(
+        running = jobsRunning,
+        finished = jobsFinished,
+        canceled = jobsCancelled,
+        failed = jobsFailed
+      ),
+      ts = curTs
+    )
+  }
 
   object ClusterOverviewInfo {
     implicit val codec: JsonCodec[ClusterOverviewInfo] = DeriveJsonCodec.gen[ClusterOverviewInfo]
@@ -342,8 +360,7 @@ object FlinkRestRequest {
       totalResource: TmResource,
       freeResource: TmResource,
       hardware: TmHardware,
-      memoryConfiguration: TmMemoryConfig
-  )
+      memoryConfiguration: TmMemoryConfig)
 
   case class TmResource(cpuCores: Int, taskHeapMemory: Long, taskOffHeapMemory: Long, managedMemory: Long, networkMemory: Long)
   case class TmHardware(cpuCores: Int, physicalMemory: Long, freeMemory: Long, managedMemory: Long)
@@ -357,8 +374,7 @@ object FlinkRestRequest {
       jvmMetaspace: Long,
       jvmOverhead: Long,
       totalFlinkMemory: Long,
-      totalProcessMemory: Long
-  )
+      totalProcessMemory: Long)
 
   object TaskManagerDetail {
     implicit val tmResourceCodec: JsonCodec[TmResource]               = DeriveJsonCodec.gen[TmResource]

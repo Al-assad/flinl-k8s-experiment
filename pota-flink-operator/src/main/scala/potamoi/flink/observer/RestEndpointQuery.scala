@@ -80,6 +80,7 @@ object RestEndpointQuery {
 
     /**
      * Retrieve Flink endpoint via kubernetes api.
+     * todo change to watch
      */
     private def retrieveRestEndpointViaK8s(fcid: Fcid): IO[FlinkOprErr, FlinkRestSvcEndpoint] = {
       k8sClient.api.v1.services

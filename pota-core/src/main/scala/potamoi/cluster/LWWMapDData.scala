@@ -26,12 +26,14 @@ trait LWWMapDData[Key, Value] {
   final case class ListAll(reply: ActorRef[Map[Key, Value]])     extends GetCmd
   final case class Size(reply: ActorRef[Int])                    extends GetCmd
 
-  trait UpdateCmd                                            extends Cmd
-  final case class Put(key: Key, value: Value)               extends UpdateCmd
-  final case class PutAll(kv: Map[Key, Value])               extends UpdateCmd
-  final case class Remove(key: Key)                          extends UpdateCmd
-  final case class RemoveAll(keys: Set[Key])                 extends UpdateCmd
-  final case class RemoveBySelectKey(filter: Key => Boolean) extends UpdateCmd
+  trait UpdateCmd                                                                 extends Cmd
+  final case class Put(key: Key, value: Value)                                    extends UpdateCmd
+  final case class PutAll(kv: Map[Key, Value])                                    extends UpdateCmd
+  final case class Remove(key: Key)                                               extends UpdateCmd
+  final case class RemoveAll(keys: Set[Key])                                      extends UpdateCmd
+  final case class RemoveBySelectKey(filter: Key => Boolean)                      extends UpdateCmd
+  final case class Update(key: Key, updateValue: Value => Value)                  extends UpdateCmd
+  final case class Upsert(key: Key, putValue: Value, updateValue: Value => Value) extends UpdateCmd
 
   sealed private trait InternalCmd                                                     extends Cmd
   final private case class InternalUpdate(rsp: UpdateResponse[LWWMap[Key, Value]])     extends InternalCmd
@@ -62,7 +64,7 @@ trait LWWMapDData[Key, Value] {
       conf: DDataConf,
       get: (GetCmd, LWWMap[Key, Value]) => Unit = (_, _) => (),
       defaultNotFound: GetCmd => Unit = _ => (),
-      update: (UpdateCmd, LWWMap[Key, Value]) => LWWMap[Key, Value] = (_, m) => m): Behavior[Cmd] = {
+      update: (UpdateCmd, LWWMap[Key, Value], SelfUniqueAddress) => LWWMap[Key, Value] = (_, m, _) => m): Behavior[Cmd] = {
     Behaviors.setup { implicit ctx =>
       implicit val node = DistributedData(ctx.system).selfUniqueAddress
       // ctx.log.info(s"Distributed data actor[$cacheId] started.")
@@ -78,7 +80,7 @@ trait LWWMapDData[Key, Value] {
       conf: DDataConf,
       get: (GetCmd, LWWMap[Key, Value]) => Unit = (_, _) => (),
       defaultNotFound: GetCmd => Unit = _ => (),
-      update: (UpdateCmd, LWWMap[Key, Value]) => LWWMap[Key, Value] = (_, m) => m
+      update: (UpdateCmd, LWWMap[Key, Value], SelfUniqueAddress) => LWWMap[Key, Value] = (_, m, node) => m
     )(implicit ctx: ActorContext[Cmd],
       node: SelfUniqueAddress): Behavior[Cmd] = {
 
@@ -106,7 +108,21 @@ trait LWWMapDData[Key, Value] {
               modifyShapePF { cache =>
                 cache.entries.keys.filter(filter(_)).foldLeft(cache)((ac, c) => ac.remove(node, c))
               }
-            case c => modifyShapePF(cache => update(c, cache))
+            case Update(key, modify) =>
+              modifyShapePF { cache =>
+                cache.get(key) match {
+                  case None        => cache
+                  case Some(value) => cache.put(node, key, modify(value))
+                }
+              }
+            case Upsert(key, put, update) =>
+              modifyShapePF { cache =>
+                cache.get(key) match {
+                  case None        => cache.put(node, key, put)
+                  case Some(value) => cache.put(node, key, update(value))
+                }
+              }
+            case c => modifyShapePF(cache => update(c, cache, node))
           }
 
         // get replica successfully
@@ -168,16 +184,18 @@ trait LWWMapDData[Key, Value] {
   type InteropIO[A] = IO[ActorInteropException, A]
 
   implicit class ZIOOperation(actor: ActorRef[Cmd])(implicit sc: Scheduler, askTimeout: Timeout) {
-    def get(key: Key): InteropIO[Option[Value]]                    = actor.askZIO(Get(key, _))
-    def contains(key: Key): InteropIO[Boolean]                     = actor.askZIO(Contains(key, _))
-    def listKeys: InteropIO[Set[Key]]                              = actor.askZIO(ListKeys)
-    def listAll: InteropIO[Map[Key, Value]]                        = actor.askZIO(ListAll)
-    def size: InteropIO[Int]                                       = actor.askZIO(Size)
-    def put(key: Key, value: Value): InteropIO[Unit]               = actor.tellZIO(Put(key, value))
-    def putAll(kv: Map[Key, Value]): InteropIO[Unit]               = actor.tellZIO(PutAll(kv))
-    def remove(key: Key): InteropIO[Unit]                          = actor.tellZIO(Remove(key))
-    def removeAll(keys: Set[Key]): InteropIO[Unit]                 = actor.tellZIO(RemoveAll(keys))
-    def removeBySelectKey(filter: Key => Boolean): InteropIO[Unit] = actor.tellZIO(RemoveBySelectKey(filter))
+    def get(key: Key): InteropIO[Option[Value]]                                         = actor.askZIO(Get(key, _))
+    def contains(key: Key): InteropIO[Boolean]                                          = actor.askZIO(Contains(key, _))
+    def listKeys: InteropIO[Set[Key]]                                                   = actor.askZIO(ListKeys)
+    def listAll: InteropIO[Map[Key, Value]]                                             = actor.askZIO(ListAll)
+    def size: InteropIO[Int]                                                            = actor.askZIO(Size)
+    def put(key: Key, value: Value): InteropIO[Unit]                                    = actor.tellZIO(Put(key, value))
+    def putAll(kv: Map[Key, Value]): InteropIO[Unit]                                    = actor.tellZIO(PutAll(kv))
+    def remove(key: Key): InteropIO[Unit]                                               = actor.tellZIO(Remove(key))
+    def removeAll(keys: Set[Key]): InteropIO[Unit]                                      = actor.tellZIO(RemoveAll(keys))
+    def removeBySelectKey(filter: Key => Boolean): InteropIO[Unit]                      = actor.tellZIO(RemoveBySelectKey(filter))
+    def update(key: Key, updateValue: Value => Value): InteropIO[Unit]                  = actor.tellZIO(Update(key, updateValue))
+    def upsert(key: Key, putValue: Value, updateValue: Value => Value): InteropIO[Unit] = actor.tellZIO(Upsert(key, putValue, updateValue))
   }
 
 }

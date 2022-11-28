@@ -55,7 +55,7 @@ object JobQuery {
 
   def live(potaConf: PotaConf, guardian: ActorGuardian, endpointQuery: RestEndpointQuery) =
     for {
-      idxCache      <- guardian.spawn(JobOvIndexCache(potaConf.akka.ddata.getFlinkJobsOvIndex), "flkJobOvIndexCache")
+      idxCache      <- guardian.spawn(JobIdxCache(potaConf.akka.ddata.getFlinkJobIndex), "flkJobOvIndexCache")
       trackersProxy <- guardian.spawn(JobsOvTrackerProxy(potaConf, endpointQuery), "flkJobsTrackerProxy")
       queryTimeout     = potaConf.flink.snapshotQuery.askTimeout
       queryParallelism = potaConf.flink.snapshotQuery.parallelism
@@ -67,7 +67,7 @@ object JobQuery {
    */
   case class Live(
                    trackers: ActorRef[JobsOvTrackerProxy.Cmd],
-                   idxCache: ActorRef[JobOvIndexCache.Cmd],
+                   idxCache: ActorRef[JobIdxCache.Cmd],
                    queryParallelism: Int
     )(implicit sc: Scheduler,
       queryTimeout: Timeout)
@@ -89,12 +89,12 @@ object JobQuery {
       idxCache.listKeys
     }
 
-    def getJobState(fjid: Fjid): FlinkIO[Option[JobState]] = idxCache.get(fjid).map(_.map(_.state))
+    def getJobState(fjid: Fjid): FlinkIO[Option[JobState]] = idxCache.get(fjid).map(_.map(_.jobState))
 
     def listJobState(fcid: Fcid): FlinkIO[Map[JobId, JobState]] =
       idxCache.listAll.map {
         _.filter { case (k, _) => k.fcid == fcid }
-          .map { case (k, v) => k.jobId -> v.state }
+          .map { case (k, v) => k.jobId -> v.jobState }
       }
 
     def listAllOverview: FlinkIO[List[FlinkJobOverview]] = {
@@ -138,7 +138,7 @@ object JobQuery {
       // filter clause
       if (f.fcidIn.nonEmpty) idx = idx.filter(e => f.fcidIn.contains(e._1.fcid))
       if (f.jobIdIn.nonEmpty) idx = idx.filter(e => f.jobIdIn.contains(e._1.jobId))
-      if (f.jobStateIn.nonEmpty) idx = idx.filter(e => f.jobStateIn.contains(e._2.state))
+      if (f.jobStateIn.nonEmpty) idx = idx.filter(e => f.jobStateIn.contains(e._2.jobState))
       if (f.jobNameContains.isDefined) idx = idx.filter(e => e._2.jobName.contains(f.jobNameContains.get))
       if (f.startTsRange.isLimited) idx = idx.filter(e => f.startTsRange.judge(e._2.startTs))
       // order clause
@@ -146,7 +146,7 @@ object JobQuery {
         orders.foldM(0) { case (_, (field, order)) =>
           val r = field match {
             case SortField.jobName  => a._2.jobName.compare(b._2.jobName) * order.id
-            case SortField.jobState => a._2.state.compare(b._2.state) * order.id
+            case SortField.jobState => a._2.jobState.compare(b._2.jobState) * order.id
             case SortField.startTs  => a._2.startTs.compare(b._2.startTs) * order.id
           }
           if (r == 0) r.asRight else r.asLeft
@@ -191,13 +191,12 @@ object JobQuery {
 /**
  * Job overview query index cache.
  */
-private[observer] object JobOvIndexCache extends LWWMapDData[Fjid, JobOvIndex] {
+private[observer] object JobIdxCache extends LWWMapDData[Fjid, JobIndex] {
   val cacheId                               = "flink-job-ov-index"
   def apply(conf: DDataConf): Behavior[Cmd] = start(conf)
 }
 
-case class JobOvIndex(jobName: String, state: JobState, startTs: Long)
-
-object JobOvIndex {
-  def of(ov: FlinkJobOverview): (Fjid, JobOvIndex) = ov.fjid -> JobOvIndex(ov.jobName, ov.state, ov.startTs)
+case class JobIndex(jobName: String, jobState: JobState, startTs: Long)
+object JobIndex {
+  def of(ov: FlinkJobOverview): (Fjid, JobIndex) = ov.fjid -> JobIndex(ov.jobName, ov.state, ov.startTs)
 }

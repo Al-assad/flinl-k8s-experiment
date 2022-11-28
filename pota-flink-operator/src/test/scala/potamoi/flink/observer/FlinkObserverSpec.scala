@@ -106,6 +106,18 @@ class FlinkObserverSpec extends STSpec {
       }
     }
 
+    "Query ClusterOverview" should {
+      "get cluster overview" taggedAs UnsafeEnv in testObr { obr =>
+        obr.manager.trackCluster("app-t1" -> "fdev") *>
+        obr.clusters.getOverview("app-t1" -> "fdev").map(_.toPrettyStr).debug.repeat(spaced(1.seconds))
+      }
+      "list cluster overview" taggedAs UnsafeEnv in testObr { obr =>
+        obr.manager.trackCluster("app-t1" -> "fdev") *>
+        obr.manager.trackCluster("app-t2" -> "fdev") *>
+        obr.clusters.listOverview.map(_.toString).debug.repeat(spaced(1.seconds))
+      }
+    }
+
     // continue
   }
 

@@ -13,8 +13,6 @@ import potamoi.logger.PotaLogger
 import potamoi.syntax._
 import potamoi.timex._
 import potamoi.ziox._
-import zio.Schedule.spaced
-import zio.ZIO.logError
 import zio.ZIOAspect.annotated
 import zio.{CancelableFuture, Ref}
 
@@ -46,14 +44,13 @@ private[observer] object JobsOvTracker {
   final case class ListJobOverviews(reply: ActorRef[Set[FlinkJobOverview]])                    extends Query
   final case class GetJobOverview(jobId: String, reply: ActorRef[Option[FlinkJobOverview]])    extends Query
   final case class GetJobOverviews(jobId: Set[String], reply: ActorRef[Set[FlinkJobOverview]]) extends Query
-  sealed private trait Internal                                                                extends Cmd
-  private case class RefreshRecords(records: Set[FlinkJobOverview])                            extends Internal
+  private case class RefreshRecords(records: Set[FlinkJobOverview])                            extends Cmd
 
   def apply(fcidStr: String, potaConf: PotaConf, flinkEndpointQuery: RestEndpointQuery): Behavior[Cmd] = {
     Behaviors.setup { implicit ctx =>
       val fcid     = unMarshallFcid(fcidStr)
-      val idxCache = ctx.spawn(JobOvIndexCache(potaConf.akka.ddata.getFlinkJobsOvIndex), "flkJobOvIndexCache")
-      ctx.log.info(s"Flink JobsTracker actor initialized, fcid=$fcid")
+      val idxCache = ctx.spawn(JobIdxCache(potaConf.akka.ddata.getFlinkJobIndex), "flkJobIndexCache")
+      ctx.log.info(s"Flink JobsOvTracker actor initialized, fcid=$fcid")
       new JobsOvTracker(fcid, potaConf: PotaConf, flinkEndpointQuery, idxCache).action
     }
   }
@@ -63,42 +60,40 @@ private class JobsOvTracker(
     fcid: Fcid,
     potaConf: PotaConf,
     flinkEndpointQuery: RestEndpointQuery,
-    idxCache: ActorRef[JobOvIndexCache.Cmd]
+    idxCache: ActorRef[JobIdxCache.Cmd]
   )(implicit ctx: ActorContext[JobsOvTracker.Cmd]) {
   import JobsOvTracker._
 
   private var proc: Option[CancelableFuture[Unit]] = None
   private var firstRefresh: Boolean                = true
   private var state: Set[FlinkJobOverview]         = Set.empty
-  private val actorSrc                             = ctx.self.path.toString
 
   def action: Behavior[Cmd] = Behaviors.receiveMessage {
     case Start =>
-      if (proc.nonEmpty) Behaviors.same
-      else {
+      if (proc.isEmpty) {
         proc = Some(pollingJobOverviewApi.provide(PotaLogger.layer(potaConf.log)).runToFuture)
-        ctx.log.info(s"Flink JobsTracker actor started, fcid=$fcid")
-        Behaviors.same
+        ctx.log.info(s"Flink JobsOvTracker actor started, fcid=$fcid")
       }
+      Behaviors.same
 
     case Stop =>
       proc.map(_.cancel())
-      idxCache ! JobOvIndexCache.RemoveAll(state.map(_.fjid))
-      ctx.log.info(s"Flink JobsTracker actor stopped, fcid=$fcid")
+      idxCache ! JobIdxCache.RemoveAll(state.map(_.fjid))
+      ctx.log.info(s"Flink JobsOvTracker actor stopped, fcid=$fcid")
       Behaviors.stopped
 
     case RefreshRecords(records) =>
       // update jobs index cache
       if (firstRefresh) {
-        idxCache ! JobOvIndexCache.RemoveBySelectKey(_.fcid == fcid)
-        idxCache ! JobOvIndexCache.PutAll(records.map(JobOvIndex.of).toMap)
+        idxCache ! JobIdxCache.RemoveBySelectKey(_.fcid == fcid)
+        idxCache ! JobIdxCache.PutAll(records.map(JobIndex.of).toMap)
         firstRefresh = false
       } else {
         val intersect = records intersect state
         val puts      = records diff intersect
         val removes   = records diff intersect
-        idxCache ! JobOvIndexCache.RemoveAll(removes.map(_.fjid))
-        idxCache ! JobOvIndexCache.PutAll(puts.map(JobOvIndex.of).toMap)
+        idxCache ! JobIdxCache.RemoveAll(removes.map(_.fjid))
+        idxCache ! JobIdxCache.PutAll(puts.map(JobIndex.of).toMap)
       }
       state = records
       Behaviors.same
@@ -132,17 +127,6 @@ private class JobsOvTracker(
           .when(curMur != preMur)
       } yield ()
 
-    for {
-      mur    <- Ref.make(0)
-      preErr <- Ref.make[Option[FlinkOprErr]](None)
-      effect <- polling(mur)
-        .schedule(spaced(potaConf.flink.tracking.jobPolling))
-        .tapError { err =>
-          // logging non-repetitive error
-          preErr.get.flatMap(pre => (logError(err.toPrettyStr) *> preErr.set(err)).when(!pre.contains(err)))
-        }
-        .ignore
-        .forever
-    } yield effect
-  } @@ annotated(fcid.toAnno :+ "akkaSource" -> actorSrc: _*)
+    Ref.make(0).flatMap { mur => loopTrigger(polling(mur), potaConf.flink.tracking.jobPolling) }
+  } @@ annotated(fcid.toAnno :+ "akkaSource" -> ctx.self.path.toString: _*)
 }

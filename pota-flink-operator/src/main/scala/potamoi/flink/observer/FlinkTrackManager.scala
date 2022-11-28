@@ -33,18 +33,25 @@ trait FlinkTrackManager {
 
 object FlinkTrackManager {
 
-  def live(potaConf: PotaConf, guardian: ActorGuardian, jobsTrackers: ActorRef[JobsOvTrackerProxy.Cmd]) =
+  def live(
+      potaConf: PotaConf,
+      guardian: ActorGuardian,
+      clustersOvTrackers: ActorRef[ClustersOvTrackerProxy.Cmd],
+      jobsTrackers: ActorRef[JobsOvTrackerProxy.Cmd]) =
     for {
-      clusterIdsCache <- guardian.spawn(TrackClusterIdsCache(potaConf.akka.ddata.getFlinkClusterIds), "flkTrackClusterCache")
+      clusterIdsCache   <- guardian.spawn(TrackClusterIdsCache(potaConf.akka.ddata.getFlinkClusterIds), "flkTrackClusterCache-tm")
+      clusterIndexCache <- guardian.spawn(ClusterIndexCache(potaConf.akka.ddata.getFlinkClusterIndex), "flkClusterIdxCache-tm")
       queryTimeout = potaConf.flink.snapshotQuery.askTimeout
       sc           = guardian.scheduler
-    } yield Live(clusterIdsCache, jobsTrackers)(sc, queryTimeout)
+    } yield Live(clusterIdsCache, clusterIndexCache, clustersOvTrackers, jobsTrackers)(sc, queryTimeout)
 
   /**
    * Implementation based on Akka infra.
    */
   case class Live(
       clusterIdsCache: ActorRef[TrackClusterIdsCache.Cmd],
+      clusterIndexCache: ActorRef[ClusterIndexCache.Cmd],
+      clustersOvTrackers: ActorRef[ClustersOvTrackerProxy.Cmd],
       jobsTrackers: ActorRef[JobsOvTrackerProxy.Cmd]
     )(implicit sc: Scheduler,
       queryTimeout: Timeout)
@@ -52,11 +59,14 @@ object FlinkTrackManager {
 
     override def trackCluster(fcid: Fcid): FlinkIO[Unit] = {
       clusterIdsCache.put(fcid) *>
+      clustersOvTrackers(fcid).tell(ClustersOvTracker.Start) *>
       jobsTrackers(fcid).tell(JobsOvTracker.Start)
     }
 
     override def untrackCluster(fcid: Fcid): FlinkIO[Unit] = {
       clusterIdsCache.remove(fcid) *>
+      clusterIndexCache.remove(fcid) *>
+      clustersOvTrackers(fcid).tell(ClustersOvTracker.Stop) *>
       jobsTrackers(fcid).tell(JobsOvTracker.Stop)
     }
 

@@ -12,7 +12,9 @@ case class FlinkClusterOverview(
     execMode: FlinkExecMode,
     tmTotal: Int,
     slotsTotal: Int,
-    jobs: JobsStats) {
+    slotsAvailable: Int,
+    jobs: JobsStats,
+    ts: Long) {
   lazy val fcid = Fcid(clusterId, namespace)
 }
 
@@ -23,14 +25,15 @@ case class JobsStats(
     failed: Int)
 
 object FlinkClusterOverview {
-  implicit val jobStatsCodec = DeriveJsonCodec.gen[JobsStats]
-  implicit val codec         = DeriveJsonCodec.gen[FlinkClusterOverview]
+  implicit val jobStatsCodec                           = DeriveJsonCodec.gen[JobsStats]
+  implicit val codec                                   = DeriveJsonCodec.gen[FlinkClusterOverview]
+  implicit val sorting: Ordering[FlinkClusterOverview] = Ordering.by(e => (e.clusterId, e.namespace))
 }
 
 //case class JmMetric(
 //    heapMax: Long,
 //    heapUsed: Long)
-//
+
 //case class TmMetric(
 //    slotsTotal: Int,
 //    slotsFree: Int,
