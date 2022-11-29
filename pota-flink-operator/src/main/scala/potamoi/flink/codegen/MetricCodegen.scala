@@ -40,3 +40,22 @@ private object TmMetricCodegen extends ZIOAppDefault {
                                  |""".stripMargin
   ).map(println)
 }
+
+private object JobMetricCodegen extends ZIOAppDefault {
+  val restReq = flinkRest("http://10.233.46.104:8081")
+  val run = genMetricCode(
+    caseClzName = "FlinkJobMetrics",
+    listKeys = restReq.getJobMetricsKeys("e980c35c0b3da7c7b1c0a341979b20d5"),
+    getMetrics = restReq.getJobMetrics("e980c35c0b3da7c7b1c0a341979b20d5", _),
+    caseClzExtFields = Set(
+      "clusterId" -> "String",
+      "namespace" -> "String",
+      "jobId"     -> "String"
+    ),
+    fromRawFuncExtParams = "fjid: Fjid",
+    fromRawFucExtFieldsFill = s"""clusterId = fjid.clusterId,
+                                 |namespace = fjid.namespace,
+                                 |jobId = fjid.jobId,
+                                 |""".stripMargin
+  ).map(println)
+}

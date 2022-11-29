@@ -35,7 +35,8 @@ object FlinkObserver {
         clusterQuery.tmDetailTrackers,
         clusterQuery.jmMetricTrackers,
         clusterQuery.tmMetricTrackers,
-        jobQuery.trackers)
+        jobQuery.ovTrackers,
+        jobQuery.metricsTrackers)
     } yield new FlinkObserver {
       val manager           = trackerManager
       val clusters          = clusterQuery

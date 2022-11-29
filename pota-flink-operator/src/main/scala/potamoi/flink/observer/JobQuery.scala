@@ -8,11 +8,12 @@ import potamoi.cluster.PotaActorSystem.{ActorGuardian, ActorGuardianExtension}
 import potamoi.common.Order.Order
 import potamoi.common.{ComplexEnum, PageReq, PageRsp, TsRange}
 import potamoi.config.{DDataConf, PotaConf}
+import potamoi.flink.observer.JobMetricTracker.{GetJobMetrics, ListJobMetrics}
 import potamoi.flink.observer.JobQryTerm.SortField.SortField
 import potamoi.flink.observer.JobQryTerm.{Filter, SortField, SortTerm}
-import potamoi.flink.observer.JobsOvTracker.{GetJobOverview, GetJobOverviews, ListJobOverviews}
+import potamoi.flink.observer.JobOvTracker.{GetJobOverview, GetJobOverviews, ListJobOverviews}
 import potamoi.flink.share.model.JobState.JobState
-import potamoi.flink.share.model.{Fcid, Fjid, FlinkJobOverview}
+import potamoi.flink.share.model.{Fcid, Fjid, FlinkJobMetrics, FlinkJobOverview}
 import potamoi.flink.share.{FlinkIO, FlinkOprErr, JobId}
 import potamoi.timex._
 import zio.stream.ZStream
@@ -33,6 +34,9 @@ trait JobQuery {
 
   def selectOverview(filter: Filter, orders: Vector[SortTerm] = Vector.empty): FlinkIO[List[FlinkJobOverview]]
   def pageSelectOverview(filter: Filter, pageReq: PageReq, orders: Vector[SortTerm] = Vector.empty): FlinkIO[PageRsp[FlinkJobOverview]]
+
+  def getMetrics(fjid: Fjid): FlinkIO[Option[FlinkJobMetrics]]
+  def listMetrics(fcid: Fcid): FlinkIO[List[FlinkJobMetrics]]
 }
 
 object JobQryTerm {
@@ -55,41 +59,35 @@ object JobQuery {
 
   def live(potaConf: PotaConf, guardian: ActorGuardian, endpointQuery: RestEndpointQuery) =
     for {
-      idxCache      <- guardian.spawn(JobIdxCache(potaConf.akka.ddata.getFlinkJobIndex), "flkJobOvIndexCache")
-      trackersProxy <- guardian.spawn(JobsOvTrackerProxy(potaConf, endpointQuery), "flkJobsTrackerProxy")
+      idxCache           <- guardian.spawn(JobIdxCache(potaConf.akka.ddata.getFlinkJobIndex), "flkJobOvIndexCache")
+      ovTrackerProxy     <- guardian.spawn(JobOvTrackerProxy(potaConf, endpointQuery), "flkJobOvTrackerProxy")
+      metricTrackerProxy <- guardian.spawn(JobMetricTrackerProxy(potaConf, endpointQuery), "flkJobMetricsTrackerProxy")
       queryTimeout     = potaConf.flink.snapshotQuery.askTimeout
       queryParallelism = potaConf.flink.snapshotQuery.parallelism
       sc               = guardian.scheduler
-    } yield Live(trackersProxy, idxCache, queryParallelism)(sc, queryTimeout)
+    } yield Live(ovTrackerProxy, metricTrackerProxy, idxCache, queryParallelism)(sc, queryTimeout)
 
   /**
    * Akka Sharding/DData hybrid storage implementation.
    */
   case class Live(
-      trackers: ActorRef[JobsOvTrackerProxy.Cmd],
+      ovTrackers: ActorRef[JobOvTrackerProxy.Cmd],
+      metricsTrackers: ActorRef[JobMetricTrackerProxy.Cmd],
       idxCache: ActorRef[JobIdxCache.Cmd],
       queryParallelism: Int
     )(implicit sc: Scheduler,
       queryTimeout: Timeout)
       extends JobQuery {
 
-    def getOverview(fjid: Fjid): FlinkIO[Option[FlinkJobOverview]] = {
-      trackers(fjid.fcid).ask(GetJobOverview(fjid.jobId, _))
-    }
+    def getOverview(fjid: Fjid): FlinkIO[Option[FlinkJobOverview]] = ovTrackers(fjid.fcid).ask(GetJobOverview(fjid.jobId, _))
+    def listOverview(fcid: Fcid): FlinkIO[List[FlinkJobOverview]]  = ovTrackers(fcid).ask(ListJobOverviews).map(_.toList.sortBy(_.jobId))
 
-    def listOverview(fcid: Fcid): FlinkIO[List[FlinkJobOverview]] = {
-      trackers(fcid).ask(ListJobOverviews).map(_.toList.sorted)
-    }
-
-    def listJobId(fcid: Fcid): FlinkIO[Set[JobId]] = {
-      idxCache.listKeys.map(_.map(_.jobId))
-    }
-
-    def listAllJobId: FlinkIO[Set[Fjid]] = {
-      idxCache.listKeys
-    }
-
+    def listJobId(fcid: Fcid): FlinkIO[Set[JobId]]         = idxCache.listKeys.map(_.map(_.jobId))
+    def listAllJobId: FlinkIO[Set[Fjid]]                   = idxCache.listKeys
     def getJobState(fjid: Fjid): FlinkIO[Option[JobState]] = idxCache.get(fjid).map(_.map(_.jobState))
+
+    def getMetrics(fjid: Fjid): FlinkIO[Option[FlinkJobMetrics]] = metricsTrackers(fjid.fcid).ask(GetJobMetrics(fjid.jobId, _))
+    def listMetrics(fcid: Fcid): FlinkIO[List[FlinkJobMetrics]]  = metricsTrackers(fcid).ask(ListJobMetrics).map(_.toList.sortBy(_.jobId))
 
     def listJobState(fcid: Fcid): FlinkIO[Map[JobId, JobState]] =
       idxCache.listAll.map {
@@ -109,7 +107,7 @@ object JobQuery {
     def selectOverview(filter: Filter, orders: Vector[SortTerm] = Vector.empty): FlinkIO[List[FlinkJobOverview]] = {
       ZStream
         .fromIterableZIO(hitIdxFcid(filter))
-        .mapZIOParUnordered(queryParallelism) { case (fcid, jobIds) => trackers(fcid).ask(GetJobOverviews(jobIds, _)) }
+        .mapZIOParUnordered(queryParallelism) { case (fcid, jobIds) => ovTrackers(fcid).ask(GetJobOverviews(jobIds, _)) }
         .runFold(Vector.empty[FlinkJobOverview])(_ ++ _)
         .map(sortJobOv(_, orders))
     }
@@ -119,7 +117,7 @@ object JobQuery {
       val queryOv =
         ZStream
           .fromIterableZIO(hitIdxFcid(filter, orders, Some(pageReq)))
-          .mapZIOParUnordered(queryParallelism) { case (fcid, jobIds) => trackers(fcid).ask(GetJobOverviews(jobIds, _)) }
+          .mapZIOParUnordered(queryParallelism) { case (fcid, jobIds) => ovTrackers(fcid).ask(GetJobOverviews(jobIds, _)) }
           .runFold(Vector.empty[FlinkJobOverview])(_ ++ _)
 
       (countEle <&> queryOv).map { case (totalEle, rs) =>

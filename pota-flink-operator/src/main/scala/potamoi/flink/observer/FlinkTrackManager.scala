@@ -40,7 +40,8 @@ object FlinkTrackManager {
       tmDetailTrackers: ActorRef[TmDetailTrackerProxy.Cmd],
       jmMetricTrackers: ActorRef[JmMetricTrackerProxy.Cmd],
       tmMetricTrackers: ActorRef[TmMetricTrackerProxy.Cmd],
-      jobsTrackers: ActorRef[JobsOvTrackerProxy.Cmd]) =
+      jobOvTrackers: ActorRef[JobOvTrackerProxy.Cmd],
+      jobMetricsTrackers: ActorRef[JobMetricTrackerProxy.Cmd]) =
     for {
       clusterIdsCache   <- guardian.spawn(TrackClusterIdsCache(potaConf.akka.ddata.getFlinkClusterIds), "flkTrackClusterCache-tm")
       clusterIndexCache <- guardian.spawn(ClusterIndexCache(potaConf.akka.ddata.getFlinkClusterIndex), "flkClusterIdxCache-tm")
@@ -53,7 +54,8 @@ object FlinkTrackManager {
       tmDetailTrackers,
       jmMetricTrackers,
       tmMetricTrackers,
-      jobsTrackers
+      jobOvTrackers,
+      jobMetricsTrackers
     )(sc, queryTimeout)
 
   /**
@@ -66,7 +68,8 @@ object FlinkTrackManager {
       tmDetailTrackers: ActorRef[TmDetailTrackerProxy.Cmd],
       jmMetricTrackers: ActorRef[JmMetricTrackerProxy.Cmd],
       tmMetricTrackers: ActorRef[TmMetricTrackerProxy.Cmd],
-      jobsTrackers: ActorRef[JobsOvTrackerProxy.Cmd]
+      jobsTrackers: ActorRef[JobOvTrackerProxy.Cmd],
+      jobMetricsTrackers: ActorRef[JobMetricTrackerProxy.Cmd]
     )(implicit sc: Scheduler,
       queryTimeout: Timeout)
       extends FlinkTrackManager {
@@ -77,7 +80,8 @@ object FlinkTrackManager {
       tmDetailTrackers(fcid).tell(TmDetailTracker.Start) *>
       jmMetricTrackers(fcid).tell(JmMetricTracker.Start) *>
       tmMetricTrackers(fcid).tell(TmMetricTracker.Start) *>
-      jobsTrackers(fcid).tell(JobsOvTracker.Start)
+      jobsTrackers(fcid).tell(JobOvTracker.Start) *>
+      jobMetricsTrackers(fcid).tell(JobMetricTracker.Start)
     }
 
     override def untrackCluster(fcid: Fcid): FlinkIO[Unit] = {
@@ -87,7 +91,8 @@ object FlinkTrackManager {
       tmDetailTrackers(fcid).tell(TmDetailTracker.Stop) *>
       jmMetricTrackers(fcid).tell(JmMetricTracker.Stop) *>
       tmMetricTrackers(fcid).tell(TmMetricTracker.Stop) *>
-      jobsTrackers(fcid).tell(JobsOvTracker.Stop)
+      jobsTrackers(fcid).tell(JobOvTracker.Stop) *>
+      jobMetricsTrackers(fcid).tell(JobMetricTracker.Stop)
     }
 
     override def listTrackedCluster: FlinkIO[Set[Fcid]] = clusterIdsCache.list

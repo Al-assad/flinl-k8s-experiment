@@ -5,10 +5,11 @@ import potamoi.common.Order.{asc, desc}
 import potamoi.common.PageReq
 import potamoi.flink.share.model.{Fcid, Fjid, Ftid}
 import potamoi.k8s.K8sClient
+import potamoi.logger.PotaLogger
 import potamoi.syntax._
 import potamoi.testkit.{PotaDev, STSpec, UnsafeEnv}
 import zio.Schedule.spaced
-import zio.{durationInt, IO, ZIO}
+import zio.{IO, ZIO, ZIOAppDefault, durationInt}
 
 // TODO unsafe
 class FlinkObserverSpec extends STSpec {
@@ -104,6 +105,16 @@ class FlinkObserverSpec extends STSpec {
           .debug
           .repeat(spaced(1.seconds))
       }
+
+      "get job metrics" taggedAs UnsafeEnv in testObr { obr =>
+        obr.manager.trackCluster("app-t1" -> "fdev") *>
+        obr.jobs.getMetrics(Fjid("app-t1", "fdev", "e5b1721d95a810ee799ea248b0b46a5c")).map(_.toPrettyStr).debug.repeat(spaced(1.seconds))
+      }
+
+      "list job metrics" taggedAs UnsafeEnv in testObr { obr =>
+        obr.manager.trackCluster("app-t1" -> "fdev") *>
+        obr.jobs.listMetrics("app-t1" -> "fdev").map(_.toPrettyStr).debug.repeat(spaced(1.seconds))
+      }
     }
 
     "Query ClusterOverview" should {
@@ -154,4 +165,21 @@ class FlinkObserverSpec extends STSpec {
     }
 
   }
+
+}
+
+// todo remove
+object test extends ZIOAppDefault {
+
+  import potamoi.k8s._
+  val run = ZIO
+    .serviceWithZIO[K8sClient] { k8s =>
+      k8s.api.v1.services
+        .get("app-t1", "fdev")
+        .map { svc =>
+          println(svc.toPrettyStr)
+        }
+    }
+    .provide(PotaDev.conf, PotaLogger.live, K8sClient.live)
+
 }

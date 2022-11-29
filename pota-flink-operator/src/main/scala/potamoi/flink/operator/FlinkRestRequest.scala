@@ -127,9 +127,10 @@ case class FlinkRestRequest(restUrl: String) {
   def listJobsStatusInfo: FlinkIO[Vector[JobStatusInfo]] = usingTypedSttp { backend =>
     request
       .get(uri"$restUrl/jobs")
-      .response(asJson[Vector[JobStatusInfo]])
+      .response(asJson[JobStatusRsp])
       .send(backend)
       .narrowBody[FlinkOprErr]
+      .map(_.jobs)
   }
 
   /**
@@ -143,6 +144,26 @@ case class FlinkRestRequest(restUrl: String) {
       .send(backend)
       .narrowBody[FlinkOprErr]
       .map(_.jobs)
+  }
+
+  /**
+   * Get job metrics.
+   * see: https://nightlies.apache.org/flink/flink-docs-master/docs/ops/rest_api/#jobs-jobid-metrics
+   */
+  def getJobMetrics(jobId: String, metricsKeys: Set[String]): FlinkIO[Map[String, String]] = usingTypedSttp { backend =>
+    request
+      .get(uri"$restUrl/jobs/$jobId/metrics?get=${metricsKeys.mkString(",")}")
+      .send(backend)
+      .narrowBody[FlinkOprErr]
+      .attemptBody(ujson.read(_).arr.map(item => item("id").str -> item("value").str).toMap)
+  }
+
+  def getJobMetricsKeys(jobId: String): FlinkIO[Set[String]] = usingTypedSttp { backend =>
+    request
+      .get(uri"$restUrl/jobs/$jobId/metrics")
+      .send(backend)
+      .narrowBody[FlinkOprErr]
+      .attemptBody(ujson.read(_).arr.map(item => item("id").str).toSet)
   }
 
   /**
@@ -297,10 +318,12 @@ object FlinkRestRequest {
   /**
    * see: [[FlinkRestRequest.listJobsStatusInfo]]
    */
-  case class JobStatusInfo(id: String, status: FlinkJobOverview)
+  case class JobStatusRsp(jobs: Vector[JobStatusInfo])
+  case class JobStatusInfo(id: String, status: JobState)
 
-  object JobStatusInfo {
-    implicit val codec: JsonCodec[JobStatusInfo] = DeriveJsonCodec.gen[JobStatusInfo]
+  object JobStatusRsp {
+    implicit val infoCodec: JsonCodec[JobStatusInfo] = DeriveJsonCodec.gen[JobStatusInfo]
+    implicit val rspCodec: JsonCodec[JobStatusRsp]   = DeriveJsonCodec.gen[JobStatusRsp]
   }
 
   /**

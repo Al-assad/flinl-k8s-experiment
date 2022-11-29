@@ -19,15 +19,15 @@ import zio.{CancelableFuture, Ref}
 import scala.util.hashing.MurmurHash3
 
 /**
- * Akka cluster sharding proxy for [[JobsOvTracker]].
+ * Akka cluster sharding proxy for [[JobOvTracker]].
  */
-private[observer] object JobsOvTrackerProxy extends ShardingProxy[Fcid, JobsOvTracker.Cmd] {
-  val entityKey   = EntityTypeKey[JobsOvTracker.Cmd]("flinkJobTracker")
+private[observer] object JobOvTrackerProxy extends ShardingProxy[Fcid, JobOvTracker.Cmd] {
+  val entityKey   = EntityTypeKey[JobOvTracker.Cmd]("flinkJobOvTracker")
   val marshallKey = marshallFcid
 
   def apply(potaConf: PotaConf, flinkEndpointQuery: RestEndpointQuery): Behavior[Cmd] = action(
-    createBehavior = entityId => JobsOvTracker(entityId, potaConf, flinkEndpointQuery),
-    stopMessage = JobsOvTracker.Stop,
+    createBehavior = entityId => JobOvTracker(entityId, potaConf, flinkEndpointQuery),
+    stopMessage = JobOvTracker.Stop,
     bindRole = NodeRole.FlinkOperator.toString
   )
 }
@@ -35,7 +35,7 @@ private[observer] object JobsOvTrackerProxy extends ShardingProxy[Fcid, JobsOvTr
 /**
  * Job overview info tracker for single flink cluster.
  */
-private[observer] object JobsOvTracker {
+private[observer] object JobOvTracker {
 
   sealed trait Cmd                                                                             extends CborSerializable
   final case object Start                                                                      extends Cmd
@@ -51,18 +51,18 @@ private[observer] object JobsOvTracker {
       val fcid     = unMarshallFcid(fcidStr)
       val idxCache = ctx.spawn(JobIdxCache(potaConf.akka.ddata.getFlinkJobIndex), "flkJobIndexCache")
       ctx.log.info(s"Flink JobsOvTracker actor initialized, fcid=$fcid")
-      new JobsOvTracker(fcid, potaConf: PotaConf, flinkEndpointQuery, idxCache).action
+      new JobOvTracker(fcid, potaConf: PotaConf, flinkEndpointQuery, idxCache).action
     }
   }
 }
 
-private class JobsOvTracker(
+private class JobOvTracker(
     fcid: Fcid,
     potaConf: PotaConf,
     flinkEndpointQuery: RestEndpointQuery,
     idxCache: ActorRef[JobIdxCache.Cmd]
-  )(implicit ctx: ActorContext[JobsOvTracker.Cmd]) {
-  import JobsOvTracker._
+  )(implicit ctx: ActorContext[JobOvTracker.Cmd]) {
+  import JobOvTracker._
 
   private var proc: Option[CancelableFuture[Unit]] = None
   private var firstRefresh: Boolean                = true
@@ -129,6 +129,6 @@ private class JobsOvTracker(
           .when(curMur != preMur)
       } yield ()
 
-    Ref.make(0).flatMap { mur => loopTrigger(potaConf.flink.tracking.jobPolling)(polling(mur)) }
+    Ref.make(0).flatMap { mur => loopTrigger(potaConf.flink.tracking.jobOvPolling)(polling(mur)) }
   } @@ annotated(fcid.toAnno :+ "akkaSource" -> ctx.self.path.toString: _*)
 }

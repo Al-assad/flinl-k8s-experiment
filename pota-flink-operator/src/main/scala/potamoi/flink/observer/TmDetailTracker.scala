@@ -3,19 +3,19 @@ package potamoi.flink.observer
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior}
 import akka.cluster.sharding.typed.scaladsl.EntityTypeKey
+import potamoi.actorx._
 import potamoi.cluster.{CborSerializable, ShardingProxy}
 import potamoi.config.{NodeRole, PotaConf}
 import potamoi.flink.operator.flinkRest
+import potamoi.flink.share.FlinkOprErr.ActorInteropErr
 import potamoi.flink.share.model.{Fcid, FlinkTmDetail}
 import potamoi.logger.PotaLogger
-import potamoi.actorx._
+import potamoi.syntax._
 import potamoi.timex._
 import potamoi.ziox._
-import potamoi.syntax._
-import potamoi.flink.share.FlinkOprErr.ActorInteropErr
 import zio.ZIOAspect.annotated
-import zio.{CancelableFuture, Ref}
 import zio.stream.ZStream
+import zio.{CancelableFuture, Ref}
 
 import scala.util.hashing.MurmurHash3
 
@@ -55,7 +55,7 @@ private[observer] object TmDetailTracker {
 
 }
 
-private[observer] class TmDetailTracker(
+private class TmDetailTracker(
     fcid: Fcid,
     potaConf: PotaConf,
     endpointQuery: RestEndpointQuery
