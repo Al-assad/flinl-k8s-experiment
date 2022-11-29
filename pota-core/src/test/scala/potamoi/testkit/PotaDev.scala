@@ -39,6 +39,8 @@ object PotaDev {
       .setTo(FlkSnapshotQueryConf(askTimeout = 5.seconds, parallelism = 8))
       .modify(_.tracking.tmdDetailPolling)
       .setTo(1.seconds)
+      .modify(_.tracking.jmMetricsPolling)
+      .setTo(1.seconds)
       .modify(_.tracking.tmMetricsPolling)
       .setTo(1.seconds)
   ).resolve

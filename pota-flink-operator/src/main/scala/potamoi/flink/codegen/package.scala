@@ -7,7 +7,13 @@ package object codegen {
   /**
    * Generate flink metrics case class base on rest api mapping.
    */
-  def genMetricCode(caseClzName: String, listKeys: IO[_, Set[String]], getMetrics: Set[String] => IO[_, Map[String, String]]): IO[Any, String] = {
+  def genMetricCode(
+      caseClzName: String,
+      listKeys: IO[_, Set[String]],
+      getMetrics: Set[String] => IO[_, Map[String, String]],
+      caseClzExtFields: Set[(String, String)],
+      fromRawFuncExtParams: String,
+      fromRawFucExtFieldsFill: String): IO[Any, String] = {
     for {
       keys    <- listKeys
       metrics <- getMetrics(keys)
@@ -16,7 +22,7 @@ package object codegen {
 
       token = metrics
         .map { case (key, value) =>
-          var fName = key.split('.').mkString("")
+          var fName = key.split('.').mkString("").replace("_", "")
           if (fName.startsWith("Status")) fName = fName.drop(6)
           fName = fName.replace("JVM", "jvm").replace("CPU", "Cpu")
           val fType = if (value.contains('.')) "Double" else "Long"
@@ -26,9 +32,11 @@ package object codegen {
         .sortBy(e => e._2)
 
       // case class
-      fieldToken = token.map { case (_, fName, fType) => s"$fName: Option[$fType] = None" }
+      fieldToken    = token.map { case (_, fName, fType) => s"$fName: Option[$fType] = None" }
+      extFieldToken = caseClzExtFields.map { case (fName, fType) => s"$fName: $fType" }
       caseClassCode = s"""case class $caseClzName (
-                         |${fieldToken.map(e => "\t" + e).mkString(",\n")},
+                         |${(extFieldToken).map(e => "\t" + e).mkString(",\n")},
+                         |${(fieldToken).map(e => "\t" + e).mkString(",\n")},
                          |  ts: Long = curTs
                          |)
                          |""".stripMargin
@@ -42,7 +50,8 @@ package object codegen {
                          |${keys.toList.sorted.map(e => s"""\t\t"$e"""").mkString(", \n")}
                          |  )
                          |
-                         |  def fromRaw(raw: Map[String, String]): $caseClzName = $caseClzName(
+                         |  def fromRaw($fromRawFuncExtParams, raw: Map[String, String]): $caseClzName = $caseClzName(
+                         |    $fromRawFucExtFieldsFill
                          |${mappingToken.map(e => "\t\t" + e).mkString(",\n")}
                          |  )
                          |}

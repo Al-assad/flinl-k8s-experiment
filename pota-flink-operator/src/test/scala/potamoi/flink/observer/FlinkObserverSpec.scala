@@ -8,7 +8,7 @@ import potamoi.k8s.K8sClient
 import potamoi.syntax._
 import potamoi.testkit.{PotaDev, STSpec, UnsafeEnv}
 import zio.Schedule.spaced
-import zio.{IO, ZIO, durationInt}
+import zio.{durationInt, IO, ZIO}
 
 // TODO unsafe
 class FlinkObserverSpec extends STSpec {
@@ -136,9 +136,21 @@ class FlinkObserverSpec extends STSpec {
       }
     }
 
-    "Query Jm metrics" taggedAs UnsafeEnv in testObr { obr =>
+    "Query JobManager metrics" taggedAs UnsafeEnv in testObr { obr =>
       obr.manager.trackCluster("app-t1" -> "fdev") *>
       obr.clusters.getJmMetrics("app-t1" -> "fdev").map(_.toPrettyStr).debug.repeat(spaced(1.seconds))
+    }
+
+    "Query Taskmanager metrics" should {
+      "get task manager metrics" taggedAs UnsafeEnv in testObr { obr =>
+        obr.manager.trackCluster("app-t1" -> "fdev") *>
+        obr.clusters.getTmMetrics(Ftid("app-t1", "fdev", "app-t1-taskmanager-1-1")).map(_.toPrettyStr).debug.repeat(spaced(1.seconds))
+      }
+
+      "list task manager metrics" taggedAs UnsafeEnv in testObr { obr =>
+        obr.manager.trackCluster("app-t1" -> "fdev") *>
+        obr.clusters.listTmMetrics("app-t1" -> "fdev").map(_.toString).debug.repeat(spaced(1.seconds))
+      }
     }
 
   }

@@ -42,7 +42,8 @@ case class FlkTrackConf(
     @name("poll-job") jobPolling: Duration = 500.millis,
     @name("poll-cluster") clusterPolling: Duration = 500.millis,
     @name("poll-tm-detail") tmdDetailPolling: Duration = 2.seconds,
-    @name("poll-jm-metrics") tmMetricsPolling: Duration = 5.seconds,
+    @name("poll-jm-metrics") jmMetricsPolling: Duration = 5.seconds,
+    @name("poll-tm-metrics") tmMetricsPolling: Duration = 5.seconds,
     @name("poll-savepoint-trigger") savepointTriggerPolling: Duration = 100.millis)
 
 /**

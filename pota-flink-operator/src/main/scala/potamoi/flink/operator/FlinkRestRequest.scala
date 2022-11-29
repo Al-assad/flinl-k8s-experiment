@@ -225,6 +225,14 @@ case class FlinkRestRequest(restUrl: String) {
       .attemptBody(ujson.read(_).arr.map(item => item("id").str -> item("value").str).toMap)
   }
 
+  def getTmMetricsKeys(tmId: String): FlinkIO[Set[String]] = usingTypedSttp { backend =>
+    request
+      .get(uri"$restUrl/taskmanagers/$tmId/metrics")
+      .send(backend)
+      .narrowBodyT[FlinkOprErr](TaskManagerNotFound(tmId))
+      .attemptBody(ujson.read(_).arr.map(item => item("id").str).toSet)
+  }
+
 }
 
 object FlinkRestRequest {

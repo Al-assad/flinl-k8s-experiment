@@ -82,10 +82,10 @@ private class JmMetricTracker(
       Behaviors.same
   }
 
-  private val pollingJmMetricsApi = loopTrigger(potaConf.flink.tracking.tmMetricsPolling) {
+  private val pollingJmMetricsApi = loopTrigger(potaConf.flink.tracking.jmMetricsPolling) {
     for {
       restUrl   <- endpointQuery.get(fcid)
-      jmMetrics <- flinkRest(restUrl.chooseUrl(potaConf.flink)).getJmMetrics(FlinkJmMetrics.metricsRawKeys).map(FlinkJmMetrics.fromRaw)
+      jmMetrics <- flinkRest(restUrl.chooseUrl(potaConf.flink)).getJmMetrics(FlinkJmMetrics.metricsRawKeys).map(FlinkJmMetrics.fromRaw(fcid, _))
       _         <- ctx.self.tellZIO(RefreshRecord(jmMetrics)).mapError(ActorInteropErr)
     } yield ()
   } @@ annotated(fcid.toAnno :+ "akkaSource" -> ctx.self.path.toString: _*)

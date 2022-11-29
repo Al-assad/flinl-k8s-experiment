@@ -8,9 +8,10 @@ import potamoi.config.{DDataConf, PotaConf}
 import potamoi.flink.observer.ClustersOvTracker.GetClusterOverview
 import potamoi.flink.observer.JmMetricTracker.GetJmMetrics
 import potamoi.flink.observer.TmDetailTracker.{GetTmDetail, ListTmDetails, ListTmIds}
+import potamoi.flink.observer.TmMetricTracker.{GetTmMetrics, ListTmMetrics}
 import potamoi.flink.share.FlinkIO
 import potamoi.flink.share.model.FlinkExecMode.FlinkExecMode
-import potamoi.flink.share.model.{Fcid, FlinkClusterOverview, FlinkJmMetrics, FlinkRestSvcEndpoint, FlinkTmDetail, Ftid}
+import potamoi.flink.share.model.{Fcid, FlinkClusterOverview, FlinkJmMetrics, FlinkRestSvcEndpoint, FlinkTmDetail, FlinkTmMetrics, Ftid}
 import potamoi.timex._
 import zio.stream.ZStream
 
@@ -26,6 +27,8 @@ trait ClusterQuery {
   def listTmIds(fcid: Fcid): FlinkIO[List[String]]
 
   def getJmMetrics(fcid: Fcid): FlinkIO[Option[FlinkJmMetrics]]
+  def getTmMetrics(ftid: Ftid): FlinkIO[Option[FlinkTmMetrics]]
+  def listTmMetrics(fcid: Fcid): FlinkIO[List[FlinkTmMetrics]]
 }
 
 object ClusterQuery {
@@ -37,10 +40,18 @@ object ClusterQuery {
       ovTrackersProxy       <- guardian.spawn(ClustersOvTrackerProxy(potaConf, endpointQuery), "flkClusterOvTrackerProxy")
       tmDetailTrackersProxy <- guardian.spawn(TmDetailTrackerProxy(potaConf, endpointQuery), "flkTmDetailTrackerProxy")
       jmMetricTrackersProxy <- guardian.spawn(JmMetricTrackerProxy(potaConf, endpointQuery), "flkJmMetricTrackerProxy")
+      tmMetricTrackersProxy <- guardian.spawn(TmMetricTrackerProxy(potaConf, endpointQuery), "flkTmMetricTrackerProxy")
       queryTimeout     = potaConf.flink.snapshotQuery.askTimeout
       queryParallelism = potaConf.flink.snapshotQuery.parallelism
       sc               = guardian.scheduler
-    } yield Live(clusterIdsCache, clusterIdxCache, ovTrackersProxy, tmDetailTrackersProxy, jmMetricTrackersProxy, queryParallelism)(sc, queryTimeout)
+    } yield Live(
+      clusterIdsCache,
+      clusterIdxCache,
+      ovTrackersProxy,
+      tmDetailTrackersProxy,
+      jmMetricTrackersProxy,
+      tmMetricTrackersProxy,
+      queryParallelism)(sc, queryTimeout)
 
   case class Live(
       clusterIdsCache: ActorRef[TrackClusterIdsCache.Cmd],
@@ -48,6 +59,7 @@ object ClusterQuery {
       ovTrackers: ActorRef[ClustersOvTrackerProxy.Cmd],
       tmDetailTrackers: ActorRef[TmDetailTrackerProxy.Cmd],
       jmMetricTrackers: ActorRef[JmMetricTrackerProxy.Cmd],
+      tmMetricTrackers: ActorRef[TmMetricTrackerProxy.Cmd],
       queryParallelism: Int
     )(implicit sc: Scheduler,
       queryTimeout: Timeout)
@@ -68,6 +80,8 @@ object ClusterQuery {
     def listTmDetails(fcid: Fcid): FlinkIO[List[FlinkTmDetail]]        = tmDetailTrackers(fcid).ask(ListTmDetails).map(_.toList.sorted)
     def listTmIds(fcid: Fcid): FlinkIO[List[String]]                   = tmDetailTrackers(fcid).ask(ListTmIds).map(_.toList.sorted)
     def getJmMetrics(fcid: Fcid): FlinkIO[Option[FlinkJmMetrics]]      = jmMetricTrackers(fcid).ask(GetJmMetrics)
+    def getTmMetrics(ftid: Ftid): FlinkIO[Option[FlinkTmMetrics]]      = tmMetricTrackers(ftid.fcid).ask(GetTmMetrics(ftid.tid, _))
+    def listTmMetrics(fcid: Fcid): FlinkIO[List[FlinkTmMetrics]]       = tmMetricTrackers(fcid).ask(ListTmMetrics).map(_.toList.sortBy(_.tid))
   }
 }
 
