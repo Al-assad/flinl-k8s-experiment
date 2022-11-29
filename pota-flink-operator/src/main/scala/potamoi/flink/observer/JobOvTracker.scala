@@ -114,7 +114,7 @@ private class JobsOvTracker(
   /**
    * Polling flink job overview rest api.
    */
-  private def pollingJobOverviewApi = {
+  private val pollingJobOverviewApi = {
     def polling(mur: Ref[Int]) =
       for {
         restUrl <- flinkEndpointQuery.get(fcid)
@@ -122,8 +122,10 @@ private class JobsOvTracker(
         preMur  <- mur.get
         curMur = MurmurHash3.setHash(ovInfo)
         ovs    = ovInfo.map(_.toFlinkJobOverview(fcid))
-        _ <- (ctx.self.tellZIO(RefreshRecords(ovs)) *> mur.set(curMur))
+        _ <- ctx.self
+          .tellZIO(RefreshRecords(ovs))
           .mapError(FlinkOprErr.ActorInteropErr)
+          .zip(mur.set(curMur))
           .when(curMur != preMur)
       } yield ()
 

@@ -3,12 +3,12 @@ package potamoi.flink.observer
 import potamoi.cluster.PotaActorSystem
 import potamoi.common.Order.{asc, desc}
 import potamoi.common.PageReq
-import potamoi.flink.share.model.{Fcid, Fjid}
+import potamoi.flink.share.model.{Fcid, Fjid, Ftid}
 import potamoi.k8s.K8sClient
 import potamoi.syntax._
 import potamoi.testkit.{PotaDev, STSpec, UnsafeEnv}
 import zio.Schedule.spaced
-import zio.{durationInt, IO, ZIO}
+import zio.{IO, ZIO, durationInt}
 
 // TODO unsafe
 class FlinkObserverSpec extends STSpec {
@@ -111,10 +111,28 @@ class FlinkObserverSpec extends STSpec {
         obr.manager.trackCluster("app-t1" -> "fdev") *>
         obr.clusters.getOverview("app-t1" -> "fdev").map(_.toPrettyStr).debug.repeat(spaced(1.seconds))
       }
+
       "list cluster overview" taggedAs UnsafeEnv in testObr { obr =>
         obr.manager.trackCluster("app-t1" -> "fdev") *>
         obr.manager.trackCluster("app-t2" -> "fdev") *>
         obr.clusters.listOverview.map(_.toString).debug.repeat(spaced(1.seconds))
+      }
+    }
+
+    "Query TaskManager details" should {
+      "list task manager id" taggedAs UnsafeEnv in testObr { obr =>
+        obr.manager.trackCluster("app-t1" -> "fdev") *>
+        obr.clusters.listTmIds("app-t1" -> "fdev").map(_.toPrettyStr).debug.repeat(spaced(1.seconds))
+      }
+
+      "list task manager details" taggedAs UnsafeEnv in testObr { obr =>
+        obr.manager.trackCluster("app-t1" -> "fdev") *>
+        obr.clusters.listTmDetails("app-t1" -> "fdev").map(_.toPrettyStr).debug.repeat(spaced(1.seconds))
+      }
+
+      "get task manager details" taggedAs UnsafeEnv in testObr { obr =>
+        obr.manager.trackCluster("app-t1" -> "fdev") *>
+        obr.clusters.getTmDetail(Ftid("app-t1", "fdev", "app-t1-taskmanager-1-1")).map(_.toString).debug.repeat(spaced(1.seconds))
       }
     }
 

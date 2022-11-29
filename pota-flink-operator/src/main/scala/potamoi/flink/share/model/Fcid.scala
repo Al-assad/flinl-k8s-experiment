@@ -31,3 +31,16 @@ object Fjid {
   implicit val ordering: Ordering[Fjid]      = Ordering.by(fjid => (fjid.clusterId, fjid.namespace, fjid.jobId))
   def apply(fcid: Fcid, jobId: String): Fjid = Fjid(fcid.clusterId, fcid.namespace, jobId)
 }
+
+/**
+ * Unique flink taskmanager identifier under the same kubernetes cluster.
+ */
+case class Ftid(clusterId: String, namespace: String, tid: String) {
+  def fcid: Fcid          = Fcid(clusterId, namespace)
+  def isUnder(fcid: Fcid) = fcid.clusterId == clusterId && fcid.namespace == namespace
+}
+object Ftid {
+  implicit val codec: JsonCodec[Ftid]       = DeriveJsonCodec.gen[Ftid]
+  implicit val ordering: Ordering[Ftid]     = Ordering.by(ftid => (ftid.clusterId, ftid.namespace, ftid.tid))
+  def apply(fcid: Fcid, tmId: String): Ftid = Ftid(fcid.clusterId, fcid.namespace, tmId)
+}

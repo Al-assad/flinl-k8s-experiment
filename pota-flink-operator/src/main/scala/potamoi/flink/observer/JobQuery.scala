@@ -66,9 +66,9 @@ object JobQuery {
    * Akka Sharding/DData hybrid storage implementation.
    */
   case class Live(
-                   trackers: ActorRef[JobsOvTrackerProxy.Cmd],
-                   idxCache: ActorRef[JobIdxCache.Cmd],
-                   queryParallelism: Int
+      trackers: ActorRef[JobsOvTrackerProxy.Cmd],
+      idxCache: ActorRef[JobIdxCache.Cmd],
+      queryParallelism: Int
     )(implicit sc: Scheduler,
       queryTimeout: Timeout)
       extends JobQuery {
@@ -93,7 +93,7 @@ object JobQuery {
 
     def listJobState(fcid: Fcid): FlinkIO[Map[JobId, JobState]] =
       idxCache.listAll.map {
-        _.filter { case (k, _) => k.fcid == fcid }
+        _.filter { case (k, _) => k.isUnder(fcid) }
           .map { case (k, v) => k.jobId -> v.jobState }
       }
 

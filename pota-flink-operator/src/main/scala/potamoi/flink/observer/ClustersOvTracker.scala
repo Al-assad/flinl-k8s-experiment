@@ -74,7 +74,7 @@ private class ClustersOvTracker(
     case Stop =>
       proc.map(_.cancel())
       idxCache ! ClusterIndexCache.Update(fcid, _.copy(execMode = None))
-      ctx.log.info(s"Flink ClustersOvTracker actor started, fcid=$fcid")
+      ctx.log.info(s"Flink ClustersOvTracker actor stopped, fcid=$fcid")
       Behaviors.stopped
 
     case RefreshRecord(record) =>
@@ -91,7 +91,7 @@ private class ClustersOvTracker(
       Behaviors.same
   }
 
-  private def pollingClusterOverviewApi = {
+  private val pollingClusterOverviewApi = {
     implicit val flkConf = potaConf.flink
     def polling(mur: Ref[Int]) =
       for {
@@ -102,8 +102,10 @@ private class ClustersOvTracker(
         execMode       <- execModeFiber.join
         preMur         <- mur.get
         curMur = MurmurHash3.productHash(clusterOv -> execMode.id)
-        _ <- (ctx.self.tellZIO(RefreshRecord(clusterOv.toFlinkClusterOverview(fcid, execMode))) *> mur.set(curMur))
+        _ <- ctx.self
+          .tellZIO(RefreshRecord(clusterOv.toFlinkClusterOverview(fcid, execMode)))
           .mapError(FlinkOprErr.ActorInteropErr)
+          .zip(mur.set(curMur))
           .when(curMur != preMur)
       } yield ()
 

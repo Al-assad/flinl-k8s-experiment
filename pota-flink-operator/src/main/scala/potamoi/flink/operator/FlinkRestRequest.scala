@@ -197,10 +197,10 @@ case class FlinkRestRequest(restUrl: String) {
    * Get task manager detail.
    * see: https://nightlies.apache.org/flink/flink-docs-master/docs/ops/rest_api/#taskmanagers-taskmanagerid
    */
-  def getTaskManagerDetails(tmId: String): FlinkIO[TaskManagerDetail] = usingTypedSttp { backend =>
+  def getTaskManagerDetail(tmId: String): FlinkIO[FlinkTmDetail] = usingTypedSttp { backend =>
     request
       .get(uri"$restUrl/taskmanagers/$tmId")
-      .response(asJson[TaskManagerDetail])
+      .response(asJson[FlinkTmDetail])
       .send(backend)
       .narrowBodyT[FlinkOprErr](TaskManagerNotFound(tmId))
   }
@@ -348,39 +348,6 @@ object FlinkRestRequest {
 
   object ClusterOverviewInfo {
     implicit val codec: JsonCodec[ClusterOverviewInfo] = DeriveJsonCodec.gen[ClusterOverviewInfo]
-  }
-
-  case class TaskManagerDetail(
-      id: String,
-      path: String,
-      dataPort: Int,
-      timeSinceLastHeartbeat: Long,
-      slotsNumber: Int,
-      freeSlots: Int,
-      totalResource: TmResource,
-      freeResource: TmResource,
-      hardware: TmHardware,
-      memoryConfiguration: TmMemoryConfig)
-
-  case class TmResource(cpuCores: Int, taskHeapMemory: Long, taskOffHeapMemory: Long, managedMemory: Long, networkMemory: Long)
-  case class TmHardware(cpuCores: Int, physicalMemory: Long, freeMemory: Long, managedMemory: Long)
-  case class TmMemoryConfig(
-      frameworkHeap: Long,
-      taskHeap: Long,
-      frameworkOffHeap: Long,
-      taskOffHeap: Long,
-      networkMemory: Long,
-      managedMemory: Long,
-      jvmMetaspace: Long,
-      jvmOverhead: Long,
-      totalFlinkMemory: Long,
-      totalProcessMemory: Long)
-
-  object TaskManagerDetail {
-    implicit val tmResourceCodec: JsonCodec[TmResource]               = DeriveJsonCodec.gen[TmResource]
-    implicit val tmHardwareCodec: JsonCodec[TmHardware]               = DeriveJsonCodec.gen[TmHardware]
-    implicit val tmMemoryConfigCodec: JsonCodec[TmMemoryConfig]       = DeriveJsonCodec.gen[TmMemoryConfig]
-    implicit val taskManagerDetailCodec: JsonCodec[TaskManagerDetail] = DeriveJsonCodec.gen[TaskManagerDetail]
   }
 
 }

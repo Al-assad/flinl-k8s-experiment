@@ -29,15 +29,3 @@ object FlinkClusterOverview {
   implicit val codec                                   = DeriveJsonCodec.gen[FlinkClusterOverview]
   implicit val sorting: Ordering[FlinkClusterOverview] = Ordering.by(e => (e.clusterId, e.namespace))
 }
-
-//case class JmMetric(
-//    heapMax: Long,
-//    heapUsed: Long)
-
-//case class TmMetric(
-//    slotsTotal: Int,
-//    slotsFree: Int,
-//    cpuCores: Int,
-//    physMem: Long,
-//    heapMemMax: Long,
-//    heapMemUsed: Long)

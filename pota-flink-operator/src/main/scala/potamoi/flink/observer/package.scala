@@ -1,5 +1,6 @@
 package potamoi.flink
 
+import potamoi.actorx._
 import potamoi.common.Syntax.GenericPF
 import potamoi.flink.share.FlinkOprErr
 import potamoi.flink.share.model.Fcid
@@ -10,13 +11,13 @@ import zio.{Duration, IO, Ref, Schedule}
 package object observer {
 
   // marshall/unmarshall between fcid and cluster-sharding entity id.
-  def marshallFcid(fcid: Fcid): String   = s"${fcid.clusterId}@${fcid.namespace}"
-  def unMarshallFcid(fcid: String): Fcid = fcid.split('@').contra { arr => Fcid(arr(0), arr(1)) }
+  @inline def marshallFcid(fcid: Fcid): String   = s"${fcid.clusterId}@${fcid.namespace}"
+  @inline def unMarshallFcid(fcid: String): Fcid = fcid.split('@').contra { arr => Fcid(arr(0), arr(1)) }
 
   /**
    * Cyclic trigger effect and recording of the first non-repeating error.
    */
-  private[observer] def loopTrigger[E <: FlinkOprErr, A](effect: IO[E, A], spaced: Duration): IO[E, Unit] = for {
+  @inline private[observer] def loopTrigger[E <: FlinkOprErr, A](effect: IO[E, A], spaced: Duration): IO[E, Unit] = for {
     preErr <- Ref.make[Option[FlinkOprErr]](None)
     loopEffect <- effect
       .schedule(Schedule.spaced(spaced))
@@ -28,7 +29,4 @@ package object observer {
       .ignore
       .forever
   } yield loopEffect
-
-
-
 }

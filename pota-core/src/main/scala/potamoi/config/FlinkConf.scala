@@ -41,6 +41,7 @@ object FlinkConf {
 case class FlkTrackConf(
     @name("poll-job") jobPolling: Duration = 500.millis,
     @name("poll-cluster") clusterPolling: Duration = 500.millis,
+    @name("poll-tmd-detail") tmdDetailPolling: Duration = 500.millis,
     @name("poll-savepoint-trigger") savepointTriggerPolling: Duration = 100.millis)
 
 /**
