@@ -28,7 +28,13 @@ object FlinkObserver {
       savepointQuery <- SavepointTriggerQuery.live(potaConf.flink, endpointQuery)
       jobQuery       <- JobQuery.live(potaConf, guardian, endpointQuery)
       clusterQuery   <- ClusterQuery.live(potaConf, guardian, endpointQuery)
-      trackerManager <- FlinkTrackManager.live(potaConf, guardian, clusterQuery.ovTrackers, clusterQuery.tmDetailTrackers, jobQuery.trackers)
+      trackerManager <- FlinkTrackManager.live(
+        potaConf,
+        guardian,
+        clusterQuery.ovTrackers,
+        clusterQuery.tmDetailTrackers,
+        clusterQuery.jmMetricTrackers,
+        jobQuery.trackers)
     } yield new FlinkObserver {
       val manager           = trackerManager
       val clusters          = clusterQuery

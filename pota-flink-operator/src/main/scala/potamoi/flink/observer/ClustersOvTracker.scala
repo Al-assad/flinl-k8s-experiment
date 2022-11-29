@@ -109,7 +109,7 @@ private class ClustersOvTracker(
           .when(curMur != preMur)
       } yield ()
 
-    Ref.make(0).flatMap { mur => loopTrigger(polling(mur), potaConf.flink.tracking.clusterPolling) }
+    Ref.make(0).flatMap { mur => loopTrigger(potaConf.flink.tracking.clusterPolling)(polling(mur)) }
   } @@ annotated(fcid.toAnno :+ "akkaSource" -> ctx.self.path.toString: _*)
 
 }

@@ -136,7 +136,10 @@ class FlinkObserverSpec extends STSpec {
       }
     }
 
-    // continue
-  }
+    "Query Jm metrics" taggedAs UnsafeEnv in testObr { obr =>
+      obr.manager.trackCluster("app-t1" -> "fdev") *>
+      obr.clusters.getJmMetrics("app-t1" -> "fdev").map(_.toPrettyStr).debug.repeat(spaced(1.seconds))
+    }
 
+  }
 }

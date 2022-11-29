@@ -38,13 +38,14 @@ object FlinkTrackManager {
       guardian: ActorGuardian,
       clustersOvTrackers: ActorRef[ClustersOvTrackerProxy.Cmd],
       tmDetailTrackers: ActorRef[TmDetailTrackerProxy.Cmd],
+      jmMetricTrackers: ActorRef[JmMetricTrackerProxy.Cmd],
       jobsTrackers: ActorRef[JobsOvTrackerProxy.Cmd]) =
     for {
       clusterIdsCache   <- guardian.spawn(TrackClusterIdsCache(potaConf.akka.ddata.getFlinkClusterIds), "flkTrackClusterCache-tm")
       clusterIndexCache <- guardian.spawn(ClusterIndexCache(potaConf.akka.ddata.getFlinkClusterIndex), "flkClusterIdxCache-tm")
       queryTimeout = potaConf.flink.snapshotQuery.askTimeout
       sc           = guardian.scheduler
-    } yield Live(clusterIdsCache, clusterIndexCache, clustersOvTrackers, tmDetailTrackers, jobsTrackers)(sc, queryTimeout)
+    } yield Live(clusterIdsCache, clusterIndexCache, clustersOvTrackers, tmDetailTrackers, jmMetricTrackers, jobsTrackers)(sc, queryTimeout)
 
   /**
    * Implementation based on Akka infra.
@@ -54,6 +55,7 @@ object FlinkTrackManager {
       clusterIndexCache: ActorRef[ClusterIndexCache.Cmd],
       clustersOvTrackers: ActorRef[ClustersOvTrackerProxy.Cmd],
       tmDetailTrackers: ActorRef[TmDetailTrackerProxy.Cmd],
+      jmMetricTrackers: ActorRef[JmMetricTrackerProxy.Cmd],
       jobsTrackers: ActorRef[JobsOvTrackerProxy.Cmd]
     )(implicit sc: Scheduler,
       queryTimeout: Timeout)
@@ -63,6 +65,7 @@ object FlinkTrackManager {
       clusterIdsCache.put(fcid) *>
       clustersOvTrackers(fcid).tell(ClustersOvTracker.Start) *>
       tmDetailTrackers(fcid).tell(TmDetailTracker.Start) *>
+      jmMetricTrackers(fcid).tell(JmMetricTracker.Start) *>
       jobsTrackers(fcid).tell(JobsOvTracker.Start)
     }
 
@@ -71,6 +74,7 @@ object FlinkTrackManager {
       clusterIndexCache.remove(fcid) *>
       clustersOvTrackers(fcid).tell(ClustersOvTracker.Stop) *>
       tmDetailTrackers(fcid).tell(TmDetailTracker.Stop) *>
+      jmMetricTrackers(fcid).tell(JmMetricTracker.Stop) *>
       jobsTrackers(fcid).tell(JobsOvTracker.Stop)
     }
 

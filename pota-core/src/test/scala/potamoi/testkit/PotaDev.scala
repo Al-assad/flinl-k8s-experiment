@@ -1,5 +1,6 @@
 package potamoi.testkit
 
+import com.softwaremill.quicklens.ModifyPimp
 import potamoi.config._
 import potamoi.logger.LogsLevel
 import potamoi.syntax.valueToSome
@@ -33,12 +34,13 @@ object PotaDev {
     log = LogConf().copy(
       level = LogsLevel.INFO
     ),
-    flink = FlinkConf().copy(
-      snapshotQuery = FlkSnapshotQueryConf(
-        askTimeout = 5.seconds,
-        parallelism = 8
-      )
-    )
+    flink = FlinkConf()
+      .modify(_.snapshotQuery)
+      .setTo(FlkSnapshotQueryConf(askTimeout = 5.seconds, parallelism = 8))
+      .modify(_.tracking.tmdDetailPolling)
+      .setTo(1.seconds)
+      .modify(_.tracking.tmMetricsPolling)
+      .setTo(1.seconds)
   ).resolve
 
   val conf: ULayer[PotaConf] = ZLayer.succeed(rawConf)

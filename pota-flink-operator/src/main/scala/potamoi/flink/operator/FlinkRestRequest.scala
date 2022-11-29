@@ -181,6 +181,14 @@ case class FlinkRestRequest(restUrl: String) {
       .attemptBody(ujson.read(_).arr.map(item => item("id").str -> item("value").str).toMap)
   }
 
+  def getJmMetricsKeys: FlinkIO[Set[String]] = usingTypedSttp { backend =>
+    request
+      .get(uri"$restUrl/jobmanager/metrics")
+      .send(backend)
+      .narrowBody[FlinkOprErr]
+      .attemptBody(ujson.read(_).arr.map(item => item("id").str).toSet)
+  }
+
   /**
    * List all task manager ids on cluster
    * see: https://nightlies.apache.org/flink/flink-docs-master/docs/ops/rest_api/#taskmanagers

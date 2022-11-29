@@ -115,6 +115,6 @@ private[observer] class TmDetailTracker(
           .when(preMur != curMur)
       } yield ()
 
-    Ref.make(0).flatMap(mur => loopTrigger(polling(mur), potaConf.flink.tracking.tmdDetailPolling))
+    Ref.make(0).flatMap(mur => loopTrigger(potaConf.flink.tracking.tmdDetailPolling)(polling(mur)))
   } @@ annotated(fcid.toAnno :+ "akkaSource" -> ctx.self.path.toString: _*)
 }

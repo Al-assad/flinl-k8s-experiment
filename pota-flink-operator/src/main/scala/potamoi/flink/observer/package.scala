@@ -17,7 +17,7 @@ package object observer {
   /**
    * Cyclic trigger effect and recording of the first non-repeating error.
    */
-  @inline private[observer] def loopTrigger[E <: FlinkOprErr, A](effect: IO[E, A], spaced: Duration): IO[E, Unit] = for {
+  @inline private[observer] def loopTrigger[E <: FlinkOprErr, A](spaced: Duration)(effect: IO[E, A]): IO[E, Unit] = for {
     preErr <- Ref.make[Option[FlinkOprErr]](None)
     loopEffect <- effect
       .schedule(Schedule.spaced(spaced))

@@ -1,5 +1,6 @@
 package potamoi.flink.share.model
 
+import potamoi.curTs
 import zio.json.{DeriveJsonCodec, JsonCodec}
 
 /**
@@ -14,7 +15,8 @@ case class FlinkTmDetail(
     totalResource: TmResource,
     freeResource: TmResource,
     hardware: TmHardware,
-    memoryConfiguration: TmMemoryConfig)
+    memoryConfiguration: TmMemoryConfig,
+    ts: Long = curTs)
 
 case class TmResource(
     cpuCores: Float,
