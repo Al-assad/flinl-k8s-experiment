@@ -22,8 +22,10 @@ import scala.util.hashing.MurmurHash3
  * Akka cluster sharding proxy for [[ClustersOvTracker]].
  */
 private[observer] object ClustersOvTrackerProxy extends ShardingProxy[Fcid, ClustersOvTracker.Cmd] {
-  val entityKey   = EntityTypeKey[ClustersOvTracker.Cmd]("flinkClusterTracker")
-  val marshallKey = marshallFcid
+  val entityKey = EntityTypeKey[ClustersOvTracker.Cmd]("flinkClusterTracker")
+
+  val marshallKey   = fcid => s"clOv@${fcid.clusterId}@${fcid.namespace}"
+  val unmarshallKey = _.split('@').contra(arr => arr(1) -> arr(2))
 
   def apply(potaConf: PotaConf, flinkEndpointQuery: RestEndpointQuery): Behavior[Cmd] = action(
     createBehavior = entityId => ClustersOvTracker(entityId, potaConf, flinkEndpointQuery),
@@ -45,7 +47,7 @@ private[observer] object ClustersOvTracker {
 
   def apply(fcidStr: String, potaConf: PotaConf, flinkEndpointQuery: RestEndpointQuery): Behavior[Cmd] =
     Behaviors.setup { implicit ctx =>
-      val fcid     = unMarshallFcid(fcidStr)
+      val fcid     = ClustersOvTrackerProxy.unmarshallKey(fcidStr)
       val idxCache = ctx.spawn(ClusterIndexCache(potaConf.akka.ddata.getFlinkClusterIndex), "flkClusterIdxCache")
       ctx.log.info(s"Flink ClustersOvTracker actor initialized, fcid=$fcid")
       new ClustersOvTracker(fcid, potaConf, flinkEndpointQuery, idxCache).action

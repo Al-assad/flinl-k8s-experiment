@@ -22,8 +22,10 @@ import scala.util.hashing.MurmurHash3
  * Akka cluster sharding proxy for [[JobOvTracker]].
  */
 private[observer] object JobOvTrackerProxy extends ShardingProxy[Fcid, JobOvTracker.Cmd] {
-  val entityKey   = EntityTypeKey[JobOvTracker.Cmd]("flinkJobOvTracker")
-  val marshallKey = marshallFcid
+  val entityKey = EntityTypeKey[JobOvTracker.Cmd]("flinkJobOvTracker")
+
+  val marshallKey   = fcid => s"jobOv@${fcid.clusterId}@${fcid.namespace}"
+  val unmarshallKey = _.split('@').contra(arr => arr(1) -> arr(2))
 
   def apply(potaConf: PotaConf, flinkEndpointQuery: RestEndpointQuery): Behavior[Cmd] = action(
     createBehavior = entityId => JobOvTracker(entityId, potaConf, flinkEndpointQuery),
@@ -48,7 +50,7 @@ private[observer] object JobOvTracker {
 
   def apply(fcidStr: String, potaConf: PotaConf, flinkEndpointQuery: RestEndpointQuery): Behavior[Cmd] = {
     Behaviors.setup { implicit ctx =>
-      val fcid     = unMarshallFcid(fcidStr)
+      val fcid     = JobOvTrackerProxy.unmarshallKey(fcidStr)
       val idxCache = ctx.spawn(JobIdxCache(potaConf.akka.ddata.getFlinkJobIndex), "flkJobIndexCache")
       ctx.log.info(s"Flink JobsOvTracker actor initialized, fcid=$fcid")
       new JobOvTracker(fcid, potaConf: PotaConf, flinkEndpointQuery, idxCache).action

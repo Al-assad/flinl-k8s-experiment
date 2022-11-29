@@ -20,8 +20,10 @@ import zio.ZIOAspect.annotated
  * Akka cluster sharding proxy for [[JmMetricTracker]].
  */
 private[observer] object JmMetricTrackerProxy extends ShardingProxy[Fcid, JmMetricTracker.Cmd] {
-  val entityKey   = EntityTypeKey[JmMetricTracker.Cmd]("flinkJmMetricsTracker")
-  val marshallKey = marshallFcid
+  val entityKey = EntityTypeKey[JmMetricTracker.Cmd]("flinkJmMetricsTracker")
+
+  val marshallKey   = fcid => s"jmMt@${fcid.clusterId}@${fcid.namespace}"
+  val unmarshallKey = _.split('@').contra(arr => arr(1) -> arr(2))
 
   def apply(potaConf: PotaConf, flinkEndpointQuery: RestEndpointQuery): Behavior[Cmd] = action(
     createBehavior = entityId => JmMetricTracker(entityId, potaConf, flinkEndpointQuery),
@@ -43,7 +45,7 @@ private[observer] object JmMetricTracker {
 
   def apply(fcidStr: String, potaConf: PotaConf, flinkEndpointQuery: RestEndpointQuery): Behavior[Cmd] = {
     Behaviors.setup { implicit ctx =>
-      val fcid = unMarshallFcid(fcidStr)
+      val fcid = JmMetricTrackerProxy.unmarshallKey(fcidStr)
       ctx.log.info(s"Flink JmMetricTracker actor initialized, fcid=$fcid")
       new JmMetricTracker(fcid, potaConf: PotaConf, flinkEndpointQuery).action
     }

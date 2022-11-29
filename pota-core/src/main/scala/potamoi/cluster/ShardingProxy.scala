@@ -35,6 +35,11 @@ trait ShardingProxy[ShardKey, ProxyCommand] {
   def marshallKey: ShardKey => String
 
   /**
+   * Unmarshall String to ShardKey
+   */
+  def unmarshallKey: String => ShardKey
+
+  /**
    * Action behavior.
    */
   protected def action(region: (ActorContext[Cmd], ClusterSharding) => ActorRef[ShardingEnvelope[ProxyCommand]]): Behavior[Cmd] =

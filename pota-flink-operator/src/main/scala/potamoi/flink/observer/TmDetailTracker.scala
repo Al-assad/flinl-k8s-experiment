@@ -23,8 +23,10 @@ import scala.util.hashing.MurmurHash3
  * Akka cluster sharding proxy for [[TmDetailTracker]].
  */
 private[observer] object TmDetailTrackerProxy extends ShardingProxy[Fcid, TmDetailTracker.Cmd] {
-  val entityKey   = EntityTypeKey[TmDetailTracker.Cmd]("flinkTmDetailTracker")
-  val marshallKey = marshallFcid
+  val entityKey = EntityTypeKey[TmDetailTracker.Cmd]("flinkTmDetailTracker")
+
+  val marshallKey   = fcid => s"tmDt@${fcid.clusterId}@${fcid.namespace}"
+  val unmarshallKey = _.split('@').contra(arr => arr(1) -> arr(2))
 
   def apply(potaConf: PotaConf, flinkEndpointQuery: RestEndpointQuery): Behavior[Cmd] = action(
     createBehavior = entityId => TmDetailTracker(entityId, potaConf, flinkEndpointQuery),
@@ -48,7 +50,7 @@ private[observer] object TmDetailTracker {
 
   def apply(fcidStr: String, potaConf: PotaConf, flinkEndpointQuery: RestEndpointQuery): Behavior[Cmd] =
     Behaviors.setup { implicit ctx =>
-      val fcid = unMarshallFcid(fcidStr)
+      val fcid = TmDetailTrackerProxy.unmarshallKey(fcidStr)
       ctx.log.info(s"Flink TmDetailTracker actor initialized, fcid=$fcid")
       new TmDetailTracker(fcid, potaConf, flinkEndpointQuery).action
     }

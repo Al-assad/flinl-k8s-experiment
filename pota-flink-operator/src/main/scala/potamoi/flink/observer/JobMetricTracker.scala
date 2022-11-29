@@ -24,8 +24,10 @@ import scala.collection.mutable
  * Akka cluster sharding proxy for [[JobMetricTracker]].
  */
 private[observer] object JobMetricTrackerProxy extends ShardingProxy[Fcid, JobMetricTracker.Cmd] {
-  val entityKey   = EntityTypeKey[JobMetricTracker.Cmd]("flinkJobMetricsTracker")
-  val marshallKey = marshallFcid
+  val entityKey = EntityTypeKey[JobMetricTracker.Cmd]("flinkJobMetricsTracker")
+
+  val marshallKey   = fcid => s"jobMt@${fcid.clusterId}@${fcid.namespace}"
+  val unmarshallKey = _.split('@').contra(arr => arr(1) -> arr(2))
 
   def apply(potaConf: PotaConf, flinkEndpointQuery: RestEndpointQuery): Behavior[Cmd] = action(
     createBehavior = entityId => JobMetricTracker(entityId, potaConf, flinkEndpointQuery),
@@ -50,7 +52,7 @@ private[observer] object JobMetricTracker {
 
   def apply(fcidStr: String, potaConf: PotaConf, flinkEndpointQuery: RestEndpointQuery): Behavior[Cmd] =
     Behaviors.setup { implicit ctx =>
-      val fcid = unMarshallFcid(fcidStr)
+      val fcid = JobMetricTrackerProxy.unmarshallKey(fcidStr)
       ctx.log.info(s"Flink JobMetricTracker actor initialized, fcid=$fcid")
       new JobMetricTracker(fcid, potaConf, flinkEndpointQuery).action
     }

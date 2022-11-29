@@ -23,8 +23,10 @@ import scala.collection.mutable
  * Akka cluster sharding proxy for [[TmMetricTracker]].
  */
 private[observer] object TmMetricTrackerProxy extends ShardingProxy[Fcid, TmMetricTracker.Cmd] {
-  val entityKey   = EntityTypeKey[TmMetricTracker.Cmd]("flinkTmMetricsTracker")
-  val marshallKey = marshallFcid
+  val entityKey = EntityTypeKey[TmMetricTracker.Cmd]("flinkTmMetricsTracker")
+
+  val marshallKey   = fcid => s"tmMt@${fcid.clusterId}@${fcid.namespace}"
+  val unmarshallKey = _.split('@').contra(arr => arr(1) -> arr(2))
 
   def apply(potaConf: PotaConf, flinkEndpointQuery: RestEndpointQuery): Behavior[Cmd] = action(
     createBehavior = entityId => TmMetricTracker(entityId, potaConf, flinkEndpointQuery),
@@ -49,7 +51,7 @@ private[observer] object TmMetricTracker {
 
   def apply(fcidStr: String, potaConf: PotaConf, flinkEndpointQuery: RestEndpointQuery): Behavior[Cmd] =
     Behaviors.setup { implicit ctx =>
-      val fcid = unMarshallFcid(fcidStr)
+      val fcid = TmMetricTrackerProxy.unmarshallKey(fcidStr)
       ctx.log.info(s"Flink TmMetricTracker actor initialized, fcid=$fcid")
       new TmMetricTracker(fcid, potaConf, flinkEndpointQuery).action
     }
