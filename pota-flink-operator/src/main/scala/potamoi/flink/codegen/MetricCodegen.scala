@@ -22,6 +22,9 @@ private object JmMetricCodegen extends ZIOAppDefault {
   ).map(println)
 }
 
+/**
+ * Code generator for FlinkTmMetrics.
+ */
 private object TmMetricCodegen extends ZIOAppDefault {
   val restReq = flinkRest("http://10.233.46.104:8081")
   val run = genMetricCode(
@@ -41,6 +44,9 @@ private object TmMetricCodegen extends ZIOAppDefault {
   ).map(println)
 }
 
+/**
+ * Code generator for FlinkJobMetrics.
+ */
 private object JobMetricCodegen extends ZIOAppDefault {
   val restReq = flinkRest("http://10.233.46.104:8081")
   val run = genMetricCode(
