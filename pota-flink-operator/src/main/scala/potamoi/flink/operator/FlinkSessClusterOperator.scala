@@ -4,13 +4,13 @@ import potamoi.common.PathTool.{getFileName, isS3Path}
 import potamoi.common.ZIOExtension.usingAttempt
 import potamoi.config.PotaConf
 import potamoi.flink.observer.FlinkObserver
-import potamoi.flink.operator.FlinkConfigExtension.{configurationToPF, InjectedDeploySourceConf, InjectedExecModeKey}
+import potamoi.flink.operator.FlinkConfigExtension.{InjectedDeploySourceConf, InjectedExecModeKey, configurationToPF}
 import potamoi.flink.operator.FlinkRestRequest.{RunJobReq, StopJobSptReq, TriggerSptReq}
-import potamoi.flink.share.FlinkOprErr.{NotSupportJobJarPath, SubmitFlinkApplicationClusterErr, UnableToResolveS3Resource}
+import potamoi.flink.share.FlinkOprErr.{NotSupportJobJarPath, SubmitFlinkSessionClusterErr, UnableToResolveS3Resource}
 import potamoi.flink.share.model.FlinkExecMode.K8sSession
 import potamoi.flink.share.model._
 import potamoi.flink.share.{FlinkIO, JobId, TriggerId}
-import potamoi.fs.{lfs, S3Operator}
+import potamoi.fs.{S3Operator, lfs}
 import potamoi.k8s.K8sClient
 import potamoi.syntax._
 import zio.ZIO
@@ -85,7 +85,7 @@ case class FlinkSessClusterOperatorImpl(potaConf: PotaConf, k8sClient: K8sClient
           k8sClusterDescriptor <- usingAttempt(clusterClientFactory.createClusterDescriptor(rawConfig))
           _                    <- attemptBlockingInterrupt(k8sClusterDescriptor.deploySessionCluster(clusterSpecification))
         } yield ()
-      }.mapError(SubmitFlinkApplicationClusterErr(clusterDef.fcid, _))
+      }.mapError(SubmitFlinkSessionClusterErr(clusterDef.fcid, _))
       // tracking cluster
       _ <- flinkObserver.manager.trackCluster(clusterDef.fcid).ignore
       _ <- logInfo(s"Deploy flink application cluster successfully.")
