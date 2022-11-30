@@ -4,7 +4,7 @@ import potamoi.common.PathTool.{getFileName, isS3Path}
 import potamoi.common.ZIOExtension.usingAttempt
 import potamoi.config.PotaConf
 import potamoi.flink.observer.FlinkObserver
-import potamoi.flink.operator.FlinkConfigExtension.configurationToPF
+import potamoi.flink.operator.FlinkConfigExtension.{configurationToPF, InjectedDeploySourceConf, InjectedExecModeKey}
 import potamoi.flink.operator.FlinkRestRequest.{RunJobReq, StopJobSptReq, TriggerSptReq}
 import potamoi.flink.share.FlinkOprErr.{NotSupportJobJarPath, SubmitFlinkApplicationClusterErr, UnableToResolveS3Resource}
 import potamoi.flink.share.model.FlinkExecMode.K8sSession
@@ -73,6 +73,8 @@ case class FlinkSessClusterOperatorImpl(potaConf: PotaConf, k8sClient: K8sClient
           .append("kubernetes.pod-template-file.jobmanager", podTemplateFilePath)
           .append("kubernetes.pod-template-file.taskmanager", podTemplateFilePath)
           .append("$internal.deployment.config-dir", logConfFilePath)
+          .append(InjectedExecModeKey, FlinkExecMode.K8sSession.toString)
+          .append(InjectedDeploySourceConf._1, InjectedDeploySourceConf._2)
       }
       _ <- logInfo(s"Start to deploy flink application cluster:\n${rawConfig.toMap(true).toPrettyStr}".stripMargin)
       // deploy cluster

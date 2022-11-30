@@ -4,11 +4,11 @@ import org.apache.flink.client.deployment.application.ApplicationConfiguration
 import potamoi.common.ZIOExtension.usingAttempt
 import potamoi.config.PotaConf
 import potamoi.flink.observer.FlinkObserver
-import potamoi.flink.operator.FlinkConfigExtension.configurationToPF
+import potamoi.flink.operator.FlinkConfigExtension.{configurationToPF, InjectedDeploySourceConf, InjectedExecModeKey}
 import potamoi.flink.operator.FlinkRestRequest.{StopJobSptReq, TriggerSptReq}
 import potamoi.flink.share.FlinkOprErr.{EmptyJobInCluster, SubmitFlinkApplicationClusterErr}
 import potamoi.flink.share.model.FlinkExecMode.K8sApp
-import potamoi.flink.share.model.{Fcid, Fjid, FlinkAppClusterDef, FlinkJobSptDef}
+import potamoi.flink.share.model.{Fcid, Fjid, FlinkAppClusterDef, FlinkExecMode, FlinkJobSptDef}
 import potamoi.flink.share.{FlinkIO, TriggerId}
 import potamoi.fs.S3Operator
 import potamoi.k8s.K8sClient
@@ -68,6 +68,8 @@ case class FlinkAppClusterOperatorImpl(potaConf: PotaConf, k8sClient: K8sClient,
           .append("kubernetes.pod-template-file.jobmanager", podTemplateFilePath)
           .append("kubernetes.pod-template-file.taskmanager", podTemplateFilePath)
           .append("$internal.deployment.config-dir", logConfFilePath)
+          .append(InjectedExecModeKey, FlinkExecMode.K8sApp.toString)
+          .append(InjectedDeploySourceConf._1, InjectedDeploySourceConf._2)
       }
       _ <- logInfo(s"Start to deploy flink session cluster:\n${rawConfig.toMap(true).toPrettyStr}".stripMargin)
       // deploy app cluster

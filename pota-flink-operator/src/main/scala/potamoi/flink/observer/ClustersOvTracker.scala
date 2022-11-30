@@ -6,6 +6,7 @@ import akka.cluster.sharding.typed.scaladsl.EntityTypeKey
 import potamoi.cluster.{CborSerializable, ShardingProxy}
 import potamoi.common.ActorExtension.ActorRefWrapper
 import potamoi.config.{NodeRole, PotaConf}
+import potamoi.flink.operator.FlinkConfigExtension.{InjectedDeploySourceConf, InjectedExecModeKey}
 import potamoi.flink.operator.flinkRest
 import potamoi.flink.share.FlinkOprErr
 import potamoi.flink.share.model.{Fcid, FlinkClusterOverview, FlinkExecMode}
@@ -97,15 +98,22 @@ private class ClustersOvTracker(
     implicit val flkConf = potaConf.flink
     def polling(mur: Ref[Int]) =
       for {
-        restUrl        <- endpointQuery.get(fcid)
-        clusterOvFiber <- flinkRest(restUrl.chooseUrl).getClusterOverview.fork
-        execModeFiber  <- flinkRest(restUrl.chooseUrl).getJobmanagerConfig.map(r => FlinkExecMode.ofRawConfValue(r.get("execution.target"))).fork
-        clusterOv      <- clusterOvFiber.join
-        execMode       <- execModeFiber.join
-        preMur         <- mur.get
+        restUrl            <- endpointQuery.get(fcid)
+        clusterOvFiber     <- flinkRest(restUrl.chooseUrl).getClusterOverview.fork
+        clusterConfigFiber <- flinkRest(restUrl.chooseUrl).getJobmanagerConfig.fork
+        clusterOv          <- clusterOvFiber.join
+        clusterConfig      <- clusterConfigFiber.join
+
+        isFromPotamoi = clusterConfig.exists(_ == InjectedDeploySourceConf)
+        execMode = clusterConfig
+          .get(InjectedExecModeKey)
+          .flatMap(FlinkExecMode.withNameOps)
+          .getOrElse(FlinkExecMode.ofRawConfValue(clusterConfig.get("execution.target")))
+
+        preMur <- mur.get
         curMur = MurmurHash3.productHash(clusterOv -> execMode.id)
         _ <- ctx.self
-          .tellZIO(RefreshRecord(clusterOv.toFlinkClusterOverview(fcid, execMode)))
+          .tellZIO(RefreshRecord(clusterOv.toFlinkClusterOverview(fcid, execMode, isFromPotamoi)))
           .mapError(FlinkOprErr.ActorInteropErr)
           .zip(mur.set(curMur))
           .when(curMur != preMur)

@@ -9,7 +9,7 @@ import potamoi.logger.PotaLogger
 import potamoi.syntax._
 import potamoi.testkit.{PotaDev, STSpec, UnsafeEnv}
 import zio.Schedule.spaced
-import zio.{IO, ZIO, ZIOAppDefault, durationInt}
+import zio.{durationInt, IO, ZIO, ZIOAppDefault}
 
 // TODO unsafe
 class FlinkObserverSpec extends STSpec {

@@ -368,10 +368,11 @@ object FlinkRestRequest {
       @jsonField("jobs-cancelled") jobsCancelled: Int,
       @jsonField("jobs-failed") jobsFailed: Int) {
 
-    def toFlinkClusterOverview(fcid: Fcid, execMode: FlinkExecMode): FlinkClusterOverview = model.FlinkClusterOverview(
+    def toFlinkClusterOverview(fcid: Fcid, execMode: FlinkExecMode, deployByPota: Boolean): FlinkClusterOverview = model.FlinkClusterOverview(
       clusterId = fcid.clusterId,
       namespace = fcid.namespace,
       execMode = execMode,
+      deployByPotamoi = deployByPota,
       tmTotal = taskManagers,
       slotsTotal = slotsTotal,
       slotsAvailable = slotsAvailable,

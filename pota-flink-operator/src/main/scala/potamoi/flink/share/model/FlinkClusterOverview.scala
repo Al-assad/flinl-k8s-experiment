@@ -10,6 +10,7 @@ case class FlinkClusterOverview(
     clusterId: String,
     namespace: String,
     execMode: FlinkExecMode,
+    deployByPotamoi: Boolean,
     tmTotal: Int,
     slotsTotal: Int,
     slotsAvailable: Int,
