@@ -24,7 +24,7 @@ object Syntax {
   /**
    * A more reader-friendly version of toString.
    */
-  def toPrettyString(value: Any): String = pprint.apply(value).render
+  def toPrettyString(value: Any): String = pprint.apply(value, height = 2000).render
 
   implicit class PrettyPrintable(value: AnyRef) {
     def toPrettyStr: String = Syntax.toPrettyString(value)

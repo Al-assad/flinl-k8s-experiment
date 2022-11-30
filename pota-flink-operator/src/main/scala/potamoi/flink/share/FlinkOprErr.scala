@@ -45,5 +45,8 @@ object FlinkOprErr {
     def apply(k8sFailure: K8sFailure): RequestK8sApiErr = RequestK8sApiErr(k8sFailure, k8s.liftException(k8sFailure).orNull)
   }
 
+  case object IllegalK8sServiceEntity    extends FlinkOprErr
+  case object IllegalK8sDeploymentEntity extends FlinkOprErr
+
   implicit def actorInteropErrConversion[A](io: IO[ActorInteropException, A]): IO[FlinkOprErr, A] = io.mapError(ActorInteropErr)
 }

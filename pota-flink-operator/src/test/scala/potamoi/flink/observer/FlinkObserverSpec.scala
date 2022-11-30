@@ -168,18 +168,41 @@ class FlinkObserverSpec extends STSpec {
 
 }
 
+import potamoi.k8s._
+
 // todo remove
 object test extends ZIOAppDefault {
-
-  import potamoi.k8s._
   val run = ZIO
     .serviceWithZIO[K8sClient] { k8s =>
-      k8s.api.v1.services
-        .get("app-t1", "fdev")
-        .map { svc =>
-          println(svc.toPrettyStr)
+      k8s.api.v1.pods
+        .get("app-t4-858b985845-9hcjt", "fdev")
+        .map { pod =>
+          println(pod.toPrettyStr)
         }
     }
     .provide(PotaDev.conf, PotaLogger.live, K8sClient.live)
+}
 
+object testSvc extends ZIOAppDefault {
+  val run = ZIO
+    .serviceWithZIO[K8sClient] { k8s =>
+      k8s.api.v1.services
+        .get("app-t4-rest", "fdev")
+        .flatMap { svc => K8sEntityConverter.toServiceSnap(svc) }
+        .map(_.toPrettyStr)
+        .debug
+    }
+    .provide(PotaDev.conf, PotaLogger.live, K8sClient.live)
+}
+
+object testDeploy extends ZIOAppDefault {
+  val run = ZIO
+    .serviceWithZIO[K8sClient] { k8s =>
+      k8s.api.apps.v1.deployments
+        .get("app-t4", "fdev")
+        .flatMap { deploy => K8sEntityConverter.toDeploymentSnap(deploy) }
+        .map(_.toPrettyStr)
+        .debug
+    }
+    .provide(PotaDev.conf, PotaLogger.live, K8sClient.live)
 }
