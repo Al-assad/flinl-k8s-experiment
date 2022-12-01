@@ -44,8 +44,8 @@ object K8sOperator {
               val ts   = DateTime.parse(json("timestamp").str).getMillis
               val containers = json("containers").arr.map { container =>
                 val name = container("name").str
-                val cpu  = QuantityUnit.resolve(container("usage").obj("cpu").str).to(QuantityUnit.m).toLong
-                val mem  = QuantityUnit.resolve(container("usage").obj("memory").str).to(QuantityUnit.Ki).toLong
+                val cpu  = K8sQuantity(container("usage").obj("cpu").str).to(QuantityUnit.m).toLong
+                val mem  = K8sQuantity(container("usage").obj("memory").str).to(QuantityUnit.Ki).toLong
                 ContainerMetrics(name, cpu, mem)
               }
               PodMetrics(ts, containers.toVector)

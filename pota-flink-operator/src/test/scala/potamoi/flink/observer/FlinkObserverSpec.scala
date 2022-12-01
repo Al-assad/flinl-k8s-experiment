@@ -9,7 +9,7 @@ import potamoi.logger.PotaLogger
 import potamoi.syntax._
 import potamoi.testkit.{PotaDev, STSpec, UnsafeEnv}
 import zio.Schedule.spaced
-import zio.{durationInt, IO, ZIO, ZIOAppDefault}
+import zio.{IO, ZIO, ZIOAppDefault, durationInt}
 
 // TODO unsafe
 class FlinkObserverSpec extends STSpec {
@@ -169,6 +169,7 @@ class FlinkObserverSpec extends STSpec {
 }
 
 import potamoi.k8s._
+import potamoi.syntax._
 
 // todo remove
 object test extends ZIOAppDefault {
@@ -176,6 +177,19 @@ object test extends ZIOAppDefault {
     .serviceWithZIO[K8sClient] { k8s =>
       k8s.api.v1.pods
         .get("app-t4-858b985845-9hcjt", "fdev")
+//        .get("app-t4-taskmanager-1-1", "fdev")
+        .map { pod =>
+          println(pod.toPrettyStr)
+        }
+    }
+    .provide(PotaDev.conf, PotaLogger.live, K8sClient.live)
+}
+
+object test3 extends ZIOAppDefault {
+  val run = ZIO
+    .serviceWithZIO[K8sClient] { k8s =>
+      k8s.api.v1.pods
+        .get("app-t4-taskmanager-1-1", "fdev")
         .map { pod =>
           println(pod.toPrettyStr)
         }
@@ -201,6 +215,18 @@ object testDeploy extends ZIOAppDefault {
       k8s.api.apps.v1.deployments
         .get("app-t4", "fdev")
         .flatMap { deploy => K8sEntityConverter.toDeploymentSnap(deploy) }
+        .map(_.toPrettyStr)
+        .debug
+    }
+    .provide(PotaDev.conf, PotaLogger.live, K8sClient.live)
+}
+
+object testPod extends ZIOAppDefault {
+  val run = ZIO
+    .serviceWithZIO[K8sClient] { k8s =>
+      k8s.api.v1.pods
+        .get("app-t4-taskmanager-1-1", "fdev")
+        .flatMap { pod => K8sEntityConverter.toPodSnap(pod) }
         .map(_.toPrettyStr)
         .debug
     }
