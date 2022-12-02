@@ -36,7 +36,7 @@ private[observer] object ClustersOvTrackerProxy extends ShardingProxy[Fcid, Clus
 }
 
 /**
- * FLink cluster overview tracker.
+ * Flink cluster overview tracker.
  */
 private[observer] object ClustersOvTracker {
   sealed trait Cmd                                                                   extends CborSerializable
