@@ -16,6 +16,7 @@ trait FlinkObserver {
   def jobs: JobQuery
   def restEndpoints: RestEndpointQuery
   def savepointTriggers: SavepointTriggerQuery
+  def k8sRefs: K8sRefQuery
 }
 
 object FlinkObserver {
@@ -28,6 +29,7 @@ object FlinkObserver {
       savepointQuery <- SavepointTriggerQuery.live(potaConf.flink, endpointQuery)
       jobQuery       <- JobQuery.live(potaConf, guardian, endpointQuery)
       clusterQuery   <- ClusterQuery.live(potaConf, guardian, endpointQuery)
+      k8sRefQuery    <- K8sRefQuery.live(potaConf, guardian, k8sClient)
       trackerManager <- FlinkTrackManager.live(
         potaConf,
         guardian,
@@ -36,13 +38,15 @@ object FlinkObserver {
         clusterQuery.jmMetricTrackers,
         clusterQuery.tmMetricTrackers,
         jobQuery.ovTrackers,
-        jobQuery.metricsTrackers)
+        jobQuery.metricsTrackers,
+        k8sRefQuery.k8sRefTrackers)
     } yield new FlinkObserver {
       val manager           = trackerManager
       val clusters          = clusterQuery
       val restEndpoints     = endpointQuery
       val savepointTriggers = savepointQuery
       val jobs              = jobQuery
+      val k8sRefs           = k8sRefQuery
     }
   }
 

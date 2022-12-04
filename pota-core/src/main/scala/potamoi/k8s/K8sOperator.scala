@@ -22,37 +22,33 @@ trait K8sOperator {
 }
 
 object K8sOperator {
+  val live: ZLayer[K8sClient, Nothing, K8sOperatorLive] =
+    ZLayer.fromZIO(ZIO.service[K8sClient].map(new K8sOperatorLive(_)))
+}
 
-  val live: ZLayer[K8sClient, Nothing, Live] = ZLayer {
-    for {
-      k8sClient <- ZIO.service[K8sClient]
-    } yield new Live(k8sClient)
-  }
+class K8sOperatorLive(k8sClient: K8sClient) extends K8sOperator {
 
-  class Live(k8sClient: K8sClient) extends K8sOperator {
-
-    override def getPodMetrics(name: String, namespace: String): IO[K8sErr, PodMetrics] = {
-      k8sClient.usingSttp { (request, backend, host) =>
-        request
-          .get(uri"$host/apis/metrics.k8s.io/v1beta1/namespaces/$namespace/pods/$name")
-          .send(backend)
-          .map(_.body)
-          .narrowEither
-          .flatMap { rsp =>
-            attempt {
-              val json = ujson.read(rsp)
-              val ts   = DateTime.parse(json("timestamp").str).getMillis
-              val containers = json("containers").arr.map { container =>
-                val name = container("name").str
-                val cpu  = K8sQuantity(container("usage").obj("cpu").str).to(QuantityUnit.m).toLong
-                val mem  = K8sQuantity(container("usage").obj("memory").str).to(QuantityUnit.Ki).toLong
-                ContainerMetrics(name, cpu, mem)
-              }
-              PodMetrics(ts, containers.toVector)
+  override def getPodMetrics(name: String, namespace: String): IO[K8sErr, PodMetrics] = {
+    k8sClient.usingSttp { (request, backend, host) =>
+      request
+        .get(uri"$host/apis/metrics.k8s.io/v1beta1/namespaces/$namespace/pods/$name")
+        .send(backend)
+        .map(_.body)
+        .narrowEither
+        .flatMap { rsp =>
+          attempt {
+            val json = ujson.read(rsp)
+            val ts   = DateTime.parse(json("timestamp").str).getMillis
+            val containers = json("containers").arr.map { container =>
+              val name = container("name").str
+              val cpu  = K8sQuantity(container("usage").obj("cpu").str).to(QuantityUnit.m).toLong
+              val mem  = K8sQuantity(container("usage").obj("memory").str).to(QuantityUnit.Ki).toLong
+              ContainerMetrics(name, cpu, mem)
             }
+            PodMetrics(ts, containers.toVector)
           }
-          .mapError(DirectRequestK8sApiErr)
-      }
+        }
+        .mapError(DirectRequestK8sApiErr)
     }
   }
 

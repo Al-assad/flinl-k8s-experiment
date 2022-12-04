@@ -7,6 +7,7 @@ package object share {
   type JobId     = String
   type JarId     = String
   type TriggerId = String
+  type K8sRsName   = String
 
   /**
    * Flink operation IO
