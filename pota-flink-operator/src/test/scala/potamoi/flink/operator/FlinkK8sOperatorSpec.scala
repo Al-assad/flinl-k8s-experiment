@@ -6,7 +6,7 @@ import potamoi.flink.share.model.CheckpointStorageType.Filesystem
 import potamoi.flink.share.model.StateBackendType.Rocksdb
 import potamoi.flink.share.model._
 import potamoi.fs.S3Operator
-import potamoi.k8s.K8sClient
+import potamoi.k8s.{K8sClient, K8sOperator}
 import potamoi.syntax.valueToSome
 import potamoi.testkit.{PotaDev, STSpec, UnsafeEnv}
 import zio.{IO, ZIO}
@@ -21,6 +21,7 @@ class FlinkK8sOperatorSpec extends STSpec {
         PotaDev.conf,
         PotaActorSystem.live,
         K8sClient.live,
+        K8sOperator.live,
         S3Operator.live,
         FlinkObserver.live,
         FlinkOperator.live

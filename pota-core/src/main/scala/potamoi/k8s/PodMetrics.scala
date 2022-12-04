@@ -10,7 +10,7 @@ case class PodMetrics(timestamp: Long, containers: Vector[ContainerMetrics] = Ve
 /**
  * cpu unit: m,  memory unit: Ki
  */
-case class ContainerMetrics(name: String, cpu: Long, memory: Long)
+case class ContainerMetrics(name: String, cpu: K8sQuantity, memory: K8sQuantity)
 
 object PodMetrics {
   implicit val containerMetricsCodec: JsonCodec[ContainerMetrics] = DeriveJsonCodec.gen[ContainerMetrics]

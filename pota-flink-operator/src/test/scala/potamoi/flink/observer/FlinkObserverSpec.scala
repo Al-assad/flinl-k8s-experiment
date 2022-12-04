@@ -6,12 +6,12 @@ import potamoi.common.Order.{asc, desc}
 import potamoi.common.PageReq
 import potamoi.flink.share.FlinkIO
 import potamoi.flink.share.model.{Fcid, Fjid, Ftid}
-import potamoi.k8s.K8sClient
+import potamoi.k8s.{K8sClient, K8sOperator}
 import potamoi.logger.PotaLogger
 import potamoi.syntax._
 import potamoi.testkit.{PotaDev, STSpec, UnsafeEnv}
 import zio.Schedule.spaced
-import zio.{Clock, IO, ZIO, ZIOAppDefault, ZLayer, durationInt}
+import zio.{durationInt, Clock, IO, ZIO, ZIOAppDefault, ZLayer}
 
 // TODO unsafe
 class FlinkObserverSpec extends STSpec {
@@ -24,6 +24,7 @@ class FlinkObserverSpec extends STSpec {
         PotaLogger.live,
         PotaActorSystem.live,
         K8sClient.live,
+        K8sOperator.live,
         FlinkObserver.live
       )
       .run
@@ -191,6 +192,11 @@ class FlinkObserverSpec extends STSpec {
         obr.k8sRefs.listRefSnapshots.watch
       }
 
+      "get deployment spec" taggedAs UnsafeEnv in testObr { obr =>
+        obr.manager.trackCluster("app-t1" -> "fdev") *>
+        obr.k8sRefs.getDeploymentSnap("app-t1" -> "fdev", "app-t1").repeatWhile(_.isEmpty) *>
+        obr.k8sRefs.getDeploymentSpec("app-t1" -> "fdev", "app-t1").map(_.toPrettyStr).debug
+      }
     }
   }
 

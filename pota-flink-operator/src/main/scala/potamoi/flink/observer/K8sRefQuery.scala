@@ -2,13 +2,17 @@ package potamoi.flink.observer
 
 import akka.actor.typed.{ActorRef, Scheduler}
 import akka.util.Timeout
+import com.coralogix.zio.k8s.model.apps.v1.DeploymentSpec
+import com.coralogix.zio.k8s.model.core.v1.{PodSpec, ServiceSpec}
 import potamoi.cluster.PotaActorSystem.{ActorGuardian, ActorGuardianExtension}
 import potamoi.config.PotaConf
-import potamoi.flink.observer.K8sRefTracker.{GetDeployment, GetPod, GetRef, GetRefSnap, GetService, ListDeployments, ListPods, ListServices}
+import potamoi.flink.observer.K8sRefTracker._
+import potamoi.flink.share.FlinkIO
+import potamoi.flink.share.FlinkOprErr.RequestK8sApiErr
 import potamoi.flink.share.model._
-import potamoi.flink.share.{FlinkIO, K8sRsName}
-import potamoi.k8s.K8sClient
+import potamoi.k8s.{K8sClient, K8sErr, K8sOperator}
 import potamoi.timex._
+import zio.ZIO.succeed
 import zio.stream.ZStream
 
 /**
@@ -24,14 +28,18 @@ trait K8sRefQuery {
   def listServiceSnaps(fcid: Fcid): FlinkIO[List[FK8sServiceSnap]]
   def listPodSnaps(fcid: Fcid): FlinkIO[List[FK8sPodSnap]]
 
-  def getDeploymentSnap(fcid: Fcid, name: K8sRsName): FlinkIO[Option[FK8sDeploymentSnap]]
-  def getServiceSnap(fcid: Fcid, name: K8sRsName): FlinkIO[Option[FK8sServiceSnap]]
-  def getPodSnap(fcid: Fcid, name: K8sRsName): FlinkIO[Option[FK8sPodSnap]]
+  def getDeploymentSnap(fcid: Fcid, deployName: String): FlinkIO[Option[FK8sDeploymentSnap]]
+  def getServiceSnap(fcid: Fcid, svcName: String): FlinkIO[Option[FK8sServiceSnap]]
+  def getPodSnap(fcid: Fcid, podName: String): FlinkIO[Option[FK8sPodSnap]]
+
+  def getDeploymentSpec(fcid: Fcid, deployName: String): FlinkIO[Option[DeploymentSpec]]
+  def getServiceSpec(fcid: Fcid, deployName: String): FlinkIO[Option[ServiceSpec]]
+  def getPodSpec(fcid: Fcid, deployName: String): FlinkIO[Option[PodSpec]]
 }
 
 object K8sRefQuery {
 
-  def live(potaConf: PotaConf, guardian: ActorGuardian, k8sClient: K8sClient) = for {
+  def live(potaConf: PotaConf, guardian: ActorGuardian, k8sClient: K8sClient, k8sOperator: K8sOperator) = for {
     clusterIdsCache    <- guardian.spawn(TrackClusterIdCache(potaConf.akka.ddata.getFlinkClusterIds), "flkTrackClusterCache-k8")
     k8sRefTrackerProxy <- guardian.spawn(K8sRefTrackerProxy(potaConf, k8sClient), "flk8sRefTrackerProxy")
     queryTimeout     = potaConf.flink.snapshotQuery.askTimeout
@@ -41,6 +49,7 @@ object K8sRefQuery {
     clusterIdsCache,
     k8sRefTrackerProxy,
     k8sClient,
+    k8sOperator,
     queryParallelism
   )(sc, queryTimeout)
 
@@ -51,6 +60,7 @@ object K8sRefQuery {
       clusterIdsCache: ActorRef[TrackClusterIdCache.Cmd],
       k8sRefTrackers: ActorRef[K8sRefTrackerProxy.Cmd],
       k8sClient: K8sClient,
+      k8sOperator: K8sOperator,
       queryParallelism: Int
     )(implicit sc: Scheduler,
       queryTimeout: Timeout)
@@ -79,9 +89,31 @@ object K8sRefQuery {
     def listDeploymentSnaps(fcid: Fcid): FlinkIO[List[FK8sDeploymentSnap]] = k8sRefTrackers(fcid).ask(ListDeployments).map(_.sortBy(_.name))
     def listServiceSnaps(fcid: Fcid): FlinkIO[List[FK8sServiceSnap]]       = k8sRefTrackers(fcid).ask(ListServices).map(_.sortBy(_.name))
     def listPodSnaps(fcid: Fcid): FlinkIO[List[FK8sPodSnap]]               = k8sRefTrackers(fcid).ask(ListPods).map(_.sortBy(_.name))
-    def getDeploymentSnap(fcid: Fcid, name: K8sRsName): FlinkIO[Option[FK8sDeploymentSnap]] = k8sRefTrackers(fcid).ask(GetDeployment(name, _))
-    def getServiceSnap(fcid: Fcid, name: K8sRsName): FlinkIO[Option[FK8sServiceSnap]]       = k8sRefTrackers(fcid).ask(GetService(name, _))
-    def getPodSnap(fcid: Fcid, name: K8sRsName): FlinkIO[Option[FK8sPodSnap]]               = k8sRefTrackers(fcid).ask(GetPod(name, _))
+
+    def getDeploymentSnap(fcid: Fcid, name: String): FlinkIO[Option[FK8sDeploymentSnap]] = k8sRefTrackers(fcid).ask(GetDeployment(name, _))
+    def getServiceSnap(fcid: Fcid, name: String): FlinkIO[Option[FK8sServiceSnap]]       = k8sRefTrackers(fcid).ask(GetService(name, _))
+    def getPodSnap(fcid: Fcid, name: String): FlinkIO[Option[FK8sPodSnap]]               = k8sRefTrackers(fcid).ask(GetPod(name, _))
+
+    def getDeploymentSpec(fcid: Fcid, name: String): FlinkIO[Option[DeploymentSpec]] =
+      k8sOperator
+        .getDeploymentSpec(name, fcid.namespace)
+        .map(Some(_))
+        .catchSome { case K8sErr.DeploymentNotFound(_, _) => succeed(None) }
+        .mapError { case K8sErr.RequestK8sApiErr(f, e) => RequestK8sApiErr(f, e) }
+
+    def getServiceSpec(fcid: Fcid, name: String): FlinkIO[Option[ServiceSpec]] =
+      k8sOperator
+        .getServiceSpec(name, fcid.namespace)
+        .map(Some(_))
+        .catchSome { case K8sErr.ServiceNotFound(_, _) => succeed(None) }
+        .mapError { case K8sErr.RequestK8sApiErr(f, e) => RequestK8sApiErr(f, e) }
+
+    def getPodSpec(fcid: Fcid, name: String): FlinkIO[Option[PodSpec]] =
+      k8sOperator
+        .getPodSpec(name, fcid.namespace)
+        .map(Some(_))
+        .catchSome { case K8sErr.PodNotFound(_, _) => succeed(None) }
+        .mapError { case K8sErr.RequestK8sApiErr(f, e) => RequestK8sApiErr(f, e) }
   }
 
 }
