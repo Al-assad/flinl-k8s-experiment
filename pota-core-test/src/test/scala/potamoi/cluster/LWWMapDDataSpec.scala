@@ -110,7 +110,7 @@ class LWWMapDDataSpec extends STActorClusterSpec {
           case BiggerThan(_, reply) => reply ! Set.empty
           case LessThan(_, reply)   => reply ! Set.empty
         },
-        update = { case (Incr(key, inc), map) =>
+        update = { case (Incr(key, inc), map, _) =>
           map.get(key) match {
             case Some(value) => map :+ (key, value + inc)
             case None        => map

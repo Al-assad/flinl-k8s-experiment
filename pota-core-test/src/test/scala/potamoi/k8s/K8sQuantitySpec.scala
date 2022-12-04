@@ -7,10 +7,10 @@ class K8sQuantitySpec extends STSpec {
   import QuantityUnit._
 
   "convert string to QuantityUnit" in {
-    QuantityUnit.resolve("100m") shouldBe K8sQuantity(100, m)
-    QuantityUnit.resolve("233Ki") shouldBe K8sQuantity(233, Ki)
-    QuantityUnit.resolve("233Gi") shouldBe K8sQuantity(233, Gi)
-    QuantityUnit.resolve("233") shouldBe K8sQuantity(233, k)
+    K8sQuantity("100m") shouldBe K8sQuantity(100, m)
+    K8sQuantity("233Ki") shouldBe K8sQuantity(233, Ki)
+    K8sQuantity("233Gi") shouldBe K8sQuantity(233, Gi)
+    K8sQuantity("233") shouldBe K8sQuantity(233, k)
   }
 
   "convert value by unit" in {
