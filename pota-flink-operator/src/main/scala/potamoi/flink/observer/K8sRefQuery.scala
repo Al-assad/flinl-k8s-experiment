@@ -20,6 +20,7 @@ import zio.stream.ZStream
  * Flink kubernetes resource snapshot information query layer.
  */
 trait K8sRefQuery {
+
   def getRef(fcid: Fcid): FlinkIO[Option[FlinkK8sRef]]
   def getRefSnapshot(fcid: Fcid): FlinkIO[Option[FlinkK8sRefSnap]]
   def listRefs: FlinkIO[List[FlinkK8sRef]]
