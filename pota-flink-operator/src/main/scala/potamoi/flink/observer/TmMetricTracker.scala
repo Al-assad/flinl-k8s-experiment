@@ -52,7 +52,7 @@ private[observer] object TmMetricTracker {
   def apply(fcidStr: String, potaConf: PotaConf, flinkEndpointQuery: RestEndpointQuery): Behavior[Cmd] =
     Behaviors.setup { implicit ctx =>
       val fcid = TmMetricTrackerProxy.unmarshallKey(fcidStr)
-      ctx.log.info(s"Flink TmMetricTracker actor initialized, fcid=$fcid")
+      ctx.log.info(s"Flink TmMetricTracker actor initialized, ${fcid.show}")
       new TmMetricTracker(fcid, potaConf, flinkEndpointQuery).action
     }
 }
@@ -71,13 +71,13 @@ private class TmMetricTracker(
     case Start =>
       if (proc.isEmpty) {
         proc = Some(pollingTmMetricsApis.provide(PotaLogger.layer(potaConf.log)).runToFuture)
-        ctx.log.info(s"Flink TmMetricTracker actor started, fcid=$fcid")
+        ctx.log.info(s"Flink TmMetricTracker actor started, ${fcid.show}")
       }
       Behaviors.same
 
     case Stop =>
       proc.map(_.cancel())
-      ctx.log.info(s"Flink TmMetricTracker actor stopped, fcid=$fcid")
+      ctx.log.info(s"Flink TmMetricTracker actor stopped, ${fcid.show}")
       Behaviors.stopped
 
     case RefreshTidListing(tidSeq) =>

@@ -8,7 +8,8 @@ import scala.language.implicitConversions
  * Unique flink cluster identifier under the same kubernetes cluster.
  */
 case class Fcid(clusterId: String, namespace: String) {
-  def toAnno = Array("flink.clusterId" -> clusterId, "flink.namespace" -> namespace)
+  def toAnno       = Array("flink.clusterId" -> clusterId, "flink.namespace" -> namespace)
+  def show: String = s"clusterId=$clusterId, namespace=$namespace"
 }
 
 object Fcid {

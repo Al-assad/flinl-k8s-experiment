@@ -32,13 +32,18 @@ trait K8sRefQuery {
   def getDeploymentSnap(fcid: Fcid, deployName: String): FlinkIO[Option[FK8sDeploymentSnap]]
   def getServiceSnap(fcid: Fcid, svcName: String): FlinkIO[Option[FK8sServiceSnap]]
   def getPodSnap(fcid: Fcid, podName: String): FlinkIO[Option[FK8sPodSnap]]
+  def getConfigMapNames(fcid: Fcid): FlinkIO[List[String]]
 
   def getDeploymentSpec(fcid: Fcid, deployName: String): FlinkIO[Option[DeploymentSpec]]
   def getServiceSpec(fcid: Fcid, deployName: String): FlinkIO[Option[ServiceSpec]]
   def getPodSpec(fcid: Fcid, deployName: String): FlinkIO[Option[PodSpec]]
 
+  def getConfigMapData(fcid: Fcid, configMapName: String): FlinkIO[Map[String, String]]
+  def listConfigMapData(fcid: Fcid): FlinkIO[Map[String, String]]
+
   def getPodMetrics(fcid: Fcid, podName: String): FlinkIO[Option[FK8sPodMetrics]]
   def listPodMetrics(fcid: Fcid): FlinkIO[List[FK8sPodMetrics]]
+
 }
 
 object K8sRefQuery {
@@ -99,6 +104,7 @@ object K8sRefQuery {
     def getDeploymentSnap(fcid: Fcid, name: String): FlinkIO[Option[FK8sDeploymentSnap]] = k8sRefTrackers(fcid).ask(GetDeployment(name, _))
     def getServiceSnap(fcid: Fcid, name: String): FlinkIO[Option[FK8sServiceSnap]]       = k8sRefTrackers(fcid).ask(GetService(name, _))
     def getPodSnap(fcid: Fcid, name: String): FlinkIO[Option[FK8sPodSnap]]               = k8sRefTrackers(fcid).ask(GetPod(name, _))
+    def getConfigMapNames(fcid: Fcid): FlinkIO[List[String]]                             = k8sRefTrackers(fcid).ask(GetConfigMapNames)
 
     def getDeploymentSpec(fcid: Fcid, name: String): FlinkIO[Option[DeploymentSpec]] =
       k8sOperator
@@ -121,8 +127,23 @@ object K8sRefQuery {
         .catchSome { case K8sErr.PodNotFound(_, _) => succeed(None) }
         .mapError { case K8sErr.RequestK8sApiErr(f, e) => RequestK8sApiErr(f, e) }
 
+    def getConfigMapData(fcid: Fcid, configMapName: String): FlinkIO[Map[String, String]] =
+      k8sOperator
+        .getConfigMapsData(configMapName, fcid.namespace)
+        .catchSome { case K8sErr.ConfigMapNotFound(_, _) => succeed(Map.empty[String, String]) }
+        .mapError { case K8sErr.RequestK8sApiErr(f, e) => RequestK8sApiErr(f, e) }
+
+    override def listConfigMapData(fcid: Fcid): FlinkIO[Map[String, String]] = {
+      val listConfigMapNames: FlinkIO[List[String]] = k8sRefTrackers(fcid).ask(GetConfigMapNames)
+      ZStream
+        .fromIterableZIO(listConfigMapNames)
+        .mapZIOParUnordered(queryParallelism)(getConfigMapData(fcid, _))
+        .runFold(Map.empty[String, String])(_ ++ _)
+    }
+
     def getPodMetrics(fcid: Fcid, podName: String): FlinkIO[Option[FK8sPodMetrics]] = k8sPodMetricTrackers(fcid).ask(GetPodMetrics(podName, _))
     def listPodMetrics(fcid: Fcid): FlinkIO[List[FK8sPodMetrics]] = k8sPodMetricTrackers(fcid).ask(ListPodMetrics).map(_.toList.sortBy(_.name))
+
   }
 
 }

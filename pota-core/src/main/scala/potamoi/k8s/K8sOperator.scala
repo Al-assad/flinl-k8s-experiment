@@ -9,6 +9,7 @@ import potamoi.sttpx._
 import sttp.client3._
 import zio.ZIO.attempt
 import zio.macros.accessible
+import zio.prelude.data.Optional.{Absent, Present}
 import zio.{IO, ZIO, ZLayer}
 
 /**
@@ -38,6 +39,11 @@ trait K8sOperator {
    * Get pod spec.
    */
   def getPodSpec(name: String, namespace: String): IO[K8sErr, PodSpec]
+
+  /**
+   * Get configmaps data.
+   */
+  def getConfigMapsData(name: String, namespace: String): IO[K8sErr, Map[String, String]]
 
 }
 
@@ -101,6 +107,21 @@ class K8sOperatorLive(k8sClient: K8sClient) extends K8sOperator {
         case NotFound => PodNotFound(name, namespace)
         case e        => RequestK8sApiErr(e, liftException(e).get)
       }
+  }
+
+  override def getConfigMapsData(name: String, namespace: String): IO[K8sErr, Map[String, String]] = {
+    k8sClient.api.v1.configmaps
+      .get(name, namespace)
+      .mapBoth(
+        {
+          case NotFound => ConfigMapNotFound(name, namespace)
+          case e        => RequestK8sApiErr(e, liftException(e).get)
+        }, {
+          _.data match {
+            case Present(map) => map
+            case Absent       => Map.empty[String, String]
+          }
+        })
   }
 
 }

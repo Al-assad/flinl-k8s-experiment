@@ -50,7 +50,7 @@ private[observer] object ClustersOvTracker {
     Behaviors.setup { implicit ctx =>
       val fcid     = ClustersOvTrackerProxy.unmarshallKey(fcidStr)
       val idxCache = ctx.spawn(ClusterIndexCache(potaConf.akka.ddata.getFlinkClusterIndex), "flkClusterIdxCache")
-      ctx.log.info(s"Flink ClustersOvTracker actor initialized, fcid=$fcid")
+      ctx.log.info(s"Flink ClustersOvTracker actor initialized, ${fcid.show}")
       new ClustersOvTracker(fcid, potaConf, flinkEndpointQuery, idxCache).action
     }
 }
@@ -70,14 +70,14 @@ private class ClustersOvTracker(
     case Start =>
       if (proc.isEmpty) {
         proc = Some(pollingClusterOverviewApi.provide(PotaLogger.layer(potaConf.log)).runToFuture)
-        ctx.log.info(s"Flink ClustersOvTracker actor started, fcid=$fcid")
+        ctx.log.info(s"Flink ClustersOvTracker actor started, ${fcid.show}")
       }
       Behaviors.same
 
     case Stop =>
       proc.map(_.cancel())
       idxCache ! ClusterIndexCache.Update(fcid, _.copy(execMode = None))
-      ctx.log.info(s"Flink ClustersOvTracker actor stopped, fcid=$fcid")
+      ctx.log.info(s"Flink ClustersOvTracker actor stopped, ${fcid.show}")
       Behaviors.stopped
 
     case RefreshRecord(record) =>

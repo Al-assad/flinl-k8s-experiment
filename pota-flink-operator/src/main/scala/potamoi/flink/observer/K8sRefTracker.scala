@@ -53,23 +53,30 @@ private[observer] object K8sRefTracker {
   final case class GetDeployment(name: K8sRsName, reply: ActorRef[Option[FK8sDeploymentSnap]]) extends Query
   final case class GetService(name: K8sRsName, reply: ActorRef[Option[FK8sServiceSnap]])       extends Query
   final case class GetPod(name: K8sRsName, reply: ActorRef[Option[FK8sPodSnap]])               extends Query
+  final case class GetConfigMapNames(reply: ActorRef[List[K8sRsName]])                         extends Query
 
   sealed private trait Internal                                  extends Cmd
   private object ResetDeploySnaps                                extends Internal
   private case class RefreshDeploySnap(snap: FK8sDeploymentSnap) extends Internal
   private case class DeleteDeploySnap(name: K8sRsName)           extends Internal
-  private object ResetServiceSnaps                               extends Internal
-  private case class RefreshServiceSnap(snap: FK8sServiceSnap)   extends Internal
-  private case class DeleteServiceSnap(name: K8sRsName)          extends Internal
-  private object ResetPodSnaps                                   extends Internal
-  private case class RefreshPodSnap(snap: FK8sPodSnap)           extends Internal
-  private case class DeletePodSnap(name: K8sRsName)              extends Internal
+
+  private object ResetServiceSnaps                             extends Internal
+  private case class RefreshServiceSnap(snap: FK8sServiceSnap) extends Internal
+  private case class DeleteServiceSnap(name: K8sRsName)        extends Internal
+
+  private object ResetPodSnaps                         extends Internal
+  private case class RefreshPodSnap(snap: FK8sPodSnap) extends Internal
+  private case class DeletePodSnap(name: K8sRsName)    extends Internal
+
+  private object ResetConfigMapNames                    extends Internal
+  private case class CollectConfigMapName(name: String) extends Internal
+  private case class DeleteConfigMapName(name: String)  extends Internal
 
   def apply(fcidStr: String, potaConf: PotaConf, k8sClient: K8sClient): Behavior[Cmd] = {
     Behaviors.setup { implicit ctx =>
       val fcid              = K8sRefTrackerProxy.unmarshallKey(fcidStr)
       val restEndpointCache = ctx.spawn(RestEndpointCache(potaConf.akka.ddata.getFlinkRestEndpoint), "flkRestEndpointCache")
-      ctx.log.info(s"Flink K8sRefTracker actor initialized, fcid=$fcid")
+      ctx.log.info(s"Flink K8sRefTracker actor initialized, ${fcid.show}")
       new K8sRefTracker(fcid, potaConf, k8sClient, restEndpointCache).action
     }
   }
@@ -88,9 +95,10 @@ private class K8sRefTracker(
   private val deploySnaps                          = mutable.Map.empty[K8sRsName, FK8sDeploymentSnap]
   private val svcSnaps                             = mutable.Map.empty[K8sRsName, FK8sServiceSnap]
   private val podSnaps                             = mutable.Map.empty[K8sRsName, FK8sPodSnap]
+  private val configMapNames                       = mutable.Set.empty[String]
 
   private def snapshotAll: Option[FlinkK8sRefSnap] = {
-    if (deploySnaps.isEmpty && svcSnaps.isEmpty && podSnaps.isEmpty) None
+    if (deploySnaps.isEmpty && svcSnaps.isEmpty && podSnaps.isEmpty && configMapNames.isEmpty) None
     else
       FlinkK8sRefSnap(
         fcid.clusterId,
@@ -102,14 +110,15 @@ private class K8sRefTracker(
   }
 
   private def snapshotListing: Option[FlinkK8sRef] = {
-    if (deploySnaps.isEmpty && svcSnaps.isEmpty && podSnaps.isEmpty) None
+    if (deploySnaps.isEmpty && svcSnaps.isEmpty && podSnaps.isEmpty && configMapNames.isEmpty) None
     else
       FlinkK8sRef(
         fcid.clusterId,
         fcid.namespace,
         deploySnaps.keys.toList,
         svcSnaps.keys.toList,
-        podSnaps.keys.toList
+        podSnaps.keys.toList,
+        configMapNames.toList
       )
   }
 
@@ -117,13 +126,13 @@ private class K8sRefTracker(
     case Start =>
       if (proc.isEmpty) {
         proc = Some(watchK8sRefs.provide(PotaLogger.layer(potaConf.log)).runToFuture)
-        ctx.log.info(s"Flink K8sRefTracker started, fcid=$fcid")
+        ctx.log.info(s"Flink K8sRefTracker started, ${fcid.show}")
       }
       Behaviors.same
 
     case Stop =>
       proc.foreach(_.cancel())
-      ctx.log.info(s"Flink K8sRefTracker stopped, fcid=$fcid")
+      ctx.log.info(s"Flink K8sRefTracker stopped, ${fcid.show}")
       Behaviors.same
 
     case ResetDeploySnaps        => deploySnaps.clear(); Behaviors.same
@@ -152,6 +161,10 @@ private class K8sRefTracker(
       if (name.endsWith("-rest")) restEndpointCache ! RestEndpointCache.Remove(fcid)
       Behaviors.same
 
+    case ResetConfigMapNames        => configMapNames.clear(); Behaviors.same
+    case CollectConfigMapName(name) => configMapNames.add(name); Behaviors.same
+    case DeleteConfigMapName(name)  => configMapNames.remove(name); Behaviors.same
+
     case GetRefSnap(reply)          => reply ! snapshotAll; Behaviors.same
     case GetRef(reply)              => reply ! snapshotListing; Behaviors.same
     case ListDeployments(reply)     => reply ! deploySnaps.values.toList; Behaviors.same
@@ -160,6 +173,7 @@ private class K8sRefTracker(
     case GetDeployment(name, reply) => reply ! deploySnaps.get(name); Behaviors.same
     case GetService(name, reply)    => reply ! svcSnaps.get(name); Behaviors.same
     case GetPod(name, reply)        => reply ! podSnaps.get(name); Behaviors.same
+    case GetConfigMapNames(reply)   => reply ! configMapNames.toList; Behaviors.same
   }
 
   /**
@@ -168,14 +182,15 @@ private class K8sRefTracker(
   private val watchK8sRefs = {
     watchDeployments <&>
     watchServices <&>
-    watchPods
+    watchPods <&>
+    watchConfigMapNames
   }.provide(ZLayer.succeed(Clock.ClockLive)) @@ annotated(fcid.toAnno :+ "akkaSource" -> ctx.self.path.toString: _*)
+
+  private def appSelector = label("app") === fcid.clusterId && label("type") === "flink-native-kubernetes"
 
   private lazy val watchDeployments = {
     k8sClient.api.apps.v1.deployments
-      .watchForever(
-        namespace = K8sNamespace(fcid.namespace),
-        labelSelector = label("app") === fcid.clusterId && label("type") === "flink-native-kubernetes")
+      .watchForever(namespace = K8sNamespace(fcid.namespace), labelSelector = appSelector)
       .runForeach {
         case Reseted()        => ctx.self.tellZIO(ResetDeploySnaps)
         case Added(deploy)    => toDeploymentSnap(deploy).flatMap(snap => ctx.self.tellZIO(RefreshDeploySnap(snap)))
@@ -188,9 +203,7 @@ private class K8sRefTracker(
 
   private lazy val watchServices = {
     k8sClient.api.v1.services
-      .watchForever(
-        namespace = K8sNamespace(fcid.namespace),
-        labelSelector = label("app") === fcid.clusterId && label("type") === "flink-native-kubernetes")
+      .watchForever(namespace = K8sNamespace(fcid.namespace), labelSelector = appSelector)
       .runForeach {
         case Reseted()     => ctx.self.tellZIO(ResetServiceSnaps)
         case Added(svc)    => toServiceSnap(svc).flatMap(snap => ctx.self.tellZIO(RefreshServiceSnap(snap)))
@@ -203,9 +216,7 @@ private class K8sRefTracker(
 
   private lazy val watchPods = {
     k8sClient.api.v1.pods
-      .watchForever(
-        namespace = K8sNamespace(fcid.namespace),
-        labelSelector = label("app") === fcid.clusterId && label("type") === "flink-native-kubernetes")
+      .watchForever(namespace = K8sNamespace(fcid.namespace), labelSelector = appSelector)
       .runForeach {
         case Reseted()     => ctx.self.tellZIO(ResetPodSnaps)
         case Added(pod)    => toPodSnap(pod).flatMap(snap => ctx.self.tellZIO(RefreshPodSnap(snap)))
@@ -213,6 +224,19 @@ private class K8sRefTracker(
         case Deleted(pod)  => toPodSnap(pod).flatMap(snap => ctx.self.tellZIO(DeletePodSnap(snap.name)))
       }
       .tapError(e => logError(s"Some error occurs while watching k8s pods: $e"))
+      .retry(Schedule.spaced(1.seconds))
+  }
+
+  private lazy val watchConfigMapNames = {
+    k8sClient.api.v1.configmaps
+      .watchForever(namespace = K8sNamespace(fcid.namespace), labelSelector = appSelector)
+      .runForeach {
+        case Reseted()           => ctx.self.tellZIO(ResetConfigMapNames)
+        case Added(configMap)    => configMap.getName.flatMap(name => ctx.self.tellZIO(CollectConfigMapName(name)))
+        case Modified(configMap) => configMap.getName.flatMap(name => ctx.self.tellZIO(CollectConfigMapName(name)))
+        case Deleted(configMap)  => configMap.getName.flatMap(name => ctx.self.tellZIO(DeleteConfigMapName(name)))
+      }
+      .tapError(e => logError(s"Some error occurs while watching k8s configmaps: $e"))
       .retry(Schedule.spaced(1.seconds))
   }
 

@@ -10,7 +10,7 @@ import potamoi.logger.PotaLogger
 import potamoi.syntax._
 import potamoi.testkit.{PotaDev, STSpec, UnsafeEnv}
 import zio.Schedule.spaced
-import zio.{durationInt, IO, ZIO}
+import zio.{IO, ZIO, durationInt}
 
 // TODO unsafe
 class FlinkObserverSpec extends STSpec {
@@ -207,6 +207,23 @@ class FlinkObserverSpec extends STSpec {
       "get pod metrics" taggedAs UnsafeEnv in testObr { obr =>
         obr.manager.trackCluster("app-t1" -> "fdev") *>
         obr.k8sRefs.getPodMetrics("app-t1" -> "fdev", "app-t1-7b94664566-4t79h").watchPretty
+      }
+    }
+
+    "Query configMaps" should {
+      "get ConfigMap name" taggedAs UnsafeEnv in testObr { obr =>
+        obr.manager.trackCluster("app-t1" -> "fdev") *>
+        obr.k8sRefs.getConfigMapNames("app-t1" -> "fdev").watchPretty
+      }
+
+      "get ConfigMap data" taggedAs UnsafeEnv in testObr { obr =>
+        obr.manager.trackCluster("app-t1" -> "fdev") *>
+        obr.k8sRefs.getConfigMapData("app-t1" -> "fdev", "flink-config-app-t1").watchPretty
+      }
+
+      "list ConfigMap data" taggedAs UnsafeEnv in testObr { obr =>
+        obr.manager.trackCluster("app-t1" -> "fdev") *>
+        obr.k8sRefs.listConfigMapData("app-t1" -> "fdev").watchPretty
       }
     }
   }

@@ -52,7 +52,7 @@ private[observer] object JobOvTracker {
     Behaviors.setup { implicit ctx =>
       val fcid     = JobOvTrackerProxy.unmarshallKey(fcidStr)
       val idxCache = ctx.spawn(JobIdxCache(potaConf.akka.ddata.getFlinkJobIndex), "flkJobIndexCache")
-      ctx.log.info(s"Flink JobsOvTracker actor initialized, fcid=$fcid")
+      ctx.log.info(s"Flink JobsOvTracker actor initialized, ${fcid.show}")
       new JobOvTracker(fcid, potaConf: PotaConf, flinkEndpointQuery, idxCache).action
     }
   }
@@ -74,14 +74,14 @@ private class JobOvTracker(
     case Start =>
       if (proc.isEmpty) {
         proc = Some(pollingJobOverviewApi.provide(PotaLogger.layer(potaConf.log)).runToFuture)
-        ctx.log.info(s"Flink JobsOvTracker actor started, fcid=$fcid")
+        ctx.log.info(s"Flink JobsOvTracker actor started, ${fcid.show}")
       }
       Behaviors.same
 
     case Stop =>
       proc.map(_.cancel())
       idxCache ! JobIdxCache.RemoveAll(state.map(_.fjid))
-      ctx.log.info(s"Flink JobsOvTracker actor stopped, fcid=$fcid")
+      ctx.log.info(s"Flink JobsOvTracker actor stopped, ${fcid.show}")
       Behaviors.stopped
 
     case RefreshRecords(records) =>

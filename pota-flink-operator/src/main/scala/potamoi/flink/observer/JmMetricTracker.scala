@@ -46,7 +46,7 @@ private[observer] object JmMetricTracker {
   def apply(fcidStr: String, potaConf: PotaConf, flinkEndpointQuery: RestEndpointQuery): Behavior[Cmd] = {
     Behaviors.setup { implicit ctx =>
       val fcid = JmMetricTrackerProxy.unmarshallKey(fcidStr)
-      ctx.log.info(s"Flink JmMetricTracker actor initialized, fcid=$fcid")
+      ctx.log.info(s"Flink JmMetricTracker actor initialized, ${fcid.show}")
       new JmMetricTracker(fcid, potaConf: PotaConf, flinkEndpointQuery).action
     }
   }
@@ -66,13 +66,13 @@ private class JmMetricTracker(
     case Start =>
       if (proc.isEmpty) {
         proc = Some(pollingJmMetricsApi.provide(PotaLogger.layer(potaConf.log)).runToFuture)
-        ctx.log.info(s"Flink JmMetricTracker actor started, fcid=$fcid")
+        ctx.log.info(s"Flink JmMetricTracker actor started, ${fcid.show}")
       }
       Behaviors.same
 
     case Stop =>
       proc.map(_.cancel())
-      ctx.log.info(s"Flink JmMetricTracker actor stopped, fcid=$fcid")
+      ctx.log.info(s"Flink JmMetricTracker actor stopped, ${fcid.show}")
       Behaviors.stopped
 
     case RefreshRecord(records) =>

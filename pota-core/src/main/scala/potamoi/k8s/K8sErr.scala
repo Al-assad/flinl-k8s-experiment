@@ -16,5 +16,6 @@ object K8sErr {
   case class DeploymentNotFound(name: String, namespace: String) extends K8sErr
   case class ServiceNotFound(name: String, namespace: String)    extends K8sErr
   case class PodNotFound(name: String, namespace: String)        extends K8sErr
+  case class ConfigMapNotFound(name: String, namespace: String)  extends K8sErr
 
 }

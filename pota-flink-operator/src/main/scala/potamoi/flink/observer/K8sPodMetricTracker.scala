@@ -58,7 +58,7 @@ object K8sPodMetricTracker {
   def apply(fcidStr: String, potaConf: PotaConf, k8sOperator: K8sOperator): Behavior[Cmd] =
     Behaviors.setup { implicit ctx =>
       val fcid = K8sPodMetricTrackerProxy.unmarshallKey(fcidStr)
-      ctx.log.info(s"Flink K8sPodMetricTracker actor initialized, fcid=$fcid")
+      ctx.log.info(s"Flink K8sPodMetricTracker actor initialized, ${fcid.show}")
       new K8sPodMetricTracker(fcid, potaConf, k8sOperator).action
     }
 }
@@ -73,13 +73,13 @@ private class K8sPodMetricTracker(fcid: Fcid, potaConf: PotaConf, k8sOperator: K
     case Start =>
       if (proc.isEmpty) {
         proc = Some(pollingK8sMetricsApi.provide(PotaLogger.layer(potaConf.log)).runToFuture)
-        ctx.log.info(s"Flink K8sPodMetricTracker actor started, fcid=$fcid")
+        ctx.log.info(s"Flink K8sPodMetricTracker actor started, ${fcid.show}")
       }
       Behaviors.same
 
     case Stop =>
       proc.map(_.cancel())
-      ctx.log.info(s"Flink K8sPodMetricTracker actor stopped, fcid=$fcid")
+      ctx.log.info(s"Flink K8sPodMetricTracker actor stopped, ${fcid.show}")
       Behaviors.same
 
     case ResetMetric =>

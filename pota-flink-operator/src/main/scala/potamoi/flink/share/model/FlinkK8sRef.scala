@@ -15,7 +15,8 @@ case class FlinkK8sRef(
     namespace: String,
     deployment: List[K8sRsName],
     service: List[K8sRsName],
-    pod: List[K8sRsName])
+    pod: List[K8sRsName],
+    configMap: List[K8sRsName])
 
 object FlinkK8sRef {
   implicit val codec: JsonCodec[FlinkK8sRef]  = DeriveJsonCodec.gen[FlinkK8sRef]
