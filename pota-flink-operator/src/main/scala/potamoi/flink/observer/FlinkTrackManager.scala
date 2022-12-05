@@ -2,12 +2,16 @@ package potamoi.flink.observer
 
 import akka.actor.typed.{ActorRef, Behavior, Scheduler}
 import akka.util.Timeout
+import com.coralogix.zio.k8s.client.model.{K8sNamespace, label}
 import potamoi.cluster.PotaActorSystem.{ActorGuardian, ActorGuardianExtension}
 import potamoi.cluster.{LWWMapDData, ORSetDData}
 import potamoi.config.{DDataConf, PotaConf}
 import potamoi.flink.share.FlinkIO
+import potamoi.flink.share.FlinkOprErr.RequestK8sApiErr
 import potamoi.flink.share.model.Fcid
 import potamoi.flink.share.model.FlinkExecMode.FlinkExecMode
+import potamoi.k8s.{K8sClient, _}
+import potamoi.syntax._
 import potamoi.timex._
 
 /**
@@ -30,6 +34,11 @@ trait FlinkTrackManager {
    */
   def listTrackedCluster: FlinkIO[Set[Fcid]]
 
+  /**
+   * Scan for potential flink clusters on the specified kubernetes namespace.
+   */
+  def scanK8sNs(namespace: String): FlinkIO[Set[Fcid]]
+
 }
 
 object FlinkTrackManager {
@@ -37,6 +46,7 @@ object FlinkTrackManager {
   def live(
       potaConf: PotaConf,
       guardian: ActorGuardian,
+      k8sClient: K8sClient,
       clustersOvTrackers: ActorRef[ClustersOvTrackerProxy.Cmd],
       tmDetailTrackers: ActorRef[TmDetailTrackerProxy.Cmd],
       jmMetricTrackers: ActorRef[JmMetricTrackerProxy.Cmd],
@@ -51,6 +61,7 @@ object FlinkTrackManager {
       queryTimeout = potaConf.flink.snapshotQuery.askTimeout
       sc           = guardian.scheduler
     } yield Live(
+      k8sClient,
       clusterIdsCache,
       clusterIndexCache,
       clustersOvTrackers,
@@ -67,6 +78,7 @@ object FlinkTrackManager {
    * Implementation based on Akka infra.
    */
   case class Live(
+      k8sClient: K8sClient,
       clusterIdsCache: ActorRef[TrackClusterIdCache.Cmd],
       clusterIndexCache: ActorRef[ClusterIndexCache.Cmd],
       clustersOvTrackers: ActorRef[ClustersOvTrackerProxy.Cmd],
@@ -107,7 +119,21 @@ object FlinkTrackManager {
     }
 
     override def listTrackedCluster: FlinkIO[Set[Fcid]] = clusterIdsCache.list
+
+    override def scanK8sNs(namespace: String): FlinkIO[Set[Fcid]] = {
+      k8sClient.api.apps.v1.deployments
+        .getAll(K8sNamespace(namespace), labelSelector = label("type") === "flink-native-kubernetes")
+        .mapBoth(
+          f => RequestK8sApiErr(f, liftException(f).get),
+          deploy => deploy.metadata.flatMap(_.name).toOption
+        )
+        .filter(_.isDefined)
+        .map(name => Fcid(name.get, namespace))
+        .runCollect
+        .map(_.toSet)
+    }
   }
+
 }
 
 /**

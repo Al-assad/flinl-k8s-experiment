@@ -10,7 +10,7 @@ import potamoi.logger.PotaLogger
 import potamoi.syntax._
 import potamoi.testkit.{PotaDev, STSpec, UnsafeEnv}
 import zio.Schedule.spaced
-import zio.{IO, ZIO, durationInt}
+import zio.{durationInt, IO, ZIO}
 
 // TODO unsafe
 class FlinkObserverSpec extends STSpec {
@@ -42,6 +42,10 @@ class FlinkObserverSpec extends STSpec {
       obr.manager.listTrackedCluster.map(_ shouldBe Set(Fcid("app-t1", "fdev"), Fcid("app-t2", "fdev"))) *>
       obr.manager.untrackCluster("app-t2" -> "fdev") *>
       obr.manager.listTrackedCluster.map(_ shouldBe Set(Fcid("app-t1", "fdev")))
+    }
+
+    "Scan fcid on k8s namespace" taggedAs UnsafeEnv in testObr { obr =>
+      obr.manager.scanK8sNs("fdev").map(_.toPrettyStr).debug
     }
 
     "Query RestEndpoint" taggedAs UnsafeEnv in testObr { obr =>

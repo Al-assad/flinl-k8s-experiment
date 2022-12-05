@@ -33,6 +33,7 @@ object FlinkObserver {
       trackerManager <- FlinkTrackManager.live(
         potaConf,
         guardian,
+        k8sOperator.client,
         clusterQuery.ovTrackers,
         clusterQuery.tmDetailTrackers,
         clusterQuery.jmMetricTrackers,
