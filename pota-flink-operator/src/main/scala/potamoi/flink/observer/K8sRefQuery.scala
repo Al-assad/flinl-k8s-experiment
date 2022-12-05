@@ -29,6 +29,7 @@ trait K8sRefQuery {
   def listDeploymentSnaps(fcid: Fcid): FlinkIO[List[FK8sDeploymentSnap]]
   def listServiceSnaps(fcid: Fcid): FlinkIO[List[FK8sServiceSnap]]
   def listPodSnaps(fcid: Fcid): FlinkIO[List[FK8sPodSnap]]
+  def listContainerNames(fcid: Fcid, podName: String): FlinkIO[List[String]]
 
   def getDeploymentSnap(fcid: Fcid, deployName: String): FlinkIO[Option[FK8sDeploymentSnap]]
   def getServiceSnap(fcid: Fcid, svcName: String): FlinkIO[Option[FK8sServiceSnap]]
@@ -98,9 +99,10 @@ object K8sRefQuery {
     def getRef(fcid: Fcid): FlinkIO[Option[FlinkK8sRef]]             = k8sRefTrackers(fcid).ask(GetRef)
     def getRefSnapshot(fcid: Fcid): FlinkIO[Option[FlinkK8sRefSnap]] = k8sRefTrackers(fcid).ask(GetRefSnap)
 
-    def listDeploymentSnaps(fcid: Fcid): FlinkIO[List[FK8sDeploymentSnap]] = k8sRefTrackers(fcid).ask(ListDeployments).map(_.sortBy(_.name))
-    def listServiceSnaps(fcid: Fcid): FlinkIO[List[FK8sServiceSnap]]       = k8sRefTrackers(fcid).ask(ListServices).map(_.sortBy(_.name))
-    def listPodSnaps(fcid: Fcid): FlinkIO[List[FK8sPodSnap]]               = k8sRefTrackers(fcid).ask(ListPods).map(_.sortBy(_.name))
+    def listDeploymentSnaps(fcid: Fcid): FlinkIO[List[FK8sDeploymentSnap]]     = k8sRefTrackers(fcid).ask(ListDeployments).map(_.sortBy(_.name))
+    def listServiceSnaps(fcid: Fcid): FlinkIO[List[FK8sServiceSnap]]           = k8sRefTrackers(fcid).ask(ListServices).map(_.sortBy(_.name))
+    def listPodSnaps(fcid: Fcid): FlinkIO[List[FK8sPodSnap]]                   = k8sRefTrackers(fcid).ask(ListPods).map(_.sortBy(_.name))
+    def listContainerNames(fcid: Fcid, podName: String): FlinkIO[List[String]] = k8sRefTrackers(fcid).ask(ListContainerNames(podName, _))
 
     def getDeploymentSnap(fcid: Fcid, name: String): FlinkIO[Option[FK8sDeploymentSnap]] = k8sRefTrackers(fcid).ask(GetDeployment(name, _))
     def getServiceSnap(fcid: Fcid, name: String): FlinkIO[Option[FK8sServiceSnap]]       = k8sRefTrackers(fcid).ask(GetService(name, _))

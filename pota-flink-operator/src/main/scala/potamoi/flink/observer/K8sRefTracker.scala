@@ -50,6 +50,7 @@ private[observer] object K8sRefTracker {
   final case class ListDeployments(reply: ActorRef[List[FK8sDeploymentSnap]])                  extends Query
   final case class ListServices(reply: ActorRef[List[FK8sServiceSnap]])                        extends Query
   final case class ListPods(reply: ActorRef[List[FK8sPodSnap]])                                extends Query
+  final case class ListContainerNames(podName: String, reply: ActorRef[List[String]])          extends Query
   final case class GetDeployment(name: K8sRsName, reply: ActorRef[Option[FK8sDeploymentSnap]]) extends Query
   final case class GetService(name: K8sRsName, reply: ActorRef[Option[FK8sServiceSnap]])       extends Query
   final case class GetPod(name: K8sRsName, reply: ActorRef[Option[FK8sPodSnap]])               extends Query
@@ -174,6 +175,10 @@ private class K8sRefTracker(
     case GetService(name, reply)    => reply ! svcSnaps.get(name); Behaviors.same
     case GetPod(name, reply)        => reply ! podSnaps.get(name); Behaviors.same
     case GetConfigMapNames(reply)   => reply ! configMapNames.toList; Behaviors.same
+
+    case ListContainerNames(name, reply) =>
+      reply ! podSnaps.values.find(_.name == name).map(_.containerSnaps.map(_.name).toList).getOrElse(List.empty)
+      Behaviors.same
   }
 
   /**
