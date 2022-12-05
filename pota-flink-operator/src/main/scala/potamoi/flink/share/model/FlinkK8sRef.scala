@@ -4,23 +4,8 @@ import potamoi.curTs
 import potamoi.flink.share.K8sRsName
 import potamoi.k8s.ContainerState.ContainerState
 import potamoi.k8s.PodPhase.PodPhase
-import potamoi.k8s.{ContainerStateDetail, K8sQuantity, WorkloadCondition}
+import potamoi.k8s.{ContainerStateDetail, K8sQuantity, PodMetrics, WorkloadCondition}
 import zio.json.{DeriveJsonCodec, JsonCodec}
-
-/**
- * Flink referent kubernetes resources snapshot.
- */
-case class FlinkK8sRefSnap(
-    clusterId: String,
-    namespace: String,
-    deployment: List[FK8sDeploymentSnap],
-    service: List[FK8sServiceSnap],
-    pod: List[FK8sPodSnap])
-
-object FlinkK8sRefSnap {
-  implicit val codec: JsonCodec[FlinkK8sRefSnap]  = DeriveJsonCodec.gen[FlinkK8sRefSnap]
-  implicit val sorting: Ordering[FlinkK8sRefSnap] = Ordering.by(e => (e.namespace, e.clusterId))
-}
 
 /**
  * Flink referent kubernetes resource name listing.
@@ -35,6 +20,21 @@ case class FlinkK8sRef(
 object FlinkK8sRef {
   implicit val codec: JsonCodec[FlinkK8sRef]  = DeriveJsonCodec.gen[FlinkK8sRef]
   implicit val sorting: Ordering[FlinkK8sRef] = Ordering.by(e => (e.namespace, e.clusterId))
+}
+
+/**
+ * Flink referent kubernetes resources snapshot.
+ */
+case class FlinkK8sRefSnap(
+    clusterId: String,
+    namespace: String,
+    deployment: List[FK8sDeploymentSnap],
+    service: List[FK8sServiceSnap],
+    pod: List[FK8sPodSnap])
+
+object FlinkK8sRefSnap {
+  implicit val codec: JsonCodec[FlinkK8sRefSnap]  = DeriveJsonCodec.gen[FlinkK8sRefSnap]
+  implicit val sorting: Ordering[FlinkK8sRefSnap] = Ordering.by(e => (e.namespace, e.clusterId))
 }
 
 /**
@@ -147,4 +147,13 @@ case class PodContainerSnap(
 object FK8sPodSnap {
   implicit val containerSnapCodec: JsonCodec[PodContainerSnap] = DeriveJsonCodec.gen[PodContainerSnap]
   implicit val codec: JsonCodec[FK8sPodSnap]                   = DeriveJsonCodec.gen[FK8sPodSnap]
+}
+
+/**
+ * Flink k8s pod metrics.
+ */
+case class FK8sPodMetrics(clusterId: String, namespace: String, name: String, metrics: PodMetrics)
+
+object FK8sPodMetrics {
+  implicit val codec: JsonCodec[FK8sPodMetrics] = DeriveJsonCodec.gen[FK8sPodMetrics]
 }

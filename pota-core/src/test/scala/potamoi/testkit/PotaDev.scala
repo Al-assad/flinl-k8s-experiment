@@ -45,6 +45,8 @@ object PotaDev {
       .setTo(1.seconds)
       .modify(_.tracking.jobMetricsPolling)
       .setTo(1.seconds)
+      .modify(_.tracking.k8sPodMetricsPolling)
+      .setTo(1.seconds)
   ).resolve
 
   val conf: ULayer[PotaConf] = ZLayer.succeed(rawConf)

@@ -43,7 +43,8 @@ object FlinkTrackManager {
       tmMetricTrackers: ActorRef[TmMetricTrackerProxy.Cmd],
       jobOvTrackers: ActorRef[JobOvTrackerProxy.Cmd],
       jobMetricsTrackers: ActorRef[JobMetricTrackerProxy.Cmd],
-      k8sRefsTrackers: ActorRef[K8sRefTrackerProxy.Cmd]) =
+      k8sRefsTrackers: ActorRef[K8sRefTrackerProxy.Cmd],
+      k8sPodMetricsTrackers: ActorRef[K8sPodMetricTrackerProxy.Cmd]) =
     for {
       clusterIdsCache   <- guardian.spawn(TrackClusterIdCache(potaConf.akka.ddata.getFlinkClusterIds), "flkTrackClusterCache-tm")
       clusterIndexCache <- guardian.spawn(ClusterIndexCache(potaConf.akka.ddata.getFlinkClusterIndex), "flkClusterIdxCache-tm")
@@ -58,7 +59,8 @@ object FlinkTrackManager {
       tmMetricTrackers,
       jobOvTrackers,
       jobMetricsTrackers,
-      k8sRefsTrackers
+      k8sRefsTrackers,
+      k8sPodMetricsTrackers
     )(sc, queryTimeout)
 
   /**
@@ -73,7 +75,8 @@ object FlinkTrackManager {
       tmMetricTrackers: ActorRef[TmMetricTrackerProxy.Cmd],
       jobsTrackers: ActorRef[JobOvTrackerProxy.Cmd],
       jobMetricsTrackers: ActorRef[JobMetricTrackerProxy.Cmd],
-      k8sRefsTrackers: ActorRef[K8sRefTrackerProxy.Cmd]
+      k8sRefsTrackers: ActorRef[K8sRefTrackerProxy.Cmd],
+      k8sPodMetricsTrackers: ActorRef[K8sPodMetricTrackerProxy.Cmd]
     )(implicit sc: Scheduler,
       queryTimeout: Timeout)
       extends FlinkTrackManager {
@@ -81,6 +84,7 @@ object FlinkTrackManager {
     override def trackCluster(fcid: Fcid): FlinkIO[Unit] = {
       clusterIdsCache.put(fcid) *>
       k8sRefsTrackers(fcid).tell(K8sRefTracker.Start) *>
+      k8sPodMetricsTrackers(fcid).tell(K8sPodMetricTracker.Start) *>
       clustersOvTrackers(fcid).tell(ClustersOvTracker.Start) *>
       tmDetailTrackers(fcid).tell(TmDetailTracker.Start) *>
       jmMetricTrackers(fcid).tell(JmMetricTracker.Start) *>
@@ -93,6 +97,7 @@ object FlinkTrackManager {
       clusterIdsCache.remove(fcid) *>
       clusterIndexCache.remove(fcid) *>
       k8sRefsTrackers(fcid).tell(K8sRefTracker.Stop) *>
+      k8sPodMetricsTrackers(fcid).tell(K8sPodMetricTracker.Stop) *>
       clustersOvTrackers(fcid).tell(ClustersOvTracker.Stop) *>
       tmDetailTrackers(fcid).tell(TmDetailTracker.Stop) *>
       jmMetricTrackers(fcid).tell(JmMetricTracker.Stop) *>

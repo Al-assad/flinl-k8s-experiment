@@ -47,7 +47,7 @@ object FlinkOprErr {
 
   case object IllegalK8sServiceEntity    extends FlinkOprErr
   case object IllegalK8sDeploymentEntity extends FlinkOprErr
-  case object IllegalK8sPodEntity extends FlinkOprErr
+  case object IllegalK8sPodEntity        extends FlinkOprErr
 
   implicit def actorInteropErrConversion[A](io: IO[ActorInteropException, A]): IO[FlinkOprErr, A] = io.mapError(ActorInteropErr)
 }

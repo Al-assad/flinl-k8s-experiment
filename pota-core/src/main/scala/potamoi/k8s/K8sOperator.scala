@@ -17,10 +17,12 @@ import zio.{IO, ZIO, ZLayer}
 @accessible
 trait K8sOperator {
 
+  def client: K8sClient
+
   /**
    * Get pod metrics info.
    */
-  def getPodMetrics(name: String, namespace: String): IO[K8sErr, PodMetrics]
+  def getPodMetrics(name: String, namespace: String): IO[DirectRequestK8sApiErr, PodMetrics]
 
   /**
    * Get deployment spec.
@@ -37,7 +39,6 @@ trait K8sOperator {
    */
   def getPodSpec(name: String, namespace: String): IO[K8sErr, PodSpec]
 
-
 }
 
 object K8sOperator {
@@ -47,7 +48,9 @@ object K8sOperator {
 
 class K8sOperatorLive(k8sClient: K8sClient) extends K8sOperator {
 
-  override def getPodMetrics(name: String, namespace: String): IO[K8sErr, PodMetrics] =
+  override def client: K8sClient = k8sClient
+
+  override def getPodMetrics(name: String, namespace: String): IO[DirectRequestK8sApiErr, PodMetrics] =
     k8sClient.usingSttp { (request, backend, host) =>
       request
         .get(uri"$host/apis/metrics.k8s.io/v1beta1/namespaces/$namespace/pods/$name")
@@ -99,7 +102,5 @@ class K8sOperatorLive(k8sClient: K8sClient) extends K8sOperator {
         case e        => RequestK8sApiErr(e, liftException(e).get)
       }
   }
-
-
 
 }

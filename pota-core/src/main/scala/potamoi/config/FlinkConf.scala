@@ -45,6 +45,7 @@ case class FlkTrackConf(
     @name("poll-jm-metrics") jmMetricsPolling: Duration = 5.seconds,
     @name("poll-tm-metrics") tmMetricsPolling: Duration = 5.seconds,
     @name("poll-job-metrics") jobMetricsPolling: Duration = 2.seconds,
+    @name("poll-k8s-pod-metrics") k8sPodMetricsPolling: Duration = 4.seconds,
     @name("poll-savepoint-trigger") savepointTriggerPolling: Duration = 100.millis)
 
 /**

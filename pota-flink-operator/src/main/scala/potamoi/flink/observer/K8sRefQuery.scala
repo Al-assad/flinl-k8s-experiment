@@ -6,11 +6,12 @@ import com.coralogix.zio.k8s.model.apps.v1.DeploymentSpec
 import com.coralogix.zio.k8s.model.core.v1.{PodSpec, ServiceSpec}
 import potamoi.cluster.PotaActorSystem.{ActorGuardian, ActorGuardianExtension}
 import potamoi.config.PotaConf
+import potamoi.flink.observer.K8sPodMetricTracker.{GetPodMetrics, ListPodMetrics}
 import potamoi.flink.observer.K8sRefTracker._
 import potamoi.flink.share.FlinkIO
 import potamoi.flink.share.FlinkOprErr.RequestK8sApiErr
 import potamoi.flink.share.model._
-import potamoi.k8s.{K8sClient, K8sErr, K8sOperator}
+import potamoi.k8s.{K8sErr, K8sOperator}
 import potamoi.timex._
 import zio.ZIO.succeed
 import zio.stream.ZStream
@@ -35,20 +36,24 @@ trait K8sRefQuery {
   def getDeploymentSpec(fcid: Fcid, deployName: String): FlinkIO[Option[DeploymentSpec]]
   def getServiceSpec(fcid: Fcid, deployName: String): FlinkIO[Option[ServiceSpec]]
   def getPodSpec(fcid: Fcid, deployName: String): FlinkIO[Option[PodSpec]]
+
+  def getPodMetrics(fcid: Fcid, podName: String): FlinkIO[Option[FK8sPodMetrics]]
+  def listPodMetrics(fcid: Fcid): FlinkIO[List[FK8sPodMetrics]]
 }
 
 object K8sRefQuery {
 
-  def live(potaConf: PotaConf, guardian: ActorGuardian, k8sClient: K8sClient, k8sOperator: K8sOperator) = for {
-    clusterIdsCache    <- guardian.spawn(TrackClusterIdCache(potaConf.akka.ddata.getFlinkClusterIds), "flkTrackClusterCache-k8")
-    k8sRefTrackerProxy <- guardian.spawn(K8sRefTrackerProxy(potaConf, k8sClient), "flk8sRefTrackerProxy")
+  def live(potaConf: PotaConf, guardian: ActorGuardian, k8sOperator: K8sOperator) = for {
+    clusterIdsCache           <- guardian.spawn(TrackClusterIdCache(potaConf.akka.ddata.getFlinkClusterIds), "flkTrackClusterCache-k8")
+    k8sRefTrackerProxy        <- guardian.spawn(K8sRefTrackerProxy(potaConf, k8sOperator.client), "flk8sRefTrackerProxy")
+    k8sPodMetricsTrackerProxy <- guardian.spawn(K8sPodMetricTrackerProxy(potaConf, k8sOperator), "flk8sPodMetricsTrackerProxy")
     queryTimeout     = potaConf.flink.snapshotQuery.askTimeout
     queryParallelism = potaConf.flink.snapshotQuery.parallelism
     sc               = guardian.scheduler
   } yield Live(
     clusterIdsCache,
     k8sRefTrackerProxy,
-    k8sClient,
+    k8sPodMetricsTrackerProxy,
     k8sOperator,
     queryParallelism
   )(sc, queryTimeout)
@@ -59,7 +64,7 @@ object K8sRefQuery {
   case class Live(
       clusterIdsCache: ActorRef[TrackClusterIdCache.Cmd],
       k8sRefTrackers: ActorRef[K8sRefTrackerProxy.Cmd],
-      k8sClient: K8sClient,
+      k8sPodMetricTrackers: ActorRef[K8sPodMetricTrackerProxy.Cmd],
       k8sOperator: K8sOperator,
       queryParallelism: Int
     )(implicit sc: Scheduler,
@@ -84,8 +89,9 @@ object K8sRefQuery {
         .runFold(List.empty[FlinkK8sRefSnap])(_ :+ _)
         .map(_.sorted)
 
-    def getRef(fcid: Fcid): FlinkIO[Option[FlinkK8sRef]]                   = k8sRefTrackers(fcid).ask(GetRef)
-    def getRefSnapshot(fcid: Fcid): FlinkIO[Option[FlinkK8sRefSnap]]       = k8sRefTrackers(fcid).ask(GetRefSnap)
+    def getRef(fcid: Fcid): FlinkIO[Option[FlinkK8sRef]]             = k8sRefTrackers(fcid).ask(GetRef)
+    def getRefSnapshot(fcid: Fcid): FlinkIO[Option[FlinkK8sRefSnap]] = k8sRefTrackers(fcid).ask(GetRefSnap)
+
     def listDeploymentSnaps(fcid: Fcid): FlinkIO[List[FK8sDeploymentSnap]] = k8sRefTrackers(fcid).ask(ListDeployments).map(_.sortBy(_.name))
     def listServiceSnaps(fcid: Fcid): FlinkIO[List[FK8sServiceSnap]]       = k8sRefTrackers(fcid).ask(ListServices).map(_.sortBy(_.name))
     def listPodSnaps(fcid: Fcid): FlinkIO[List[FK8sPodSnap]]               = k8sRefTrackers(fcid).ask(ListPods).map(_.sortBy(_.name))
@@ -114,6 +120,9 @@ object K8sRefQuery {
         .map(Some(_))
         .catchSome { case K8sErr.PodNotFound(_, _) => succeed(None) }
         .mapError { case K8sErr.RequestK8sApiErr(f, e) => RequestK8sApiErr(f, e) }
+
+    def getPodMetrics(fcid: Fcid, podName: String): FlinkIO[Option[FK8sPodMetrics]] = k8sPodMetricTrackers(fcid).ask(GetPodMetrics(podName, _))
+    def listPodMetrics(fcid: Fcid): FlinkIO[List[FK8sPodMetrics]] = k8sPodMetricTrackers(fcid).ask(ListPodMetrics).map(_.toList.sortBy(_.name))
   }
 
 }

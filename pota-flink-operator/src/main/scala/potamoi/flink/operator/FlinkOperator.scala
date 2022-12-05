@@ -28,11 +28,11 @@ object FlinkOperator {
   val live = ZLayer {
     for {
       potaConf      <- ZIO.service[PotaConf]
-      k8sClient     <- ZIO.service[K8sClient]
+      k8sOperator   <- ZIO.service[K8sOperator]
       s3Operator    <- ZIO.service[S3Operator]
       flinkObserver <- ZIO.service[FlinkObserver]
-      sessClusterOpr = FlinkSessClusterOperatorImpl(potaConf, k8sClient, s3Operator, flinkObserver)
-      appClusterOpr  = FlinkAppClusterOperatorImpl(potaConf, k8sClient, s3Operator, flinkObserver)
+      sessClusterOpr = FlinkSessClusterOperatorImpl(potaConf, k8sOperator.client, s3Operator, flinkObserver)
+      appClusterOpr  = FlinkAppClusterOperatorImpl(potaConf, k8sOperator.client, s3Operator, flinkObserver)
     } yield new FlinkOperator {
       val session     = sessClusterOpr
       val application = appClusterOpr

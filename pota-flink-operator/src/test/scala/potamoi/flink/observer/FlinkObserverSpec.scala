@@ -1,6 +1,5 @@
 package potamoi.flink.observer
 
-import com.coralogix.zio.k8s.client.model.{Added, Deleted, K8sNamespace, Modified}
 import potamoi.cluster.PotaActorSystem
 import potamoi.common.Order.{asc, desc}
 import potamoi.common.PageReq
@@ -11,7 +10,7 @@ import potamoi.logger.PotaLogger
 import potamoi.syntax._
 import potamoi.testkit.{PotaDev, STSpec, UnsafeEnv}
 import zio.Schedule.spaced
-import zio.{durationInt, Clock, IO, ZIO, ZIOAppDefault, ZLayer}
+import zio.{durationInt, IO, ZIO}
 
 // TODO unsafe
 class FlinkObserverSpec extends STSpec {
@@ -198,78 +197,18 @@ class FlinkObserverSpec extends STSpec {
         obr.k8sRefs.getDeploymentSpec("app-t1" -> "fdev", "app-t1").map(_.toPrettyStr).debug
       }
     }
+
+    "Query k8s pod metrics" should {
+      "list pod metrics" taggedAs UnsafeEnv in testObr { obr =>
+        obr.manager.trackCluster("app-t1" -> "fdev") *>
+        obr.k8sRefs.listPodMetrics("app-t1" -> "fdev").watchPretty
+      }
+
+      "get pod metrics" taggedAs UnsafeEnv in testObr { obr =>
+        obr.manager.trackCluster("app-t1" -> "fdev") *>
+        obr.k8sRefs.getPodMetrics("app-t1" -> "fdev", "app-t1-7b94664566-4t79h").watchPretty
+      }
+    }
   }
 
-}
-
-import com.coralogix.zio.k8s.client.model.{field, label}
-import potamoi.k8s._
-import potamoi.syntax._
-
-object test0 extends ZIOAppDefault {
-  val run = ZIO
-    .service[K8sClient]
-    .flatMap { k8s =>
-      k8s.api.apps.v1.deployments
-        .watchForever(K8sNamespace("fdev"), labelSelector = label("type") === "flink-native-kubernetes")
-        .map {
-          case Added(deploy)    => "added " + deploy.metadata.flatMap(_.name)
-          case Modified(deploy) => "modified" + deploy.metadata.flatMap(_.name)
-          case Deleted(deploy)  => "deleted " + deploy.metadata.flatMap(_.name)
-          case _                => ""
-        }
-        .debug
-        .runDrain
-    }
-    .provide(PotaDev.conf, ZLayer.succeed(Clock.ClockLive), PotaLogger.live, K8sClient.live)
-}
-
-// todo remove
-object test extends ZIOAppDefault {
-  val run = ZIO
-    .serviceWithZIO[K8sClient] { k8s =>
-      k8s.api.v1.pods
-        .get("app-t4-858b985845-9hcjt", "fdev")
-        //        .get("app-t4-taskmanager-1-1", "fdev")
-        .map { pod =>
-          println(pod.toPrettyStr)
-        }
-    }
-    .provide(PotaDev.conf, PotaLogger.live, K8sClient.live)
-}
-
-object testSvc extends ZIOAppDefault {
-  val run = ZIO
-    .serviceWithZIO[K8sClient] { k8s =>
-      k8s.api.v1.services
-        .get("app-t4-rest", "fdev")
-        .flatMap { svc => K8sEntityConverter.toServiceSnap(svc) }
-        .map(_.toPrettyStr)
-        .debug
-    }
-    .provide(PotaDev.conf, PotaLogger.live, K8sClient.live)
-}
-
-object testDeploy extends ZIOAppDefault {
-  val run = ZIO
-    .serviceWithZIO[K8sClient] { k8s =>
-      k8s.api.apps.v1.deployments
-        .get("app-t4", "fdev")
-        .flatMap { deploy => K8sEntityConverter.toDeploymentSnap(deploy) }
-        .map(_.toPrettyStr)
-        .debug
-    }
-    .provide(PotaDev.conf, PotaLogger.live, K8sClient.live)
-}
-
-object testPod extends ZIOAppDefault {
-  val run = ZIO
-    .serviceWithZIO[K8sClient] { k8s =>
-      k8s.api.v1.pods
-        .get("app-t4-taskmanager-1-1", "fdev")
-        .flatMap { pod => K8sEntityConverter.toPodSnap(pod) }
-        .map(_.toPrettyStr)
-        .debug
-    }
-    .provide(PotaDev.conf, PotaLogger.live, K8sClient.live)
 }
