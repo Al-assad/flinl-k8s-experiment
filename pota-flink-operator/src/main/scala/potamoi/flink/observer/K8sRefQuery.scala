@@ -8,8 +8,8 @@ import potamoi.cluster.PotaActorSystem.{ActorGuardian, ActorGuardianExtension}
 import potamoi.config.PotaConf
 import potamoi.flink.observer.K8sPodMetricTracker.{GetPodMetrics, ListPodMetrics}
 import potamoi.flink.observer.K8sRefTracker._
-import potamoi.flink.share.FlinkIO
-import potamoi.flink.share.FlinkOprErr.RequestK8sApiErr
+import potamoi.flink.share.{FlinkIO, FlinkOprErr}
+import potamoi.flink.share.FlinkOprErr.K8sOperationErr
 import potamoi.flink.share.model._
 import potamoi.k8s.{K8sErr, K8sOperator}
 import potamoi.timex._
@@ -45,6 +45,17 @@ trait K8sRefQuery {
 
   def getPodMetrics(fcid: Fcid, podName: String): FlinkIO[Option[FK8sPodMetrics]]
   def listPodMetrics(fcid: Fcid): FlinkIO[List[FK8sPodMetrics]]
+
+  /**
+   * Only for getting flink-main-container logs, side-car container logs should be obtained
+   * through the [[K8sOperator.getPodLog()]].
+   */
+  def getLog(
+      fcid: Fcid,
+      podName: String,
+      follow: Boolean = false,
+      tailLines: Option[Int] = None,
+      sinceSec: Option[Int] = None): ZStream[Any, FlinkOprErr, String]
 
 }
 
@@ -114,27 +125,27 @@ object K8sRefQuery {
         .getDeploymentSpec(name, fcid.namespace)
         .map(Some(_))
         .catchSome { case K8sErr.DeploymentNotFound(_, _) => succeed(None) }
-        .mapError { case K8sErr.RequestK8sApiErr(f, e) => RequestK8sApiErr(f, e) }
+        .mapError(K8sOperationErr)
 
     def getServiceSpec(fcid: Fcid, name: String): FlinkIO[Option[ServiceSpec]] =
       k8sOperator
         .getServiceSpec(name, fcid.namespace)
         .map(Some(_))
         .catchSome { case K8sErr.ServiceNotFound(_, _) => succeed(None) }
-        .mapError { case K8sErr.RequestK8sApiErr(f, e) => RequestK8sApiErr(f, e) }
+        .mapError(K8sOperationErr)
 
     def getPodSpec(fcid: Fcid, name: String): FlinkIO[Option[PodSpec]] =
       k8sOperator
         .getPodSpec(name, fcid.namespace)
         .map(Some(_))
         .catchSome { case K8sErr.PodNotFound(_, _) => succeed(None) }
-        .mapError { case K8sErr.RequestK8sApiErr(f, e) => RequestK8sApiErr(f, e) }
+        .mapError(K8sOperationErr)
 
     def getConfigMapData(fcid: Fcid, configMapName: String): FlinkIO[Map[String, String]] =
       k8sOperator
         .getConfigMapsData(configMapName, fcid.namespace)
         .catchSome { case K8sErr.ConfigMapNotFound(_, _) => succeed(Map.empty[String, String]) }
-        .mapError { case K8sErr.RequestK8sApiErr(f, e) => RequestK8sApiErr(f, e) }
+        .mapError(K8sOperationErr)
 
     override def listConfigMapData(fcid: Fcid): FlinkIO[Map[String, String]] = {
       val listConfigMapNames: FlinkIO[List[String]] = k8sRefTrackers(fcid).ask(GetConfigMapNames)
@@ -147,6 +158,17 @@ object K8sRefQuery {
     def getPodMetrics(fcid: Fcid, podName: String): FlinkIO[Option[FK8sPodMetrics]] = k8sPodMetricTrackers(fcid).ask(GetPodMetrics(podName, _))
     def listPodMetrics(fcid: Fcid): FlinkIO[List[FK8sPodMetrics]] = k8sPodMetricTrackers(fcid).ask(ListPodMetrics).map(_.toList.sortBy(_.name))
 
+    def getLog(fcid: Fcid, podName: String, follow: Boolean, tailLines: Option[Int], sinceSec: Option[Int]): ZStream[Any, FlinkOprErr, String] = {
+      k8sOperator
+        .getPodLog(
+          podName = podName,
+          namespace = fcid.namespace,
+          containerName = Some("flink-main-container"),
+          follow = follow,
+          tailLines = tailLines,
+          sinceSec = sinceSec)
+        .mapError(K8sOperationErr)
+    }
   }
 
 }

@@ -9,8 +9,9 @@ import potamoi.k8s.{K8sClient, K8sOperator}
 import potamoi.logger.PotaLogger
 import potamoi.syntax._
 import potamoi.testkit.{PotaDev, STSpec, UnsafeEnv}
+import zio.Console.printLine
 import zio.Schedule.spaced
-import zio.{durationInt, IO, ZIO}
+import zio.{IO, ZIO, durationInt}
 
 // TODO unsafe
 class FlinkObserverSpec extends STSpec {
@@ -229,7 +230,18 @@ class FlinkObserverSpec extends STSpec {
         obr.manager.trackCluster("app-t1" -> "fdev") *>
         obr.k8sRefs.listConfigMapData("app-t1" -> "fdev").watchPretty
       }
+
+      "get pod log" taggedAs UnsafeEnv in testObr { obr =>
+        val fcid = "app-t1" -> "fdev"
+        for {
+          _     <- obr.manager.trackCluster(fcid)
+          jmPod <- obr.k8sRefs.getRef(fcid).map(_.map(_.pod)).repeatUntil(_.exists(_.nonEmpty)).map(_.get.head)
+          _     <- obr.k8sRefs.getLog(fcid, jmPod, follow = true).runForeach(printLine(_).ignore)
+        } yield ()
+      }
     }
+
+
   }
 
 }

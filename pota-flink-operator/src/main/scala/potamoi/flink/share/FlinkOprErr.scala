@@ -5,6 +5,7 @@ import potamoi.common.{ActorInteropException, FailProxy, FailStackFill, PotaFail
 import potamoi.flink.share.model.Fcid
 import potamoi.fs.S3Err
 import potamoi.k8s
+import potamoi.k8s.K8sErr
 import zio.IO
 
 import scala.language.implicitConversions
@@ -39,6 +40,7 @@ object FlinkOprErr {
   case class ActorInteropErr(cause: ActorInteropException)              extends FlinkOprErr with FailStackFill
   case class RequestFlinkRestApiErr(cause: Throwable)                   extends FlinkOprErr with FailStackFill
   case class RequestK8sApiErr(k8sFailure: K8sFailure, cause: Throwable) extends FlinkOprErr with FailStackFill
+  case class K8sOperationErr(potaFail: K8sErr)                          extends FlinkOprErr with FailProxy
   case object WatchTimeout                                              extends FlinkOprErr
 
   object RequestK8sApiErr {

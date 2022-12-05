@@ -10,6 +10,7 @@ import sttp.client3._
 import zio.ZIO.attempt
 import zio.macros.accessible
 import zio.prelude.data.Optional.{Absent, Present}
+import zio.stream.ZStream
 import zio.{IO, ZIO, ZLayer}
 
 /**
@@ -44,6 +45,18 @@ trait K8sOperator {
    * Get configmaps data.
    */
   def getConfigMapsData(name: String, namespace: String): IO[K8sErr, Map[String, String]]
+
+  /**
+   * Get pod logging.
+   * see kubernetes api: GET /api/v1/namespaces/{namespace}/pods/{name}/log
+   */
+  def getPodLog(
+      podName: String,
+      namespace: String,
+      containerName: Option[String] = None,
+      follow: Boolean = false,
+      tailLines: Option[Int] = None,
+      sinceSec: Option[Int] = None): ZStream[Any, K8sErr, String]
 
 }
 
@@ -122,6 +135,29 @@ class K8sOperatorLive(k8sClient: K8sClient) extends K8sOperator {
             case Absent       => Map.empty[String, String]
           }
         })
+  }
+
+  override def getPodLog(
+      podName: String,
+      namespace: String,
+      containerName: Option[String],
+      follow: Boolean,
+      tailLines: Option[Int],
+      sinceSec: Option[Int]): ZStream[Any, K8sErr, String] = {
+    k8sClient.api.v1.pods
+      .getLog(
+        name = podName,
+        namespace = namespace,
+        container = containerName,
+        tailLines = tailLines,
+        sinceSeconds = sinceSec,
+        follow = Some(follow),
+        insecureSkipTLSVerifyBackend = Some(true)
+      )
+      .mapError {
+        case NotFound => PodNotFound(podName, namespace)
+        case e        => RequestK8sApiErr(e, liftException(e).get)
+      }
   }
 
 }
