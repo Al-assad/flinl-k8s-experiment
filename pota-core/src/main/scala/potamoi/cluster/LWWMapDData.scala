@@ -17,7 +17,7 @@ import zio.IO
  */
 trait LWWMapDData[Key, Value] {
 
-  sealed trait Cmd
+  sealed trait Cmd extends CborSerializable
 
   trait GetCmd                                                   extends Cmd
   final case class Get(key: Key, reply: ActorRef[Option[Value]]) extends GetCmd

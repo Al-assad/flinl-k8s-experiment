@@ -1,13 +1,14 @@
 package potamoi.common
 
 import io.getquill.MappedEncoding
+import potamoi.cluster.CborSerializable
 import zio.config.magnolia.Descriptor
 import zio.json._
 
 /**
  * Enum based on Scala 2.x Enumeration, automatically deriving ZIO json Codec.
  */
-abstract class ComplexEnum extends Enumeration {
+abstract class ComplexEnum extends Enumeration with CborSerializable {
 
   // ZIO-Json encoder / decoder
   implicit val jsonEncoder: JsonEncoder[Value] = JsonEncoder[String].contramap(_.toString)

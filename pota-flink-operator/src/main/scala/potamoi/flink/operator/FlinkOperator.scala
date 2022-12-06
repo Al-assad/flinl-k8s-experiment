@@ -3,6 +3,7 @@ package potamoi.flink.operator
 import com.coralogix.zio.k8s.client.NotFound
 import com.coralogix.zio.k8s.model.pkg.apis.meta.v1.DeleteOptions
 import org.apache.flink.client.deployment.{ClusterClientFactory, DefaultClusterClientServiceLoader}
+import potamoi.cluster.PotaActorSystem.ActorGuardian
 import potamoi.config.PotaConf
 import potamoi.flink.observer.FlinkObserver
 import potamoi.flink.operator.FlinkConfigExtension.{configurationToPF, EmptyConfiguration}
@@ -22,6 +23,7 @@ import zio._
 trait FlinkOperator {
   def session: FlinkSessClusterOperator
   def application: FlinkAppClusterOperator
+  def restProxy: FlinkRestProxyOperator
 }
 
 object FlinkOperator {
@@ -31,11 +33,14 @@ object FlinkOperator {
       k8sOperator   <- ZIO.service[K8sOperator]
       s3Operator    <- ZIO.service[S3Operator]
       flinkObserver <- ZIO.service[FlinkObserver]
+      guardian      <- ZIO.service[ActorGuardian]
       sessClusterOpr = FlinkSessClusterOperatorImpl(potaConf, k8sOperator.client, s3Operator, flinkObserver)
       appClusterOpr  = FlinkAppClusterOperatorImpl(potaConf, k8sOperator.client, s3Operator, flinkObserver)
+      restProxyOpr <- FlinkRestProxyOperator.live(potaConf, guardian, flinkObserver)
     } yield new FlinkOperator {
       val session     = sessClusterOpr
       val application = appClusterOpr
+      val restProxy   = restProxyOpr
     }
   }
 }

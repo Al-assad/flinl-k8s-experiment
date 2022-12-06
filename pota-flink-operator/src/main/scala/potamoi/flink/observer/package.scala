@@ -12,13 +12,13 @@ package object observer {
   @inline private[observer] def loopTrigger[E, A](spaced: Duration)(effect: IO[E, A]): IO[E, Unit] = for {
     preErr <- Ref.make[Option[E]](None)
     loopEffect <- effect
-      .schedule(Schedule.spaced(spaced))
       .tapError { err =>
         preErr.get.flatMap { pre =>
           (logError(toPrettyString(err)) *> preErr.set(err)).when(!pre.contains(err))
         }
       }
       .ignore
+      .schedule(Schedule.spaced(spaced))
       .forever
   } yield loopEffect
 }

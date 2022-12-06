@@ -10,7 +10,7 @@ lazy val ZIOVer        = "2.0.4"
 lazy val ZIOLoggingVer = "2.1.5"
 lazy val ZIOConfig     = "3.0.2"
 lazy val ZIOJsonVer    = "0.3.0"
-lazy val ZIOHttpVer    = "2.0.0-RC10"
+lazy val ZIOHttpVer    = "0.0.3"
 lazy val ZIOK8sVer     = "2.0.1"
 lazy val SttpVer       = "3.8.3"
 lazy val UpickleVer    = "2.0.0"
@@ -87,6 +87,7 @@ lazy val potaCore = (projectMatrix in file("pota-core"))
       "dev.zio"                       %% "zio-config"                  % ZIOConfig,
       "dev.zio"                       %% "zio-config-magnolia"         % ZIOConfig,
       "dev.zio"                       %% "zio-config-typesafe"         % ZIOConfig,
+      "dev.zio"                       %% "zio-http"                    % ZIOHttpVer,
       "com.typesafe"                   % "config"                      % HoconVer,
       "org.typelevel"                 %% "cats-core"                   % CatsVer,
       "com.lihaoyi"                   %% "upickle"                     % UpickleVer,
@@ -127,7 +128,7 @@ lazy val potaServer = (projectMatrix in file("pota-server"))
   .settings(
     name := "potamoi-server",
     libraryDependencies ++= Seq(
-      "io.d11" %% "zhttp" % ZIOHttpVer
+      "dev.zio" %% "zio-http" % ZIOHttpVer
     )
   )
 

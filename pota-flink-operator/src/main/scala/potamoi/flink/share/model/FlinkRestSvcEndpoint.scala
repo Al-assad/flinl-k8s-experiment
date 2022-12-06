@@ -1,11 +1,12 @@
 package potamoi.flink.share.model
 
+import potamoi.cluster.CborSerializable
 import potamoi.config.{FlinkConf, FlkRestEndpointType}
 
 /**
  * K8s svc endpoint of flink rest-service.
  */
-case class FlinkRestSvcEndpoint(svcName: String, svcNs: String, port: Int, clusterIp: String) {
+case class FlinkRestSvcEndpoint(svcName: String, svcNs: String, port: Int, clusterIp: String) extends CborSerializable {
 
   /**
    * DNS name of the k8s svc.
@@ -28,6 +29,14 @@ case class FlinkRestSvcEndpoint(svcName: String, svcNs: String, port: Int, clust
   def chooseUrl(implicit flinkConf: FlinkConf): String = flinkConf.restEndpointTypeInternal match {
     case FlkRestEndpointType.SvcDns    => dnsRest
     case FlkRestEndpointType.ClusterIp => clusterIpRest
+  }
+
+  /**
+   * Choose host type by [[FlinkConf]].
+   */
+  def chooseHost(implicit flinkConf: FlinkConf): String = flinkConf.restEndpointTypeInternal match {
+    case FlkRestEndpointType.SvcDns    => dns
+    case FlkRestEndpointType.ClusterIp => clusterIp
   }
 
 }

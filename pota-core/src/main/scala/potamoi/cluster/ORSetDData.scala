@@ -16,7 +16,7 @@ import zio.IO
  * Akka ORSet type DData structure wrapped implementation.
  */
 trait ORSetDData[Value] {
-  sealed trait Cmd
+  sealed trait Cmd extends CborSerializable
 
   trait GetCmd                                                      extends Cmd
   final case class List(reply: ActorRef[Set[Value]])                extends GetCmd
@@ -158,7 +158,7 @@ trait ORSetDData[Value] {
   implicit class ZIOOperation(actor: ActorRef[Cmd])(implicit sc: Scheduler, askTimeout: Timeout) {
     def list: InteropIO[Set[Value]]                    = actor.askZIO(List)
     def size: InteropIO[Int]                           = actor.askZIO(Size)
-    def contains(value: Value): InteropIO[Boolean]     = actor.askZIO(Contains(value, _))
+    def containsEle(value: Value): InteropIO[Boolean]  = actor.askZIO(Contains(value, _))
     def put(value: Value): InteropIO[Unit]             = actor.tellZIO(Put(value))
     def putAll(values: Set[Value]): InteropIO[Unit]    = actor.tellZIO(PutAll(values))
     def remove(value: Value): InteropIO[Unit]          = actor.tellZIO(Remove(value))

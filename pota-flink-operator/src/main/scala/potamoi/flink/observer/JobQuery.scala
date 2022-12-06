@@ -3,7 +3,7 @@ package potamoi.flink.observer
 import akka.actor.typed.{ActorRef, Behavior, Scheduler}
 import akka.util.Timeout
 import cats.implicits.{catsSyntaxEitherId, toFoldableOps}
-import potamoi.cluster.LWWMapDData
+import potamoi.cluster.{CborSerializable, LWWMapDData}
 import potamoi.cluster.PotaActorSystem.{ActorGuardian, ActorGuardianExtension}
 import potamoi.common.Order.Order
 import potamoi.common.{ComplexEnum, PageReq, PageRsp, TsRange}
@@ -194,7 +194,7 @@ private[observer] object JobIdxCache extends LWWMapDData[Fjid, JobIndex] {
   def apply(conf: DDataConf): Behavior[Cmd] = start(conf)
 }
 
-case class JobIndex(jobName: String, jobState: JobState, startTs: Long)
+case class JobIndex(jobName: String, jobState: JobState, startTs: Long) extends CborSerializable
 object JobIndex {
   def of(ov: FlinkJobOverview): (Fjid, JobIndex) = ov.fjid -> JobIndex(ov.jobName, ov.state, ov.startTs)
 }

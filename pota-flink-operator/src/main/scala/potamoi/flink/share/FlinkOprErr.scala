@@ -42,6 +42,7 @@ object FlinkOprErr {
   case class RequestK8sApiErr(k8sFailure: K8sFailure, cause: Throwable) extends FlinkOprErr with FailStackFill
   case class K8sOperationErr(potaFail: K8sErr)                          extends FlinkOprErr with FailProxy
   case object WatchTimeout                                              extends FlinkOprErr
+  case class NeedToTrackClusterFirst(fcid: Fcid)                        extends FlinkOprErr
 
   object RequestK8sApiErr {
     def apply(k8sFailure: K8sFailure): RequestK8sApiErr = RequestK8sApiErr(k8sFailure, k8s.liftException(k8sFailure).orNull)

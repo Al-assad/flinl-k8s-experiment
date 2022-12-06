@@ -3,11 +3,12 @@ package potamoi.flink.observer
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior}
 import akka.cluster.sharding.typed.scaladsl.EntityTypeKey
-import com.coralogix.zio.k8s.client.model.{label, Added, Deleted, K8sNamespace, Modified, Reseted}
+import com.coralogix.zio.k8s.client.model.{Added, Deleted, K8sNamespace, Modified, Reseted, label}
 import potamoi.actorx._
 import potamoi.cluster.{CborSerializable, ShardingProxy}
 import potamoi.config.{NodeRole, PotaConf}
 import potamoi.flink.share.K8sRsName
+import potamoi.flink.share.cache.FlinkRestEndpointCache
 import potamoi.flink.share.model._
 import potamoi.k8s.K8sClient
 import potamoi.logger.PotaLogger
@@ -15,7 +16,7 @@ import potamoi.syntax._
 import potamoi.ziox._
 import zio.ZIO.logError
 import zio.ZIOAspect.annotated
-import zio.{durationInt, CancelableFuture, Clock, Schedule, ZLayer}
+import zio.{CancelableFuture, Clock, Schedule, ZLayer, durationInt}
 
 import scala.collection.mutable
 
@@ -76,7 +77,7 @@ private[observer] object K8sRefTracker {
   def apply(fcidStr: String, potaConf: PotaConf, k8sClient: K8sClient): Behavior[Cmd] = {
     Behaviors.setup { implicit ctx =>
       val fcid              = K8sRefTrackerProxy.unmarshallKey(fcidStr)
-      val restEndpointCache = ctx.spawn(RestEndpointCache(potaConf.akka.ddata.getFlinkRestEndpoint), "flkRestEndpointCache")
+      val restEndpointCache = ctx.spawn(FlinkRestEndpointCache(potaConf.akka.ddata.getFlinkRestEndpoint), "flkRestEndpointCache")
       ctx.log.info(s"Flink K8sRefTracker actor initialized, ${fcid.show}")
       new K8sRefTracker(fcid, potaConf, k8sClient, restEndpointCache).action
     }
@@ -87,7 +88,7 @@ private class K8sRefTracker(
     fcid: Fcid,
     potaConf: PotaConf,
     k8sClient: K8sClient,
-    restEndpointCache: ActorRef[RestEndpointCache.Cmd]
+    restEndpointCache: ActorRef[FlinkRestEndpointCache.Cmd]
   )(implicit ctx: ActorContext[K8sRefTracker.Cmd]) {
   import K8sEntityConverter._
   import K8sRefTracker._
@@ -152,14 +153,14 @@ private class K8sRefTracker(
       svcSnaps(snap.name) = snap
       // update RestSvcEndpointCache
       if (snap.isFlinkRestSvc) FlinkRestSvcEndpoint.of(snap).foreach { endpoint =>
-        restEndpointCache ! RestEndpointCache.Put(fcid, endpoint)
+        restEndpointCache ! FlinkRestEndpointCache.Put(fcid, endpoint)
       }
       Behaviors.same
 
     case DeleteServiceSnap(name) =>
       svcSnaps.remove(name)
       // update RestSvcEndpointCache
-      if (name.endsWith("-rest")) restEndpointCache ! RestEndpointCache.Remove(fcid)
+      if (name.endsWith("-rest")) restEndpointCache ! FlinkRestEndpointCache.Remove(fcid)
       Behaviors.same
 
     case ResetConfigMapNames        => configMapNames.clear(); Behaviors.same

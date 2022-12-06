@@ -1,17 +1,17 @@
 package potamoi.flink.observer
 
-import akka.actor.typed.{ActorRef, Behavior, Scheduler}
+import akka.actor.typed.{ActorRef, Scheduler}
 import akka.util.Timeout
 import com.coralogix.zio.k8s.client.NotFound
-import potamoi.cluster.LWWMapDData
 import potamoi.cluster.PotaActorSystem.{ActorGuardian, ActorGuardianExtension}
-import potamoi.common.ActorExtension.ActorRefWrapper
-import potamoi.config.{DDataConf, PotaConf}
+import potamoi.config.PotaConf
+import potamoi.flink.share.FlinkOprErr.{ActorInteropErr, ClusterNotFound}
+import potamoi.flink.share.cache.FlinkRestEndpointCache
 import potamoi.flink.share.model.{Fcid, FlinkRestSvcEndpoint}
 import potamoi.flink.share.{FlinkIO, FlinkOprErr}
 import potamoi.k8s._
 import potamoi.timex._
-import zio.ZIO.{fail, logDebug, succeed}
+import zio.ZIO.succeed
 import zio.{IO, ZIOAspect}
 
 /**
@@ -39,7 +39,7 @@ object RestEndpointQuery {
 
   def live(potaConf: PotaConf, k8sClient: K8sClient, guardian: ActorGuardian) =
     for {
-      restEptCache <- guardian.spawn(RestEndpointCache(potaConf.akka.ddata.getFlinkRestEndpoint), "flkRestEndpointCache")
+      restEptCache <- guardian.spawn(FlinkRestEndpointCache(potaConf.akka.ddata.getFlinkRestEndpoint), "flkRestEndpointCache")
       queryTimeout = potaConf.flink.snapshotQuery.askTimeout
       sc           = guardian.scheduler
     } yield Live(k8sClient, restEptCache)(sc, queryTimeout)
@@ -47,40 +47,30 @@ object RestEndpointQuery {
   /**
    * Implementation based on Akka DData as cache.
    */
-  case class Live(k8sClient: K8sClient, restEptCache: ActorRef[RestEndpointCache.Cmd])(implicit sc: Scheduler, queryTimeout: Timeout)
+  case class Live(k8sClient: K8sClient, restEptCache: ActorRef[FlinkRestEndpointCache.Cmd])(implicit sc: Scheduler, queryTimeout: Timeout)
       extends RestEndpointQuery {
 
     /**
      * Get Flink rest endpoint.
      */
-    override def retrieve(fcid: Fcid, directly: Boolean): FlinkIO[Option[FlinkRestSvcEndpoint]] =
-      get(fcid, directly)
-        .map(Some(_))
-        .catchSome { case FlinkOprErr.ClusterNotFound(_) => succeed(None) }
-
-    private case object NotFoundRecordFromCache
+    override def retrieve(fcid: Fcid, directly: Boolean): FlinkIO[Option[FlinkRestSvcEndpoint]] = {
+      get(fcid, directly).map(Some(_)).catchSome { case ClusterNotFound(_) => succeed(None) }
+    } @@ ZIOAspect.annotated(fcid.toAnno: _*)
 
     /**
      * Get Flink rest endpoint.
-     * todo auto sync cache from flink cluster tracker.
      */
     override def get(fcid: Fcid, directly: Boolean): FlinkIO[FlinkRestSvcEndpoint] = {
       if (directly) retrieveRestEndpointViaK8s(fcid: Fcid)
       else
-        (restEptCache ?> (RestEndpointCache.Get(fcid, _)))
-          .flatMap {
-            case Some(r) => succeed(r)
-            case None    => fail(NotFoundRecordFromCache)
-          }
-          .catchAll { err =>
-            logDebug(s"Fallback to requesting k8s svc api directly due to $err") *>
-            retrieveRestEndpointViaK8s(fcid)
-          }
+        restEptCache.get(fcid).mapError(ActorInteropErr).flatMap {
+          case Some(ept) => succeed(ept)
+          case None      => retrieveRestEndpointViaK8s(fcid: Fcid)
+        }
     } @@ ZIOAspect.annotated(fcid.toAnno: _*)
 
     /**
      * Retrieve Flink endpoint via kubernetes api.
-     * todo change to watch
      */
     private def retrieveRestEndpointViaK8s(fcid: Fcid): IO[FlinkOprErr, FlinkRestSvcEndpoint] = {
       k8sClient.api.v1.services
@@ -103,17 +93,6 @@ object RestEndpointQuery {
           case NotFound => FlinkOprErr.ClusterNotFound(fcid)
           case failure  => FlinkOprErr.RequestK8sApiErr(failure, liftException(failure).orNull)
         }
-        .tapBoth(
-          { case FlinkOprErr.ClusterNotFound(fcid) => restEptCache !!> RestEndpointCache.Remove(fcid) },
-          endpoint => restEptCache !!> RestEndpointCache.Put(fcid, endpoint))
     }
   }
-}
-
-/**
- * Flink cluster svc rest endpoint distributed data storage base on LWWMap.
- */
-private[observer] object RestEndpointCache extends LWWMapDData[Fcid, FlinkRestSvcEndpoint] {
-  val cacheId                               = "flink-rest-endpoint"
-  def apply(conf: DDataConf): Behavior[Cmd] = start(conf)
 }

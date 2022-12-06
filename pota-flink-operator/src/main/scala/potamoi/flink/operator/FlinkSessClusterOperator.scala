@@ -53,6 +53,7 @@ trait FlinkSessClusterOperator {
   def killCluster(fcid: Fcid): FlinkIO[Unit]
 }
 
+
 case class FlinkSessClusterOperatorImpl(potaConf: PotaConf, k8sClient: K8sClient, s3Operator: S3Operator, flinkObserver: FlinkObserver)
     extends FlinkBaseOperator(potaConf, k8sClient, flinkObserver) with FlinkSessClusterOperator {
 

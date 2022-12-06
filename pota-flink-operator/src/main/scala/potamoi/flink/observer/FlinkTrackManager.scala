@@ -4,7 +4,7 @@ import akka.actor.typed.{ActorRef, Behavior, Scheduler}
 import akka.util.Timeout
 import com.coralogix.zio.k8s.client.model.{K8sNamespace, label}
 import potamoi.cluster.PotaActorSystem.{ActorGuardian, ActorGuardianExtension}
-import potamoi.cluster.{LWWMapDData, ORSetDData}
+import potamoi.cluster.{CborSerializable, LWWMapDData, ORSetDData}
 import potamoi.config.{DDataConf, PotaConf}
 import potamoi.flink.share.FlinkIO
 import potamoi.flink.share.FlinkOprErr.RequestK8sApiErr
@@ -33,6 +33,11 @@ trait FlinkTrackManager {
    * Listing tracked cluster id.
    */
   def listTrackedCluster: FlinkIO[Set[Fcid]]
+
+  /**
+   * Whether the tracked fcid exists.
+   */
+  def existTrackedCluster(fcid: Fcid): FlinkIO[Boolean]
 
   /**
    * Scan for potential flink clusters on the specified kubernetes namespace.
@@ -118,7 +123,8 @@ object FlinkTrackManager {
       jobMetricsTrackers(fcid).tell(JobMetricTracker.Stop)
     }
 
-    override def listTrackedCluster: FlinkIO[Set[Fcid]] = clusterIdsCache.list
+    override def listTrackedCluster: FlinkIO[Set[Fcid]]            = clusterIdsCache.list
+    override def existTrackedCluster(fcid: Fcid): FlinkIO[Boolean] = clusterIdsCache.containsEle(fcid)
 
     override def scanK8sNs(namespace: String): FlinkIO[Set[Fcid]] = {
       k8sClient.api.apps.v1.deployments
@@ -152,4 +158,4 @@ private[observer] object ClusterIndexCache extends LWWMapDData[Fcid, ClusterInde
   def apply(conf: DDataConf): Behavior[Cmd] = start(conf)
 }
 
-case class ClusterIndex(execMode: Option[FlinkExecMode] = None)
+case class ClusterIndex(execMode: Option[FlinkExecMode] = None) extends CborSerializable

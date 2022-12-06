@@ -1,5 +1,6 @@
 package potamoi.flink.share.model
 
+import potamoi.cluster.CborSerializable
 import zio.json.{DeriveJsonCodec, JsonCodec}
 
 import scala.language.implicitConversions
@@ -7,7 +8,7 @@ import scala.language.implicitConversions
 /**
  * Unique flink cluster identifier under the same kubernetes cluster.
  */
-case class Fcid(clusterId: String, namespace: String) {
+case class Fcid(clusterId: String, namespace: String) extends CborSerializable {
   def toAnno       = Array("flink.clusterId" -> clusterId, "flink.namespace" -> namespace)
   def show: String = s"clusterId=$clusterId, namespace=$namespace"
 }
@@ -21,7 +22,7 @@ object Fcid {
 /**
  * Unique flink job identifier under the same kubernetes cluster.
  */
-case class Fjid(clusterId: String, namespace: String, jobId: String) {
+case class Fjid(clusterId: String, namespace: String, jobId: String) extends CborSerializable {
   def fcid: Fcid                   = Fcid(clusterId, namespace)
   def isUnder(fcid: Fcid): Boolean = fcid.clusterId == clusterId && fcid.namespace == namespace
   def toAnno                       = Array("flink.clusterId" -> clusterId, "flink.namespace" -> namespace, "flink.jobId" -> jobId)
@@ -36,10 +37,11 @@ object Fjid {
 /**
  * Unique flink taskmanager identifier under the same kubernetes cluster.
  */
-case class Ftid(clusterId: String, namespace: String, tid: String) {
+case class Ftid(clusterId: String, namespace: String, tid: String) extends CborSerializable {
   def fcid: Fcid          = Fcid(clusterId, namespace)
   def isUnder(fcid: Fcid) = fcid.clusterId == clusterId && fcid.namespace == namespace
 }
+
 object Ftid {
   implicit val codec: JsonCodec[Ftid]       = DeriveJsonCodec.gen[Ftid]
   implicit val ordering: Ordering[Ftid]     = Ordering.by(ftid => (ftid.clusterId, ftid.namespace, ftid.tid))

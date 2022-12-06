@@ -1,5 +1,6 @@
 package potamoi.flink.share.model
 
+import potamoi.cluster.CborSerializable
 import potamoi.flink.share.model.FlinkExecMode.FlinkExecMode
 import zio.json.DeriveJsonCodec
 
@@ -15,7 +16,8 @@ case class FlinkClusterOverview(
     slotsTotal: Int,
     slotsAvailable: Int,
     jobs: JobsStats,
-    ts: Long) {
+    ts: Long)
+    extends CborSerializable {
   lazy val fcid = Fcid(clusterId, namespace)
 }
 
